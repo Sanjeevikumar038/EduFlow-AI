@@ -29,4 +29,6 @@ public class User {
     private String department;
 
     private String year;
+
+    private String registerNumber;
 }

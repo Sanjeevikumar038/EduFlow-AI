@@ -7,12 +7,28 @@ function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const navigate = useNavigate();
+
+  const showFeedback = (msg, isError = true) => {
+    if (isError) {
+      setError(msg);
+      setSuccess("");
+    } else {
+      setSuccess(msg);
+      setError("");
+    }
+    setTimeout(() => {
+      setError("");
+      setSuccess("");
+    }, 4000);
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!name || !email || !password) {
-      alert("Please fill in all fields");
+      showFeedback("Please fill in all fields");
       return;
     }
     setLoading(true);
@@ -22,20 +38,25 @@ function Register() {
         email,
         password
       });
-      const { token, role: userRole, name: userName } = response.data;
+      const { token, role: userRole, name: userName, registerNumber } = response.data;
 
       localStorage.setItem("token", token);
       localStorage.setItem("role", userRole);
       localStorage.setItem("name", userName);
+      if (registerNumber) {
+        localStorage.setItem("registerNumber", registerNumber);
+      }
 
-      alert("Registration Successful");
+      showFeedback("Registration Successful! Redirecting...", false);
 
-      if (userRole === "STUDENT") navigate("/student");
-      else if (userRole === "FACULTY") navigate("/faculty");
-      else if (userRole === "ADMIN") navigate("/admin");
-      else navigate("/");
+      setTimeout(() => {
+        if (userRole === "STUDENT") navigate("/student");
+        else if (userRole === "FACULTY") navigate("/faculty");
+        else if (userRole === "ADMIN") navigate("/admin");
+        else navigate("/");
+      }, 1000);
     } catch (error) {
-      alert(error.response?.data?.message || "Registration Failed. Try again.");
+      showFeedback(error.response?.data?.message || "Registration Failed. Try again.");
     } finally {
       setLoading(false);
     }
@@ -43,6 +64,40 @@ function Register() {
 
   return (
     <div className="auth-container">
+      {/* Custom Error Banner */}
+      {error && (
+        <div style={{
+          background: "rgba(239, 68, 68, 0.15)",
+          border: "1px solid var(--error)",
+          color: "var(--error)",
+          borderRadius: "10px",
+          padding: "0.75rem 1rem",
+          fontSize: "0.9rem",
+          fontWeight: "500",
+          textAlign: "center",
+          animation: "fadeIn 0.3s ease"
+        }}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* Custom Success Banner */}
+      {success && (
+        <div style={{
+          background: "rgba(16, 185, 129, 0.15)",
+          border: "1px solid var(--success)",
+          color: "var(--success)",
+          borderRadius: "10px",
+          padding: "0.75rem 1rem",
+          fontSize: "0.9rem",
+          fontWeight: "500",
+          textAlign: "center",
+          animation: "fadeIn 0.3s ease"
+        }}>
+          ✅ {success}
+        </div>
+      )}
+
       <div className="auth-header">
         <h1>Create Account</h1>
         <p>Get started with EduFlow Student Portal</p>

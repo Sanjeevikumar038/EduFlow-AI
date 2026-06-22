@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 function StudentDashboard() {
   const navigate = useNavigate();
   const name = localStorage.getItem("name") || "Student";
+  const registerNumber = localStorage.getItem("registerNumber") || "";
 
   const handleLogout = () => {
     localStorage.clear();
@@ -14,7 +15,7 @@ function StudentDashboard() {
       <div className="dashboard-header">
         <div className="dashboard-title">
           <h1>Student Portal</h1>
-          <p>Welcome back, {name}!</p>
+          <p>Welcome back, {name}! {registerNumber && `(Reg No: ${registerNumber})`}</p>
         </div>
         <button className="logout-btn" onClick={handleLogout}>
           Logout

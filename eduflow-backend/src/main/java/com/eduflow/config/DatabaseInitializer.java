@@ -3,6 +3,7 @@ package com.eduflow.config;
 import com.eduflow.entity.Role;
 import com.eduflow.entity.User;
 import com.eduflow.repository.UserRepository;
+import com.eduflow.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,6 +18,9 @@ public class DatabaseInitializer implements CommandLineRunner {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private AuthService authService;
+
     @Override
     public void run(String... args) throws Exception {
         if (userRepository.findByEmail("admin").isEmpty()) {
@@ -29,5 +33,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             userRepository.save(admin);
             System.out.println("--- System Admin User Initialized successfully: admin / admin@123 ---");
         }
+
+        authService.initializeEmptyRegisterNumbers();
+        System.out.println("--- Student Register Numbers Initialized ---");
     }
 }

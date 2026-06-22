@@ -16,6 +16,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class AuthServiceImpl implements AuthService {
 
@@ -37,11 +39,13 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Email is already registered!");
         }
 
+        String nextRegisterNum = generateNextRegisterNumber();
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.STUDENT)
+                .registerNumber(nextRegisterNum)
                 .build();
 
         userRepository.save(user);
@@ -54,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .name(user.getName())
+                .registerNumber(user.getRegisterNumber())
                 .build();
     }
 
@@ -78,6 +83,40 @@ public class AuthServiceImpl implements AuthService {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .name(user.getName())
+                .registerNumber(user.getRegisterNumber())
                 .build();
+    }
+
+    @Override
+    public String generateNextRegisterNumber() {
+        List<User> students = userRepository.findByRole(Role.STUDENT);
+        int maxSuffix = 0;
+        for (User student : students) {
+            String regNum = student.getRegisterNumber();
+            if (regNum != null && regNum.startsWith("727723euci")) {
+                try {
+                    int suffix = Integer.parseInt(regNum.substring(10));
+                    if (suffix > maxSuffix) {
+                        maxSuffix = suffix;
+                    }
+                } catch (NumberFormatException e) {
+                    // Ignore malformed register numbers
+                }
+            }
+        }
+        return String.format("727723euci%03d", maxSuffix + 1);
+    }
+
+    @Override
+    public void initializeEmptyRegisterNumbers() {
+        List<User> students = userRepository.findByRole(Role.STUDENT);
+        // Sort alphabetically/chronologically by ID so they are assigned in order
+        students.sort((u1, u2) -> u1.getId().compareTo(u2.getId()));
+        for (User student : students) {
+            if (student.getRegisterNumber() == null || student.getRegisterNumber().isEmpty()) {
+                student.setRegisterNumber(generateNextRegisterNumber());
+                userRepository.save(student);
+            }
+        }
     }
 }

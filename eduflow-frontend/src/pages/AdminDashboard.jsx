@@ -169,7 +169,8 @@ function AdminDashboard() {
   const filteredStudents = students.filter(
     (s) =>
       s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.registerNumber?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -369,6 +370,7 @@ function AdminDashboard() {
                 <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
                   <thead>
                     <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
+                      {activeTab === "students" && <th style={{ padding: "0.75rem 1rem" }}>Reg No.</th>}
                       <th style={{ padding: "0.75rem 1rem" }}>Name</th>
                       <th style={{ padding: "0.75rem 1rem" }}>Email</th>
                       <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Actions</th>
@@ -412,6 +414,7 @@ function AdminDashboard() {
                       filteredStudents.length > 0 ? (
                         filteredStudents.map((s) => (
                           <tr key={s.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
+                            <td style={{ padding: "0.75rem 1rem", color: "var(--primary)", fontWeight: "600" }}>{s.registerNumber || "Pending"}</td>
                             <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{s.name}</td>
                             <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{s.email}</td>
                             <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
@@ -436,7 +439,7 @@ function AdminDashboard() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="3" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                          <td colSpan="4" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
                             No students found.
                           </td>
                         </tr>

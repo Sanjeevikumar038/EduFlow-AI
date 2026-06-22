@@ -23,6 +23,9 @@ public class AdminController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private com.eduflow.service.AuthService authService;
+
     @PostMapping("/create-faculty")
     public ResponseEntity<?> createFaculty(@Valid @RequestBody FacultyCreateRequest request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
@@ -52,11 +55,13 @@ public class AdminController {
             return ResponseEntity.badRequest().body("Email is already registered!");
         }
 
+        String regNum = authService.generateNextRegisterNumber();
         User student = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.STUDENT)
+                .registerNumber(regNum)
                 .build();
 
         userRepository.save(student);

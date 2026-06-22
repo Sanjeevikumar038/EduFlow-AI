@@ -6,12 +6,28 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const navigate = useNavigate();
+
+  const showFeedback = (msg, isError = true) => {
+    if (isError) {
+      setError(msg);
+      setSuccess("");
+    } else {
+      setSuccess(msg);
+      setError("");
+    }
+    setTimeout(() => {
+      setError("");
+      setSuccess("");
+    }, 4000);
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      alert("Please fill in all fields");
+      showFeedback("Please fill in all fields");
       return;
     }
     setLoading(true);
@@ -20,7 +36,7 @@ function Login() {
       const { token, role, name } = response.data;
 
       if (role !== "ADMIN") {
-        alert("Access Denied: Please use the Student/Faculty portal.");
+        showFeedback("Access Denied: Please use the Student/Faculty portal.");
         setLoading(false);
         return;
       }
@@ -29,10 +45,12 @@ function Login() {
       localStorage.setItem("role", role);
       localStorage.setItem("name", name);
 
-      alert("Login Successful");
-      navigate("/admin");
+      showFeedback("Login Successful! Redirecting...", false);
+      setTimeout(() => {
+        navigate("/admin");
+      }, 1000);
     } catch (error) {
-      alert(error.response?.data?.message || "Invalid Credentials");
+      showFeedback(error.response?.data?.message || "Invalid Credentials");
     } finally {
       setLoading(false);
     }
@@ -40,6 +58,40 @@ function Login() {
 
   return (
     <div className="auth-container">
+      {/* Custom Error Banner */}
+      {error && (
+        <div style={{
+          background: "rgba(239, 68, 68, 0.15)",
+          border: "1px solid var(--error)",
+          color: "var(--error)",
+          borderRadius: "10px",
+          padding: "0.75rem 1rem",
+          fontSize: "0.9rem",
+          fontWeight: "500",
+          textAlign: "center",
+          animation: "fadeIn 0.3s ease"
+        }}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* Custom Success Banner */}
+      {success && (
+        <div style={{
+          background: "rgba(16, 185, 129, 0.15)",
+          border: "1px solid var(--success)",
+          color: "var(--success)",
+          borderRadius: "10px",
+          padding: "0.75rem 1rem",
+          fontSize: "0.9rem",
+          fontWeight: "500",
+          textAlign: "center",
+          animation: "fadeIn 0.3s ease"
+        }}>
+          ✅ {success}
+        </div>
+      )}
+
       <div className="auth-header">
         <h1>Welcome Back</h1>
         <p>Login to your EduFlow account</p>
