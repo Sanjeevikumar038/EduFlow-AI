@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getStudents, createStudent, deleteStudent } from "../services/authService";
+import { startSession, endSession, getActiveSession } from "../services/attendanceService";
 import { useNavigate } from "react-router-dom";
 
 function FacultyDashboard() {
@@ -8,7 +9,7 @@ function FacultyDashboard() {
   const token = localStorage.getItem("token");
 
   // Tab State
-  const [activeTab, setActiveTab] = useState("overview"); // 'overview' or 'students'
+  const [activeTab, setActiveTab] = useState("overview"); // 'overview', 'qr-session', or 'students'
 
   // Student directory states
   const [students, setStudents] = useState([]);
@@ -23,6 +24,14 @@ function FacultyDashboard() {
   const [deletingId, setDeletingId] = useState(null);
   const [feedback, setFeedback] = useState({ message: "", type: "" });
 
+  // Attendance Session States
+  const [activeSession, setActiveSession] = useState(null);
+  const [sessionSubject, setSessionSubject] = useState("");
+  const [customSubject, setCustomSubject] = useState("");
+  const [sessionDuration, setSessionDuration] = useState(5);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [sessionLoading, setSessionLoading] = useState(false);
+
   const handleLogout = () => {
     localStorage.clear();
     navigate("/login");
@@ -33,6 +42,41 @@ function FacultyDashboard() {
     setTimeout(() => {
       setFeedback({ message: "", type: "" });
     }, 4000);
+  };
+
+  // Helper to parse local datetime safely from Java's LocalDateTime response format
+  const parseLocalDateTime = (str) => {
+    if (!str) return 0;
+    const normalized = str.replace(" ", "T");
+    const parts = normalized.split(/[T.:-]/);
+    if (parts.length < 5) return new Date(normalized).getTime();
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const hour = parseInt(parts[3], 10);
+    const minute = parseInt(parts[4], 10);
+    const second = parts[5] ? parseInt(parts[5], 10) : 0;
+    return new Date(year, month, day, hour, minute, second).getTime();
+  };
+
+
+  // Fetch active session
+  const fetchActiveSession = async () => {
+    if (!token) return;
+    try {
+      const res = await getActiveSession(token);
+      if (res.data) {
+        setActiveSession(res.data);
+        const expiry = parseLocalDateTime(res.data.expiryTime);
+        const now = new Date().getTime();
+        const diff = Math.max(0, Math.floor((expiry - now) / 1000));
+        setTimeLeft(diff);
+      } else {
+        setActiveSession(null);
+      }
+    } catch (error) {
+      console.error("Error fetching active session:", error);
+    }
   };
 
   // Fetch student data
@@ -49,6 +93,41 @@ function FacultyDashboard() {
       setDeletingId(null);
     }
   };
+
+  useEffect(() => {
+    fetchActiveSession();
+  }, [token]);
+
+  // Handle live countdown update
+  useEffect(() => {
+    if (!activeSession) return;
+
+    const interval = setInterval(() => {
+      const expiry = parseLocalDateTime(activeSession.expiryTime);
+      const now = new Date().getTime();
+      const diff = Math.max(0, Math.floor((expiry - now) / 1000));
+      setTimeLeft(diff);
+
+      if (diff <= 0) {
+        setActiveSession(null);
+        showFeedback("Attendance session has expired.", "error");
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeSession]);
+
+  // Periodically poll active session to get the latest cycled QR code OTP
+  useEffect(() => {
+    if (!activeSession) return;
+
+    const otpInterval = setInterval(() => {
+      fetchActiveSession();
+    }, 10000); // refresh every 10 seconds
+
+    return () => clearInterval(otpInterval);
+  }, [activeSession]);
 
   useEffect(() => {
     if (activeTab === "students") {
@@ -98,6 +177,52 @@ function FacultyDashboard() {
     }
   };
 
+  const handleStartSession = async (e) => {
+    e.preventDefault();
+    const finalSubject = sessionSubject === "Custom" ? customSubject : sessionSubject;
+    if (!finalSubject) {
+      showFeedback("Please select or enter a subject.", "error");
+      return;
+    }
+    setSessionLoading(true);
+    try {
+      const res = await startSession(
+        {
+          subject: finalSubject,
+          durationMinutes: parseInt(sessionDuration, 10)
+        },
+        token
+      );
+      setActiveSession(res.data);
+      showFeedback("Attendance session started successfully!");
+    } catch (error) {
+      showFeedback(error.response?.data || "Failed to start attendance session.", "error");
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  const handleEndSession = async () => {
+    if (!activeSession) return;
+    setSessionLoading(true);
+    try {
+      await endSession(activeSession.id, token);
+      setActiveSession(null);
+      setTimeLeft(0);
+      showFeedback("Attendance session ended successfully!");
+    } catch (error) {
+      showFeedback(error.response?.data || "Failed to end attendance session.", "error");
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  const formatTimeLeft = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
   const filteredStudents = students.filter(
     (s) =>
       s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -136,7 +261,7 @@ function FacultyDashboard() {
       )}
 
       {/* Navigation tabs */}
-      <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem", borderBottom: "1px solid var(--card-border)", paddingBottom: "1rem" }}>
+      <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem", borderBottom: "1px solid var(--card-border)", paddingBottom: "1rem", flexWrap: "wrap" }}>
         <button
           onClick={() => { setActiveTab("overview"); setSearchTerm(""); setDeletingId(null); }}
           style={{
@@ -152,6 +277,35 @@ function FacultyDashboard() {
           }}
         >
           📊 Dashboard Overview
+        </button>
+        <button
+          onClick={() => { setActiveTab("qr-session"); setSearchTerm(""); setDeletingId(null); }}
+          style={{
+            background: activeTab === "qr-session" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
+            color: "#fff",
+            border: activeTab === "qr-session" ? "none" : "1px solid var(--card-border)",
+            borderRadius: "8px",
+            padding: "0.75rem 1.5rem",
+            fontFamily: "var(--font-heading)",
+            fontWeight: "600",
+            cursor: "pointer",
+            transition: "all 0.3s ease",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem"
+          }}
+        >
+          ⚡ QR Session
+          {activeSession && (
+            <span style={{
+              width: "8px",
+              height: "8px",
+              backgroundColor: "var(--success)",
+              borderRadius: "50%",
+              display: "inline-block",
+              boxShadow: "0 0 8px var(--success)"
+            }} />
+          )}
         </button>
         <button
           onClick={() => { setActiveTab("students"); setSearchTerm(""); setDeletingId(null); }}
@@ -171,9 +325,9 @@ function FacultyDashboard() {
         </button>
       </div>
 
-      {activeTab === "overview" ? (
+      {activeTab === "overview" && (
         <div className="dashboard-grid">
-          <div className="dashboard-card">
+          <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("qr-session")}>
             <h3>⚡ Generate QR Session</h3>
             <p>Instantly generate attendance sessions and dynamically cycle secure QR verification codes for students.</p>
           </div>
@@ -193,7 +347,199 @@ function FacultyDashboard() {
             <p>Evaluate coding assessments and review mock interview statistics generated by the AI agent.</p>
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === "qr-session" && (
+        <div style={{ display: "flex", justifyContent: "center", gap: "2rem", flexWrap: "wrap", width: "100%" }}>
+          {activeSession ? (
+            /* Active Session UI */
+            <div className="dashboard-card" style={{
+              flex: "1 1 500px",
+              maxWidth: "600px",
+              background: "rgba(30, 41, 59, 0.4)",
+              border: "1px solid rgba(99, 102, 241, 0.3)",
+              boxShadow: "0 8px 32px 0 rgba(99, 102, 241, 0.15)",
+              textAlign: "center",
+              padding: "2.5rem",
+              borderRadius: "20px",
+              animation: "fadeIn 0.5s ease"
+            }}>
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                <span className="status-dot" style={{
+                  width: "10px",
+                  height: "10px",
+                  backgroundColor: "var(--success)",
+                  borderRadius: "50%",
+                  display: "inline-block",
+                  animation: "pulse 1.5s infinite"
+                }}></span>
+                <span style={{ color: "var(--success)", fontWeight: "600", textTransform: "uppercase", fontSize: "0.85rem", letterSpacing: "1px" }}>
+                  Active Session
+                </span>
+              </div>
+
+              <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.8rem", fontWeight: "700", marginBottom: "0.5rem" }}>
+                {activeSession.subject}
+              </h2>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", marginBottom: "2rem" }}>
+                Session ID: {activeSession.id}
+              </p>
+
+              {/* QR Code Container */}
+              <div style={{
+                background: "#fff",
+                padding: "1.5rem",
+                borderRadius: "16px",
+                display: "inline-block",
+                marginBottom: "2rem",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                border: "2px solid rgba(255, 255, 255, 0.1)"
+              }}>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=eduflow:session:${activeSession.id}:${activeSession.currentOtp || ""}`}
+                  alt="Session QR Code"
+                  style={{ display: "block" }}
+                />
+              </div>
+
+              {/* Timer Container */}
+              <div style={{
+                background: "rgba(31, 41, 55, 0.6)",
+                border: "1px solid var(--card-border)",
+                borderRadius: "12px",
+                padding: "1rem 2rem",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                margin: "0 auto 2rem auto",
+                width: "100%",
+                maxWidth: "280px"
+              }}>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "0.25rem" }}>
+                  Time Remaining
+                </span>
+                <span style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "2.2rem",
+                  fontWeight: "700",
+                  color: timeLeft < 60 ? "var(--error)" : "var(--primary)",
+                  textShadow: timeLeft < 60 ? "0 0 15px rgba(239, 68, 68, 0.3)" : "0 0 15px rgba(99, 102, 241, 0.3)"
+                }}>
+                  {formatTimeLeft(timeLeft)}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button
+                  onClick={handleEndSession}
+                  disabled={sessionLoading}
+                  className="logout-btn"
+                  style={{
+                    width: "100%",
+                    maxWidth: "280px",
+                    padding: "0.85rem",
+                    fontSize: "0.95rem",
+                    backgroundColor: "transparent",
+                    border: "1px solid var(--error)",
+                    borderRadius: "10px",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  {sessionLoading ? "Ending Session..." : "🛑 End Session"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Start Session Form */
+            <div className="dashboard-card" style={{
+              flex: "1 1 450px",
+              maxWidth: "500px",
+              background: "rgba(30, 41, 59, 0.4)",
+              borderRadius: "20px",
+              padding: "2.5rem",
+              animation: "fadeIn 0.5s ease"
+            }}>
+              <h2 style={{
+                fontFamily: "var(--font-heading)",
+                fontSize: "1.75rem",
+                fontWeight: "700",
+                marginBottom: "0.5rem",
+                background: "linear-gradient(135deg, #fff 40%, var(--text-muted) 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent"
+              }}>
+                ⚡ Start Attendance Session
+              </h2>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "2rem" }}>
+                Select a subject and specify the active duration to display the QR verification code.
+              </p>
+
+              <form onSubmit={handleStartSession} className="auth-form">
+                <div className="form-group">
+                  <label>Subject Name</label>
+                  <select
+                    className="input-field"
+                    value={sessionSubject}
+                    onChange={(e) => setSessionSubject(e.target.value)}
+                    required
+                  >
+                    <option value="" disabled>-- Select Class Subject --</option>
+                    <option value="Software Engineering">Software Engineering</option>
+                    <option value="Artificial Intelligence">Artificial Intelligence</option>
+                    <option value="Database Management Systems">Database Management Systems</option>
+                    <option value="Computer Networks">Computer Networks</option>
+                    <option value="Cybersecurity">Cybersecurity</option>
+                    <option value="Cloud Computing">Cloud Computing</option>
+                    <option value="Custom">-- Custom Subject --</option>
+                  </select>
+                </div>
+
+                {sessionSubject === "Custom" && (
+                  <div className="form-group" style={{ animation: "fadeIn 0.3s ease" }}>
+                    <label>Enter Custom Subject</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="e.g. Full Stack Web Dev"
+                      value={customSubject}
+                      onChange={(e) => setCustomSubject(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>Session Expiry (Minutes)</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    min="1"
+                    max="60"
+                    value={sessionDuration}
+                    onChange={(e) => setSessionDuration(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={sessionLoading}
+                  className="auth-btn"
+                  style={{
+                    background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
+                    marginTop: "1.5rem"
+                  }}
+                >
+                  {sessionLoading ? "Initializing..." : "🚀 Start Attendance Session"}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "students" && (
         <div style={{ display: "flex", gap: "2rem", flexDirection: "row", flexWrap: "wrap" }}>
           
           {/* Left Pane: Add Form */}
