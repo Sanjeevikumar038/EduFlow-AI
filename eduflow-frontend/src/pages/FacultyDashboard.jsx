@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getStudents, createStudent, deleteStudent } from "../services/authService";
-import { startSession, endSession, getActiveSession, getSessionRecords } from "../services/attendanceService";
+import { startSession, endSession, getActiveSession, getSessionRecords, getAllSessions, getSessionReport } from "../services/attendanceService";
 import { useNavigate } from "react-router-dom";
 
 function FacultyDashboard() {
