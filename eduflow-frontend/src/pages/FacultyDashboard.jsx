@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getStudents, createStudent, deleteStudent } from "../services/authService";
-import { startSession, endSession, getActiveSession } from "../services/attendanceService";
+import { startSession, endSession, getActiveSession, getSessionRecords } from "../services/attendanceService";
 import { useNavigate } from "react-router-dom";
 
 function FacultyDashboard() {
@@ -31,6 +31,7 @@ function FacultyDashboard() {
   const [sessionDuration, setSessionDuration] = useState(5);
   const [timeLeft, setTimeLeft] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(false);
+  const [checkedInStudents, setCheckedInStudents] = useState([]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -127,6 +128,32 @@ function FacultyDashboard() {
     }, 10000); // refresh every 10 seconds
 
     return () => clearInterval(otpInterval);
+  }, [activeSession]);
+
+  const fetchSessionRecords = async () => {
+    if (!token || !activeSession) return;
+    try {
+      const res = await getSessionRecords(activeSession.id, token);
+      setCheckedInStudents(res.data || []);
+    } catch (error) {
+      console.error("Error fetching check-ins:", error);
+    }
+  };
+
+  // Live update checked in student records
+  useEffect(() => {
+    if (!activeSession) {
+      setCheckedInStudents([]);
+      return;
+    }
+
+    fetchSessionRecords();
+
+    const recordsInterval = setInterval(() => {
+      fetchSessionRecords();
+    }, 5000); // pull records every 5 seconds
+
+    return () => clearInterval(recordsInterval);
   }, [activeSession]);
 
   useEffect(() => {
@@ -352,104 +379,185 @@ function FacultyDashboard() {
       {activeTab === "qr-session" && (
         <div style={{ display: "flex", justifyContent: "center", gap: "2rem", flexWrap: "wrap", width: "100%" }}>
           {activeSession ? (
-            /* Active Session UI */
-            <div className="dashboard-card" style={{
-              flex: "1 1 500px",
-              maxWidth: "600px",
-              background: "rgba(30, 41, 59, 0.4)",
-              border: "1px solid rgba(99, 102, 241, 0.3)",
-              boxShadow: "0 8px 32px 0 rgba(99, 102, 241, 0.15)",
-              textAlign: "center",
-              padding: "2.5rem",
-              borderRadius: "20px",
-              animation: "fadeIn 0.5s ease"
-            }}>
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-                <span className="status-dot" style={{
-                  width: "10px",
-                  height: "10px",
-                  backgroundColor: "var(--success)",
-                  borderRadius: "50%",
-                  display: "inline-block",
-                  animation: "pulse 1.5s infinite"
-                }}></span>
-                <span style={{ color: "var(--success)", fontWeight: "600", textTransform: "uppercase", fontSize: "0.85rem", letterSpacing: "1px" }}>
-                  Active Session
-                </span>
-              </div>
-
-              <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.8rem", fontWeight: "700", marginBottom: "0.5rem" }}>
-                {activeSession.subject}
-              </h2>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", marginBottom: "2rem" }}>
-                Session ID: {activeSession.id}
-              </p>
-
-              {/* QR Code Container */}
-              <div style={{
-                background: "#fff",
-                padding: "1.5rem",
-                borderRadius: "16px",
-                display: "inline-block",
-                marginBottom: "2rem",
-                boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-                border: "2px solid rgba(255, 255, 255, 0.1)"
+            <>
+              {/* Left Column: QR and Timer */}
+              <div className="dashboard-card" style={{
+                flex: "1 1 350px",
+                maxWidth: "450px",
+                background: "rgba(30, 41, 59, 0.4)",
+                border: "1px solid rgba(99, 102, 241, 0.3)",
+                boxShadow: "0 8px 32px 0 rgba(99, 102, 241, 0.15)",
+                textAlign: "center",
+                padding: "2.5rem",
+                borderRadius: "20px",
+                animation: "fadeIn 0.5s ease"
               }}>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=eduflow:session:${activeSession.id}:${activeSession.currentOtp || ""}`}
-                  alt="Session QR Code"
-                  style={{ display: "block" }}
-                />
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                  <span className="status-dot" style={{
+                    width: "10px",
+                    height: "10px",
+                    backgroundColor: "var(--success)",
+                    borderRadius: "50%",
+                    display: "inline-block",
+                    animation: "pulse 1.5s infinite"
+                  }}></span>
+                  <span style={{ color: "var(--success)", fontWeight: "600", textTransform: "uppercase", fontSize: "0.85rem", letterSpacing: "1px" }}>
+                    Active Session
+                  </span>
+                </div>
+
+                <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.8rem", fontWeight: "700", marginBottom: "0.5rem" }}>
+                  {activeSession.subject}
+                </h2>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", marginBottom: "2rem" }}>
+                  Session ID: {activeSession.id}
+                </p>
+
+                {/* QR Code Container */}
+                <div style={{
+                  background: "#fff",
+                  padding: "1.5rem",
+                  borderRadius: "16px",
+                  display: "inline-block",
+                  marginBottom: "2rem",
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                  border: "2px solid rgba(255, 255, 255, 0.1)"
+                }}>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=eduflow:session:${activeSession.id}:${activeSession.currentOtp || ""}`}
+                    alt="Session QR Code"
+                    style={{ display: "block" }}
+                  />
+                </div>
+
+                {/* Timer Container */}
+                <div style={{
+                  background: "rgba(31, 41, 55, 0.6)",
+                  border: "1px solid var(--card-border)",
+                  borderRadius: "12px",
+                  padding: "1rem 2rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  margin: "0 auto 2rem auto",
+                  width: "100%",
+                  maxWidth: "280px"
+                }}>
+                  <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "0.25rem" }}>
+                    Time Remaining
+                  </span>
+                  <span style={{
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "2.2rem",
+                    fontWeight: "700",
+                    color: timeLeft < 60 ? "var(--error)" : "var(--primary)",
+                    textShadow: timeLeft < 60 ? "0 0 15px rgba(239, 68, 68, 0.3)" : "0 0 15px rgba(99, 102, 241, 0.3)"
+                  }}>
+                    {formatTimeLeft(timeLeft)}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <button
+                    onClick={handleEndSession}
+                    disabled={sessionLoading}
+                    className="logout-btn"
+                    style={{
+                      width: "100%",
+                      maxWidth: "280px",
+                      padding: "0.85rem",
+                      fontSize: "0.95rem",
+                      backgroundColor: "transparent",
+                      border: "1px solid var(--error)",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      transition: "all 0.3s ease"
+                    }}
+                  >
+                    {sessionLoading ? "Ending Session..." : "🛑 End Session"}
+                  </button>
+                </div>
               </div>
 
-              {/* Timer Container */}
-              <div style={{
-                background: "rgba(31, 41, 55, 0.6)",
+              {/* Right Column: Live Check-in feed */}
+              <div className="dashboard-card" style={{
+                flex: "2 1 500px",
+                maxWidth: "650px",
+                background: "rgba(30, 41, 59, 0.2)",
                 border: "1px solid var(--card-border)",
-                borderRadius: "12px",
-                padding: "1rem 2rem",
+                borderRadius: "20px",
+                padding: "2.5rem",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
-                margin: "0 auto 2rem auto",
-                width: "100%",
-                maxWidth: "280px"
+                animation: "fadeIn 0.5s ease"
               }}>
-                <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "0.25rem" }}>
-                  Time Remaining
-                </span>
-                <span style={{
-                  fontFamily: "var(--font-heading)",
-                  fontSize: "2.2rem",
-                  fontWeight: "700",
-                  color: timeLeft < 60 ? "var(--error)" : "var(--primary)",
-                  textShadow: timeLeft < 60 ? "0 0 15px rgba(239, 68, 68, 0.3)" : "0 0 15px rgba(99, 102, 241, 0.3)"
-                }}>
-                  {formatTimeLeft(timeLeft)}
-                </span>
-              </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+                  <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    📋 Live Check-In Feed
+                    <span style={{
+                      fontSize: "0.85rem",
+                      padding: "0.2rem 0.6rem",
+                      background: "rgba(16, 185, 129, 0.15)",
+                      color: "var(--success)",
+                      borderRadius: "12px",
+                      fontWeight: "600"
+                    }}>
+                      {checkedInStudents.length} Present
+                    </span>
+                  </h3>
+                </div>
 
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <button
-                  onClick={handleEndSession}
-                  disabled={sessionLoading}
-                  className="logout-btn"
-                  style={{
-                    width: "100%",
-                    maxWidth: "280px",
-                    padding: "0.85rem",
-                    fontSize: "0.95rem",
-                    backgroundColor: "transparent",
-                    border: "1px solid var(--error)",
-                    borderRadius: "10px",
-                    cursor: "pointer",
-                    transition: "all 0.3s ease"
-                  }}
-                >
-                  {sessionLoading ? "Ending Session..." : "🛑 End Session"}
-                </button>
+                <div style={{ overflowY: "auto", maxHeight: "400px", flexGrow: 1, paddingRight: "0.5rem" }}>
+                  {checkedInStudents.length > 0 ? (
+                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
+                          <th style={{ padding: "0.5rem" }}>Reg No.</th>
+                          <th style={{ padding: "0.5rem" }}>Name</th>
+                          <th style={{ padding: "0.5rem" }}>Time</th>
+                          <th style={{ padding: "0.5rem", textAlign: "right" }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {checkedInStudents.map((student) => (
+                          <tr key={student.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
+                            <td style={{ padding: "0.75rem 0.5rem", color: "var(--primary)", fontWeight: "600" }}>
+                              {student.registerNumber}
+                            </td>
+                            <td style={{ padding: "0.75rem 0.5rem", fontWeight: "500" }}>
+                              {student.studentName}
+                            </td>
+                            <td style={{ padding: "0.75rem 0.5rem", color: "var(--text-muted)" }}>
+                              {student.time ? student.time.substring(0, 5) : "N/A"}
+                            </td>
+                            <td style={{ padding: "0.75rem 0.5rem", textAlign: "right" }}>
+                              <span style={{
+                                background: "rgba(16, 185, 129, 0.15)",
+                                color: "var(--success)",
+                                padding: "0.25rem 0.5rem",
+                                borderRadius: "6px",
+                                fontSize: "0.75rem",
+                                fontWeight: "600"
+                              }}>
+                                PRESENT
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "4rem 2rem", color: "var(--text-muted)" }}>
+                      <div style={{ fontSize: "2rem", marginBottom: "0.75rem", animation: "pulse 2s infinite" }}>📡</div>
+                      <p style={{ margin: 0, fontSize: "0.9rem" }}>Awaiting check-ins...</p>
+                      <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                        Students can scan the QR code to submit their proximity check-in.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            </>
           ) : (
             /* Start Session Form */
             <div className="dashboard-card" style={{

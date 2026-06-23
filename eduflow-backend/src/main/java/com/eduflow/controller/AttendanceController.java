@@ -2,6 +2,7 @@ package com.eduflow.controller;
 
 import com.eduflow.dto.StartSessionRequest;
 import com.eduflow.dto.MarkAttendanceRequest;
+import com.eduflow.dto.AttendanceRecordResponse;
 import com.eduflow.entity.AttendanceSession;
 import com.eduflow.entity.Attendance;
 import com.eduflow.entity.Role;
@@ -223,5 +224,48 @@ public class AttendanceController {
         attendanceRepository.save(attendance);
 
         return ResponseEntity.ok("Attendance marked successfully as PRESENT!");
+    }
+
+    @GetMapping("/session/{sessionId}/records")
+    public ResponseEntity<?> getSessionRecords(
+            @PathVariable Long sessionId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("User not found!");
+        }
+        User user = userOpt.get();
+
+        Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(sessionId);
+        if (sessionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        AttendanceSession session = sessionOpt.get();
+
+        // Security check: Only the faculty who started it or an ADMIN can view the records
+        if (!session.getFacultyId().equals(user.getId()) && user.getRole() != Role.ADMIN) {
+            return ResponseEntity.status(403).body("You do not have permission to view records for this session!");
+        }
+
+        List<Attendance> records = attendanceRepository.findBySessionId(sessionId);
+        List<AttendanceRecordResponse> responseList = records.stream().map(record -> {
+            Optional<User> studentOpt = userRepository.findById(record.getStudentId());
+            String studentName = studentOpt.map(User::getName).orElse("Unknown");
+            String regNo = studentOpt.map(User::getRegisterNumber).orElse("N/A");
+            
+            return AttendanceRecordResponse.builder()
+                    .id(record.getId())
+                    .studentId(record.getStudentId())
+                    .studentName(studentName)
+                    .registerNumber(regNo)
+                    .time(record.getTime())
+                    .status(record.getStatus())
+                    .latitude(record.getLatitude())
+                    .longitude(record.getLongitude())
+                    .build();
+        }).toList();
+
+        return ResponseEntity.ok(responseList);
     }
 }

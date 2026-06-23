@@ -34,3 +34,12 @@ export const markAttendance = (data, token) => {
   });
 };
 
+export const getSessionRecords = (sessionId, token) => {
+  return axios.get(`${ATTENDANCE_API}/session/${sessionId}/records`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+
