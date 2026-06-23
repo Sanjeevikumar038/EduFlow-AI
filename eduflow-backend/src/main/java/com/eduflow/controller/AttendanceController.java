@@ -3,6 +3,7 @@ package com.eduflow.controller;
 import com.eduflow.dto.StartSessionRequest;
 import com.eduflow.dto.MarkAttendanceRequest;
 import com.eduflow.dto.AttendanceRecordResponse;
+import com.eduflow.dto.AttendanceReportRecord;
 import com.eduflow.entity.AttendanceSession;
 import com.eduflow.entity.Attendance;
 import com.eduflow.entity.Role;
@@ -267,5 +268,85 @@ public class AttendanceController {
         }).toList();
 
         return ResponseEntity.ok(responseList);
+    }
+
+    @GetMapping("/sessions")
+    public ResponseEntity<?> getAllSessions(@AuthenticationPrincipal UserDetails userDetails) {
+        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("User not found!");
+        }
+        User user = userOpt.get();
+
+        List<AttendanceSession> sessions;
+        if (user.getRole() == Role.ADMIN) {
+            sessions = attendanceSessionRepository.findAll();
+        } else if (user.getRole() == Role.FACULTY) {
+            sessions = attendanceSessionRepository.findByFacultyId(user.getId());
+        } else {
+            return ResponseEntity.status(403).body("Students cannot view all sessions!");
+        }
+
+        // Sort latest first
+        sessions.sort((s1, s2) -> s2.getId().compareTo(s1.getId()));
+
+        return ResponseEntity.ok(sessions);
+    }
+
+    @GetMapping("/session/{sessionId}/report")
+    public ResponseEntity<?> getSessionReport(
+            @PathVariable Long sessionId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("User not found!");
+        }
+        User user = userOpt.get();
+
+        Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(sessionId);
+        if (sessionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        AttendanceSession session = sessionOpt.get();
+
+        if (!session.getFacultyId().equals(user.getId()) && user.getRole() != Role.ADMIN) {
+            return ResponseEntity.status(403).body("You do not have permission to view this report!");
+        }
+
+        // Get all students
+        List<User> students = userRepository.findByRole(Role.STUDENT);
+        
+        // Get all attendance check-ins for this session
+        List<Attendance> checkIns = attendanceRepository.findBySessionId(sessionId);
+
+        List<AttendanceReportRecord> report = students.stream().map(student -> {
+            Optional<Attendance> checkInOpt = checkIns.stream()
+                    .filter(c -> c.getStudentId().equals(student.getId()))
+                    .findFirst();
+
+            if (checkInOpt.isPresent()) {
+                Attendance c = checkInOpt.get();
+                return AttendanceReportRecord.builder()
+                        .studentName(student.getName())
+                        .registerNumber(student.getRegisterNumber())
+                        .status("PRESENT")
+                        .time(c.getTime())
+                        .latitude(c.getLatitude())
+                        .longitude(c.getLongitude())
+                        .build();
+            } else {
+                return AttendanceReportRecord.builder()
+                        .studentName(student.getName())
+                        .registerNumber(student.getRegisterNumber() != null ? student.getRegisterNumber() : "Pending")
+                        .status("ABSENT")
+                        .time(null)
+                        .latitude(null)
+                        .longitude(null)
+                        .build();
+            }
+        }).toList();
+
+        return ResponseEntity.ok(report);
     }
 }

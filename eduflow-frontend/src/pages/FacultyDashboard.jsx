@@ -33,6 +33,13 @@ function FacultyDashboard() {
   const [sessionLoading, setSessionLoading] = useState(false);
   const [checkedInStudents, setCheckedInStudents] = useState([]);
 
+  // Analytics States
+  const [sessions, setSessions] = useState([]);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [reportRecords, setReportRecords] = useState([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+
   const handleLogout = () => {
     localStorage.clear();
     navigate("/login");
@@ -161,6 +168,42 @@ function FacultyDashboard() {
       fetchStudents();
     }
   }, [activeTab, token]);
+
+  const fetchSessions = async () => {
+    if (!token) return;
+    setAnalyticsLoading(true);
+    try {
+      const res = await getAllSessions(token);
+      setSessions(res.data || []);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+      showFeedback("Failed to fetch sessions.", "error");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  const handleViewReport = async (session) => {
+    setSelectedSession(session);
+    setReportLoading(true);
+    try {
+      const res = await getSessionReport(session.id, token);
+      setReportRecords(res.data || []);
+    } catch (error) {
+      console.error("Error fetching session report:", error);
+      showFeedback("Failed to load attendance report.", "error");
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "analytics") {
+      fetchSessions();
+      setSelectedSession(null);
+      setReportRecords([]);
+    }
+  }, [activeTab]);
 
   const handleCreateStudent = async (e) => {
     e.preventDefault();
@@ -335,6 +378,22 @@ function FacultyDashboard() {
           )}
         </button>
         <button
+          onClick={() => { setActiveTab("analytics"); setSearchTerm(""); setDeletingId(null); }}
+          style={{
+            background: activeTab === "analytics" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
+            color: "#fff",
+            border: activeTab === "analytics" ? "none" : "1px solid var(--card-border)",
+            borderRadius: "8px",
+            padding: "0.75rem 1.5rem",
+            fontFamily: "var(--font-heading)",
+            fontWeight: "600",
+            cursor: "pointer",
+            transition: "all 0.3s ease"
+          }}
+        >
+          📊 Attendance Analytics
+        </button>
+        <button
           onClick={() => { setActiveTab("students"); setSearchTerm(""); setDeletingId(null); }}
           style={{
             background: activeTab === "students" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
@@ -359,7 +418,7 @@ function FacultyDashboard() {
             <p>Instantly generate attendance sessions and dynamically cycle secure QR verification codes for students.</p>
           </div>
 
-          <div className="dashboard-card">
+          <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("analytics")}>
             <h3>📊 Attendance Analytics</h3>
             <p>Monitor real-time participation statistics, track class records, and export reports for administrative reviews.</p>
           </div>
@@ -642,6 +701,218 @@ function FacultyDashboard() {
                   {sessionLoading ? "Initializing..." : "🚀 Start Attendance Session"}
                 </button>
               </form>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "analytics" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "2rem", width: "100%", animation: "fadeIn 0.5s ease" }}>
+          {selectedSession ? (
+            /* Selected Session Detail Report */
+            <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.4)", padding: "2.5rem", borderRadius: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
+                <div>
+                  <button
+                    onClick={() => setSelectedSession(null)}
+                    style={{
+                      background: "transparent",
+                      border: "1px solid var(--card-border)",
+                      color: "var(--text-muted)",
+                      borderRadius: "6px",
+                      padding: "0.4rem 0.8rem",
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                      marginBottom: "1rem",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    ← Back to Sessions
+                  </button>
+                  <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.75rem", fontWeight: "700", margin: 0 }}>
+                    {selectedSession.subject}
+                  </h2>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginTop: "0.25rem" }}>
+                    Session ID: {selectedSession.id} | Conducted on: {new Date(selectedSession.startTime).toLocaleDateString()}
+                  </p>
+                </div>
+
+                <div style={{
+                  background: "rgba(31, 41, 55, 0.6)",
+                  border: "1px solid var(--card-border)",
+                  borderRadius: "12px",
+                  padding: "0.75rem 1.5rem",
+                  textAlign: "right"
+                }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", display: "block" }}>
+                    Attendance Rate
+                  </span>
+                  <span style={{
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "1.8rem",
+                    fontWeight: "700",
+                    color: "var(--primary)"
+                  }}>
+                    {reportRecords.length > 0 
+                      ? Math.round((reportRecords.filter(r => r.status === "PRESENT").length / reportRecords.length) * 100)
+                      : 0}%
+                  </span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block" }}>
+                    ({reportRecords.filter(r => r.status === "PRESENT").length} / {reportRecords.length} Present)
+                  </span>
+                </div>
+              </div>
+
+              {reportLoading ? (
+                <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
+                  Generating attendance roll-call logs...
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
+                        <th style={{ padding: "0.75rem 1rem" }}>Reg No.</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>Student Name</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>Time Checked In</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>GPS Location</th>
+                        <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportRecords.length > 0 ? (
+                        reportRecords.map((r, idx) => (
+                          <tr key={idx} style={{ borderBottom: "1px solid var(--card-border)" }}>
+                            <td style={{ padding: "0.75rem 1rem", color: "var(--primary)", fontWeight: "600" }}>
+                              {r.registerNumber}
+                            </td>
+                            <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{r.studentName}</td>
+                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>
+                              {r.time ? r.time.substring(0, 5) : "--"}
+                            </td>
+                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                              {r.latitude ? `${r.latitude.toFixed(4)}, ${r.longitude.toFixed(4)}` : "--"}
+                            </td>
+                            <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
+                              <span style={{
+                                background: r.status === "PRESENT" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                                color: r.status === "PRESENT" ? "var(--success)" : "var(--error)",
+                                padding: "0.25rem 0.6rem",
+                                borderRadius: "6px",
+                                fontSize: "0.75rem",
+                                fontWeight: "600",
+                                border: `1px solid ${r.status === "PRESENT" ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}`
+                              }}>
+                                {r.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                            No student directory records found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Sessions Summary & List */
+            <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.2)", padding: "2.5rem", borderRadius: "20px" }}>
+              <h3 style={{ margin: "0 0 1.5rem 0" }}>📊 Past Attendance Sessions</h3>
+
+              {analyticsLoading ? (
+                <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
+                  Retrieving session history logs...
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
+                        <th style={{ padding: "0.75rem 1rem" }}>Session ID</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>Subject</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>Date</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>Start Time</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>Expiry Time</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>State</th>
+                        <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sessions.length > 0 ? (
+                        sessions.map((s) => (
+                          <tr key={s.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
+                            <td style={{ padding: "0.75rem 1rem", fontWeight: "600", color: "var(--primary)" }}>{s.id}</td>
+                            <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{s.subject}</td>
+                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>
+                              {new Date(s.startTime).toLocaleDateString()}
+                            </td>
+                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>
+                              {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>
+                              {new Date(s.expiryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td style={{ padding: "0.75rem 1rem" }}>
+                              <span style={{
+                                color: s.active ? "var(--success)" : "var(--text-muted)",
+                                fontWeight: "600",
+                                fontSize: "0.8rem",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.25rem"
+                              }}>
+                                {s.active ? (
+                                  <>
+                                    <span className="status-dot" style={{
+                                      width: "6px",
+                                      height: "6px",
+                                      backgroundColor: "var(--success)",
+                                      borderRadius: "50%",
+                                      display: "inline-block",
+                                      animation: "pulse 1.5s infinite"
+                                    }}></span>
+                                    ACTIVE
+                                  </>
+                                ) : "COMPLETED"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
+                              <button
+                                onClick={() => handleViewReport(s)}
+                                style={{
+                                  background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
+                                  border: "none",
+                                  color: "#fff",
+                                  borderRadius: "6px",
+                                  padding: "0.4rem 0.9rem",
+                                  cursor: "pointer",
+                                  fontSize: "0.8rem",
+                                  fontWeight: "600",
+                                  transition: "all 0.2s"
+                                }}
+                              >
+                                View Report
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                            No attendance sessions conducted yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>

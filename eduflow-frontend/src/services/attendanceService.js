@@ -42,4 +42,21 @@ export const getSessionRecords = (sessionId, token) => {
   });
 };
 
+export const getAllSessions = (token) => {
+  return axios.get(`${ATTENDANCE_API}/sessions`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+export const getSessionReport = (sessionId, token) => {
+  return axios.get(`${ATTENDANCE_API}/session/${sessionId}/report`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+
 
