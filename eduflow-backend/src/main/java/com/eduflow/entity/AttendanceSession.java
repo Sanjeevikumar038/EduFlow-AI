@@ -29,5 +29,8 @@ public class AttendanceSession {
 
     @Transient
     private String currentOtp;
+
+    @Transient
+    private String facultyName;
 }
 

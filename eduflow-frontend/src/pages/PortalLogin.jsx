@@ -45,6 +45,9 @@ function PortalLogin() {
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
       localStorage.setItem("name", name);
+      if (response.data.id) {
+        localStorage.setItem("userId", response.data.id);
+      }
       if (registerNumber) {
         localStorage.setItem("registerNumber", registerNumber);
       }

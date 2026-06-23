@@ -10,4 +10,5 @@ import java.util.List;
 public interface AttendanceSessionRepository extends JpaRepository<AttendanceSession, Long> {
     List<AttendanceSession> findByFacultyId(Long facultyId);
     List<AttendanceSession> findByActive(boolean active);
+    List<AttendanceSession> findByFacultyIdIn(List<Long> facultyIds);
 }

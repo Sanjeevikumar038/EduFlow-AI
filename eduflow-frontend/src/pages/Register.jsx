@@ -45,6 +45,9 @@ function Register() {
       localStorage.setItem("token", token);
       localStorage.setItem("role", userRole);
       localStorage.setItem("name", userName);
+      if (response.data.id) {
+        localStorage.setItem("userId", response.data.id);
+      }
       if (registerNumber) {
         localStorage.setItem("registerNumber", registerNumber);
       }

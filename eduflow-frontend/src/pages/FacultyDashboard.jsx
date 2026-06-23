@@ -13,6 +13,7 @@ function FacultyDashboard() {
 
   // Student directory states
   const [students, setStudents] = useState([]);
+  const [totalStudentsCount, setTotalStudentsCount] = useState(0);
   const [studentName, setStudentName] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
@@ -87,6 +88,16 @@ function FacultyDashboard() {
     }
   };
 
+  const fetchTotalStudents = async () => {
+    if (!token) return;
+    try {
+      const res = await getStudents(token);
+      setTotalStudentsCount(res.data?.length || 0);
+    } catch (error) {
+      console.error("Error fetching total students:", error);
+    }
+  };
+
   // Fetch student data
   const fetchStudents = async () => {
     if (!token) return;
@@ -94,6 +105,7 @@ function FacultyDashboard() {
     try {
       const res = await getStudents(token);
       setStudents(res.data);
+      setTotalStudentsCount(res.data?.length || 0);
     } catch (error) {
       console.error("Error fetching students:", error);
     } finally {
@@ -104,6 +116,7 @@ function FacultyDashboard() {
 
   useEffect(() => {
     fetchActiveSession();
+    fetchTotalStudents();
   }, [token]);
 
   // Handle live countdown update
@@ -412,25 +425,186 @@ function FacultyDashboard() {
       </div>
 
       {activeTab === "overview" && (
-        <div className="dashboard-grid">
-          <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("qr-session")}>
-            <h3>⚡ Generate QR Session</h3>
-            <p>Instantly generate attendance sessions and dynamically cycle secure QR verification codes for students.</p>
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+          {activeSession && (
+            <div className="live-monitor-card" style={{
+              background: "linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(17, 24, 39, 0.85) 100%)",
+              border: "1px solid rgba(99, 102, 241, 0.3)",
+              borderRadius: "20px",
+              padding: "2rem",
+              marginBottom: "2rem",
+              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+              animation: "fadeIn 0.5s ease",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                position: "absolute",
+                top: "-50px",
+                right: "-50px",
+                width: "150px",
+                height: "150px",
+                background: "radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%)",
+                pointerEvents: "none"
+              }} />
 
-          <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("analytics")}>
-            <h3>📊 Attendance Analytics</h3>
-            <p>Monitor real-time participation statistics, track class records, and export reports for administrative reviews.</p>
-          </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "2rem" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                    <span className="status-dot" style={{
+                      width: "8px",
+                      height: "8px",
+                      backgroundColor: "var(--success)",
+                      borderRadius: "50%",
+                      display: "inline-block",
+                      animation: "pulse 1.5s infinite"
+                    }} />
+                    <span style={{ color: "var(--success)", fontSize: "0.8rem", fontWeight: "600", letterSpacing: "1px", textTransform: "uppercase" }}>
+                      Live Attendance Monitoring
+                    </span>
+                  </div>
+                  <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "2rem", fontWeight: "700", margin: "0 0 0.25rem 0", color: "#fff" }}>
+                    {activeSession.subject}
+                  </h2>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", margin: "0 0 1rem 0" }}>
+                    Conducted by Professor {activeSession.facultyName || "Unknown"}
+                  </p>
+                  
+                  <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem", flexWrap: "wrap" }}>
+                    <div style={{
+                      background: "rgba(99, 102, 241, 0.1)",
+                      border: "1px solid rgba(99, 102, 241, 0.2)",
+                      borderRadius: "12px",
+                      padding: "0.75rem 1.5rem"
+                    }}>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600" }}>Present</div>
+                      <div style={{ fontSize: "1.8rem", fontWeight: "700", color: "var(--primary)" }}>
+                        {checkedInStudents.length}
+                      </div>
+                    </div>
+                    <div style={{
+                      background: "rgba(255, 255, 255, 0.03)",
+                      border: "1px solid rgba(255, 255, 255, 0.05)",
+                      borderRadius: "12px",
+                      padding: "0.75rem 1.5rem"
+                    }}>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600" }}>Time Left</div>
+                      <div style={{ fontSize: "1.8rem", fontWeight: "700", color: timeLeft < 60 ? "var(--error)" : "#fff" }}>
+                        {formatTimeLeft(timeLeft)}
+                      </div>
+                    </div>
 
-          <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("students")}>
-            <h3>🎓 Student Management</h3>
-            <p>Review student records, search profiles, allocate permanent register numbers, and delete student logs.</p>
-          </div>
+                    {/* Visual Progress Bar */}
+                    <div style={{
+                      background: "rgba(255, 255, 255, 0.03)",
+                      border: "1px solid rgba(255, 255, 255, 0.05)",
+                      borderRadius: "12px",
+                      padding: "0.75rem 1.5rem",
+                      minWidth: "220px",
+                      flexGrow: 1
+                    }}>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", marginBottom: "0.4rem" }}>
+                        Attendance Progress
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                        <div style={{ flexGrow: 1, height: "8px", background: "rgba(255, 255, 255, 0.1)", borderRadius: "4px", overflow: "hidden" }}>
+                          <div style={{
+                            width: `${totalStudentsCount > 0 ? Math.round((checkedInStudents.length / totalStudentsCount) * 100) : 0}%`,
+                            height: "100%",
+                            background: "linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)",
+                            borderRadius: "4px",
+                            transition: "width 0.5s ease"
+                          }} />
+                        </div>
+                        <span style={{ fontSize: "0.95rem", fontWeight: "700", color: "var(--primary)" }}>
+                          {totalStudentsCount > 0 ? Math.round((checkedInStudents.length / totalStudentsCount) * 100) : 0}%
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+                        ({checkedInStudents.length} of {totalStudentsCount} students)
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-          <div className="dashboard-card">
-            <h3>💬 Grading & Feedback</h3>
-            <p>Evaluate coding assessments and review mock interview statistics generated by the AI agent.</p>
+                <div style={{ minWidth: "260px", flex: "1 0 260px" }}>
+                  <h4 style={{ color: "var(--text-muted)", textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "1px", margin: "0 0 0.75rem 0" }}>
+                    Recently Checked In
+                  </h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    {checkedInStudents.length > 0 ? (
+                      [...checkedInStudents]
+                        .sort((a, b) => b.id - a.id)
+                        .slice(0, 4)
+                        .map((student) => (
+                          <div key={student.id} style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            padding: "0.4rem 0.8rem",
+                            background: "rgba(16, 185, 129, 0.05)",
+                            border: "1px solid rgba(16, 185, 129, 0.15)",
+                            borderRadius: "8px",
+                            animation: "fadeIn 0.3s ease"
+                          }}>
+                            <span style={{ color: "var(--success)", fontWeight: "bold" }}>✓</span>
+                            <span style={{ fontWeight: "500", fontSize: "0.9rem" }}>{student.studentName}</span>
+                            <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                              {student.time ? student.time.substring(0, 5) : ""}
+                            </span>
+                          </div>
+                        ))
+                    ) : (
+                      <div style={{ color: "var(--text-muted)", fontSize: "0.85rem", fontStyle: "italic", padding: "0.5rem" }}>
+                        📡 Awaiting scans...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setActiveTab("qr-session")}
+                  style={{
+                    background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "0.6rem 1.2rem",
+                    fontWeight: "600",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    boxShadow: "0 4px 12px rgba(99, 102, 241, 0.2)",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  🔍 View QR Scanner Screen
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="dashboard-grid">
+            <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("qr-session")}>
+              <h3>⚡ Generate QR Session</h3>
+              <p>Instantly generate attendance sessions and dynamically cycle secure QR verification codes for students.</p>
+            </div>
+
+            <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("analytics")}>
+              <h3>📊 Attendance Analytics</h3>
+              <p>Monitor real-time participation statistics, track class records, and export reports for administrative reviews.</p>
+            </div>
+
+            <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("students")}>
+              <h3>🎓 Student Management</h3>
+              <p>Review student records, search profiles, allocate permanent register numbers, and delete student logs.</p>
+            </div>
+
+            <div className="dashboard-card">
+              <h3>💬 Grading & Feedback</h3>
+              <p>Evaluate coding assessments and review mock interview statistics generated by the AI agent.</p>
+            </div>
           </div>
         </div>
       )}
@@ -516,25 +690,41 @@ function FacultyDashboard() {
                   </span>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <button
-                    onClick={handleEndSession}
-                    disabled={sessionLoading}
-                    className="logout-btn"
-                    style={{
+                <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+                  {localStorage.getItem("role") === "ADMIN" || activeSession.facultyId === Number(localStorage.getItem("userId")) ? (
+                    <button
+                      onClick={handleEndSession}
+                      disabled={sessionLoading}
+                      className="logout-btn"
+                      style={{
+                        width: "100%",
+                        maxWidth: "280px",
+                        padding: "0.85rem",
+                        fontSize: "0.95rem",
+                        backgroundColor: "transparent",
+                        border: "1px solid var(--error)",
+                        borderRadius: "10px",
+                        cursor: "pointer",
+                        transition: "all 0.3s ease"
+                      }}
+                    >
+                      {sessionLoading ? "Ending Session..." : "🛑 End Session"}
+                    </button>
+                  ) : (
+                    <div style={{
                       width: "100%",
                       maxWidth: "280px",
                       padding: "0.85rem",
-                      fontSize: "0.95rem",
-                      backgroundColor: "transparent",
-                      border: "1px solid var(--error)",
-                      borderRadius: "10px",
-                      cursor: "pointer",
-                      transition: "all 0.3s ease"
-                    }}
-                  >
-                    {sessionLoading ? "Ending Session..." : "🛑 End Session"}
-                  </button>
+                      fontSize: "0.85rem",
+                      color: "var(--text-muted)",
+                      fontStyle: "italic",
+                      textAlign: "center",
+                      border: "1px dashed var(--card-border)",
+                      borderRadius: "10px"
+                    }}>
+                      🔒 Only the session creator can end this session.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -836,6 +1026,7 @@ function FacultyDashboard() {
                       <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
                         <th style={{ padding: "0.75rem 1rem" }}>Session ID</th>
                         <th style={{ padding: "0.75rem 1rem" }}>Subject</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>Conducted By</th>
                         <th style={{ padding: "0.75rem 1rem" }}>Date</th>
                         <th style={{ padding: "0.75rem 1rem" }}>Start Time</th>
                         <th style={{ padding: "0.75rem 1rem" }}>Expiry Time</th>
@@ -849,6 +1040,7 @@ function FacultyDashboard() {
                           <tr key={s.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
                             <td style={{ padding: "0.75rem 1rem", fontWeight: "600", color: "var(--primary)" }}>{s.id}</td>
                             <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{s.subject}</td>
+                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-main)", fontWeight: "500" }}>{s.facultyName || "Unknown"}</td>
                             <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>
                               {new Date(s.startTime).toLocaleDateString()}
                             </td>
@@ -904,7 +1096,7 @@ function FacultyDashboard() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="7" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                          <td colSpan="8" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
                             No attendance sessions conducted yet.
                           </td>
                         </tr>

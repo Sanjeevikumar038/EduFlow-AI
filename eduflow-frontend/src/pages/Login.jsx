@@ -44,6 +44,9 @@ function Login() {
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
       localStorage.setItem("name", name);
+      if (response.data.id) {
+        localStorage.setItem("userId", response.data.id);
+      }
 
       showFeedback("Login Successful! Redirecting...", false);
       setTimeout(() => {

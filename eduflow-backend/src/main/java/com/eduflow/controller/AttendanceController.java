@@ -60,10 +60,17 @@ public class AttendanceController {
             return ResponseEntity.status(403).body("Only faculty can start attendance sessions!");
         }
 
-        // Deactivate any existing active sessions for this faculty to maintain a single active session
+        // Deactivate any existing active sessions in this department to maintain a single active session per department
         List<AttendanceSession> activeSessions = attendanceSessionRepository.findByActive(true);
         for (AttendanceSession session : activeSessions) {
-            if (session.getFacultyId().equals(user.getId())) {
+            Optional<User> creatorOpt = userRepository.findById(session.getFacultyId());
+            if (creatorOpt.isPresent()) {
+                User creator = creatorOpt.get();
+                if (user.getDepartment() != null && user.getDepartment().equalsIgnoreCase(creator.getDepartment())) {
+                    session.setActive(false);
+                    attendanceSessionRepository.save(session);
+                }
+            } else if (session.getFacultyId().equals(user.getId())) {
                 session.setActive(false);
                 attendanceSessionRepository.save(session);
             }
@@ -82,6 +89,7 @@ public class AttendanceController {
 
         attendanceSessionRepository.save(newSession);
         populateOtp(newSession);
+        newSession.setFacultyName(user.getName());
 
         return ResponseEntity.ok(newSession);
     }
@@ -123,21 +131,35 @@ public class AttendanceController {
         User user = userOpt.get();
         List<AttendanceSession> activeSessions = attendanceSessionRepository.findByActive(true);
 
-        // Filter active sessions by facultyId if the user is a Faculty
+        // Filter active sessions by department if the user is a Faculty
         if (user.getRole() == Role.FACULTY) {
-            Optional<AttendanceSession> facultyActive = activeSessions.stream()
-                    .filter(s -> s.getFacultyId().equals(user.getId()))
+            String dept = user.getDepartment();
+            Optional<AttendanceSession> deptActive = activeSessions.stream()
+                    .filter(s -> {
+                        if (s.getFacultyId().equals(user.getId())) {
+                            return true;
+                        }
+                        Optional<User> creatorOpt = userRepository.findById(s.getFacultyId());
+                        if (creatorOpt.isPresent()) {
+                            User creator = creatorOpt.get();
+                            return creator.getDepartment() != null && 
+                                   creator.getDepartment().equalsIgnoreCase(dept);
+                        }
+                        return false;
+                    })
                     .findFirst();
             
-            if (facultyActive.isPresent()) {
+            if (deptActive.isPresent()) {
                 // Double check if it has expired
-                AttendanceSession session = facultyActive.get();
+                AttendanceSession session = deptActive.get();
                 if (LocalDateTime.now().isAfter(session.getExpiryTime())) {
                     session.setActive(false);
                     attendanceSessionRepository.save(session);
                     return ResponseEntity.ok().body(null);
                 }
                 populateOtp(session);
+                Optional<User> creatorOpt = userRepository.findById(session.getFacultyId());
+                session.setFacultyName(creatorOpt.map(User::getName).orElse("Unknown"));
                 return ResponseEntity.ok(session);
             }
             return ResponseEntity.ok().body(null);
@@ -152,6 +174,8 @@ public class AttendanceController {
                 return ResponseEntity.ok().body(null);
             }
             populateOtp(session);
+            Optional<User> creatorOpt = userRepository.findById(session.getFacultyId());
+            session.setFacultyName(creatorOpt.map(User::getName).orElse("Unknown"));
             return ResponseEntity.ok(session);
         }
 
@@ -254,8 +278,21 @@ public class AttendanceController {
         }
         AttendanceSession session = sessionOpt.get();
 
-        // Security check: Only the faculty who started it or an ADMIN can view the records
-        if (!session.getFacultyId().equals(user.getId()) && user.getRole() != Role.ADMIN) {
+        // Security check: Only the faculty who started it, faculty in the same department, or an ADMIN can view the records
+        boolean isCreatorOrSameDept = false;
+        if (session.getFacultyId().equals(user.getId())) {
+            isCreatorOrSameDept = true;
+        } else {
+            Optional<User> creatorOpt = userRepository.findById(session.getFacultyId());
+            if (creatorOpt.isPresent()) {
+                User creator = creatorOpt.get();
+                if (user.getDepartment() != null && user.getDepartment().equalsIgnoreCase(creator.getDepartment())) {
+                    isCreatorOrSameDept = true;
+                }
+            }
+        }
+
+        if (!isCreatorOrSameDept && user.getRole() != Role.ADMIN) {
             return ResponseEntity.status(403).body("You do not have permission to view records for this session!");
         }
 
@@ -305,15 +342,32 @@ public class AttendanceController {
 
         List<AttendanceSession> sessions;
         if (user.getRole() == Role.ADMIN) {
-            sessions = attendanceSessionRepository.findAll();
+            sessions = new java.util.ArrayList<>(attendanceSessionRepository.findAll());
         } else if (user.getRole() == Role.FACULTY) {
-            sessions = attendanceSessionRepository.findByFacultyId(user.getId());
+            String dept = user.getDepartment();
+            if (dept == null || dept.trim().isEmpty()) {
+                sessions = new java.util.ArrayList<>(attendanceSessionRepository.findByFacultyId(user.getId()));
+            } else {
+                List<User> departmentFaculties = userRepository.findByRoleAndDepartmentIgnoreCase(Role.FACULTY, dept);
+                List<Long> facultyIds = departmentFaculties.stream().map(User::getId).toList();
+                if (facultyIds.isEmpty()) {
+                    sessions = new java.util.ArrayList<>();
+                } else {
+                    sessions = new java.util.ArrayList<>(attendanceSessionRepository.findByFacultyIdIn(facultyIds));
+                }
+            }
         } else {
             return ResponseEntity.status(403).body("Students cannot view all sessions!");
         }
 
         // Sort latest first
         sessions.sort((s1, s2) -> s2.getId().compareTo(s1.getId()));
+
+        // Populate conductor/faculty names for frontend
+        for (AttendanceSession s : sessions) {
+            Optional<User> fOpt = userRepository.findById(s.getFacultyId());
+            s.setFacultyName(fOpt.map(User::getName).orElse("Unknown"));
+        }
 
         return ResponseEntity.ok(sessions);
     }
@@ -335,7 +389,21 @@ public class AttendanceController {
         }
         AttendanceSession session = sessionOpt.get();
 
-        if (!session.getFacultyId().equals(user.getId()) && user.getRole() != Role.ADMIN) {
+        // Security check: Only the faculty who started it, faculty in the same department, or an ADMIN can view this report
+        boolean isCreatorOrSameDept = false;
+        if (session.getFacultyId().equals(user.getId())) {
+            isCreatorOrSameDept = true;
+        } else {
+            Optional<User> creatorOpt = userRepository.findById(session.getFacultyId());
+            if (creatorOpt.isPresent()) {
+                User creator = creatorOpt.get();
+                if (user.getDepartment() != null && user.getDepartment().equalsIgnoreCase(creator.getDepartment())) {
+                    isCreatorOrSameDept = true;
+                }
+            }
+        }
+
+        if (!isCreatorOrSameDept && user.getRole() != Role.ADMIN) {
             return ResponseEntity.status(403).body("You do not have permission to view this report!");
         }
 
