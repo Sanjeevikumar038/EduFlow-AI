@@ -6,6 +6,7 @@ function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [department, setDepartment] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -27,7 +28,7 @@ function Register() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !department) {
       showFeedback("Please fill in all fields");
       return;
     }
@@ -36,15 +37,19 @@ function Register() {
       const response = await register({
         name,
         email,
-        password
+        password,
+        department
       });
-      const { token, role: userRole, name: userName, registerNumber } = response.data;
+      const { token, role: userRole, name: userName, registerNumber, department: userDept } = response.data;
 
       localStorage.setItem("token", token);
       localStorage.setItem("role", userRole);
       localStorage.setItem("name", userName);
       if (registerNumber) {
         localStorage.setItem("registerNumber", registerNumber);
+      }
+      if (userDept) {
+        localStorage.setItem("department", userDept);
       }
 
       showFeedback("Registration Successful! Redirecting...", false);
@@ -138,6 +143,30 @@ function Register() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+        </div>
+
+        <div className="form-group">
+          <label>Department</label>
+          <select
+            className="input-field"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            required
+            style={{ appearance: "auto" }}
+          >
+            <option value="" disabled>-- Select Department --</option>
+            <option value="Civil">Civil</option>
+            <option value="CSE">CSE</option>
+            <option value="CSE (AI & ML/Cyber Security)">CSE (AI & ML/Cyber Security)</option>
+            <option value="EEE">EEE</option>
+            <option value="ECE">ECE</option>
+            <option value="Mechanical">Mechanical</option>
+            <option value="Mechatronics">Mechatronics</option>
+            <option value="IT">IT</option>
+            <option value="AI & Data Science">AI & Data Science</option>
+            <option value="CSBS">CS & Business Systems</option>
+            <option value="M.Tech CSE">mtech cse 5 years</option>
+          </select>
         </div>
 
         <button className="auth-btn" type="submit" disabled={loading}>

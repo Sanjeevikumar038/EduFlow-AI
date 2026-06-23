@@ -84,23 +84,37 @@ function StudentDashboard() {
     }
     setGpsLoading(true);
     setCoords(null); // Clear previous coordinates
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setCoords({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy
-        });
-        setGpsLoading(false);
-      },
-      (error) => {
-        console.error("Geolocation error:", error);
-        setCoords(null);
-        setGpsLoading(false);
-        showFeedback("GPS blocked. You must allow location access to mark attendance.", "error");
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCoords({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          });
+          setGpsLoading(false);
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          setCoords(null);
+          setGpsLoading(false);
+          let errMsg = "GPS error. Please check permissions.";
+          if (error.code === 1) {
+            errMsg = "GPS permission denied. Please allow location access.";
+          } else if (error.code === 2) {
+            errMsg = "GPS position unavailable. Try outdoors or restart location service.";
+          } else if (error.code === 3) {
+            errMsg = "GPS request timed out. Please try again.";
+          }
+          showFeedback(errMsg, "error");
+        },
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+      );
+    } catch (e) {
+      console.error("Geolocation sync exception:", e);
+      setGpsLoading(false);
+      showFeedback("Failed to request GPS. Ensure connection is secure (HTTPS).", "error");
+    }
   };
 
   useEffect(() => {
@@ -259,7 +273,7 @@ function StudentDashboard() {
       <div className="dashboard-header">
         <div className="dashboard-title">
           <h1>Student Portal</h1>
-          <p>Welcome back, {name}! {registerNumber && `(Reg No: ${registerNumber})`}</p>
+          <p>Welcome back, {name}! {registerNumber && `(Reg No: ${registerNumber})`} {localStorage.getItem("department") && `| Dept: ${localStorage.getItem("department")}`}</p>
         </div>
         <button className="logout-btn" onClick={handleLogout}>
           Logout

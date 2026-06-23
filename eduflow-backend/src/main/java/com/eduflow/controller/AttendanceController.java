@@ -188,6 +188,16 @@ public class AttendanceController {
             return ResponseEntity.badRequest().body("Attendance session has expired!");
         }
 
+        // Verify student department matches faculty department
+        Optional<User> facultyOpt = userRepository.findById(session.getFacultyId());
+        if (facultyOpt.isPresent()) {
+            User faculty = facultyOpt.get();
+            if (faculty.getDepartment() != null && student.getDepartment() != null &&
+                    !faculty.getDepartment().equalsIgnoreCase(student.getDepartment())) {
+                return ResponseEntity.badRequest().body("You cannot mark attendance for a class in a different department (" + faculty.getDepartment() + ")!");
+            }
+        }
+
         // Verify the dynamic OTP
         long currentInterval = System.currentTimeMillis() / 10000;
         boolean isOtpValid = false;
@@ -250,22 +260,37 @@ public class AttendanceController {
         }
 
         List<Attendance> records = attendanceRepository.findBySessionId(sessionId);
-        List<AttendanceRecordResponse> responseList = records.stream().map(record -> {
-            Optional<User> studentOpt = userRepository.findById(record.getStudentId());
-            String studentName = studentOpt.map(User::getName).orElse("Unknown");
-            String regNo = studentOpt.map(User::getRegisterNumber).orElse("N/A");
-            
-            return AttendanceRecordResponse.builder()
-                    .id(record.getId())
-                    .studentId(record.getStudentId())
-                    .studentName(studentName)
-                    .registerNumber(regNo)
-                    .time(record.getTime())
-                    .status(record.getStatus())
-                    .latitude(record.getLatitude())
-                    .longitude(record.getLongitude())
-                    .build();
-        }).toList();
+        List<AttendanceRecordResponse> responseList = records.stream()
+                .map(record -> {
+                    Optional<User> studentOpt = userRepository.findById(record.getStudentId());
+                    String studentName = studentOpt.map(User::getName).orElse("Unknown");
+                    String regNo = studentOpt.map(User::getRegisterNumber).orElse("N/A");
+                    String dept = studentOpt.map(User::getDepartment).orElse("");
+                    
+                    AttendanceRecordResponse resp = AttendanceRecordResponse.builder()
+                            .id(record.getId())
+                            .studentId(record.getStudentId())
+                            .studentName(studentName)
+                            .registerNumber(regNo)
+                            .time(record.getTime())
+                            .status(record.getStatus())
+                            .latitude(record.getLatitude())
+                            .longitude(record.getLongitude())
+                            .build();
+
+                    return new Object() {
+                        public final AttendanceRecordResponse r = resp;
+                        public final String department = dept;
+                    };
+                })
+                .filter(item -> {
+                    if (user.getRole() == Role.FACULTY) {
+                        return user.getDepartment() != null && user.getDepartment().equalsIgnoreCase(item.department);
+                    }
+                    return true;
+                })
+                .map(item -> item.r)
+                .toList();
 
         return ResponseEntity.ok(responseList);
     }
@@ -314,8 +339,20 @@ public class AttendanceController {
             return ResponseEntity.status(403).body("You do not have permission to view this report!");
         }
 
-        // Get all students
-        List<User> students = userRepository.findByRole(Role.STUDENT);
+        // Get students based on role and department
+        List<User> students;
+        if (user.getRole() == Role.ADMIN) {
+            students = userRepository.findByRole(Role.STUDENT);
+        } else if (user.getRole() == Role.FACULTY) {
+            String dept = user.getDepartment();
+            if (dept == null || dept.trim().isEmpty()) {
+                students = List.of();
+            } else {
+                students = userRepository.findByRoleAndDepartmentIgnoreCase(Role.STUDENT, dept);
+            }
+        } else {
+            return ResponseEntity.status(403).body("Students cannot view this report!");
+        }
         
         // Get all attendance check-ins for this session
         List<Attendance> checkIns = attendanceRepository.findBySessionId(sessionId);

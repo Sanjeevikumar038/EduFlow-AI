@@ -34,7 +34,7 @@ function PortalLogin() {
     setLoading(true);
     try {
       const response = await login({ email, password });
-      const { token, role, name, registerNumber } = response.data;
+      const { token, role, name, registerNumber, department } = response.data;
 
       if (role !== activeTab) {
         showFeedback(`Invalid credentials for ${activeTab.toLowerCase()} portal.`);
@@ -47,6 +47,9 @@ function PortalLogin() {
       localStorage.setItem("name", name);
       if (registerNumber) {
         localStorage.setItem("registerNumber", registerNumber);
+      }
+      if (department) {
+        localStorage.setItem("department", department);
       }
 
       showFeedback("Login Successful! Redirecting...", false);

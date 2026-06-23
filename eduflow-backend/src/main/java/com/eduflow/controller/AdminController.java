@@ -8,10 +8,13 @@ import com.eduflow.repository.UserRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -37,6 +40,7 @@ public class AdminController {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.FACULTY)
+                .department(request.getDepartment())
                 .build();
 
         userRepository.save(faculty);
@@ -45,8 +49,27 @@ public class AdminController {
     }
 
     @GetMapping("/students")
-    public ResponseEntity<List<User>> getAllStudents() {
-        return ResponseEntity.ok(userRepository.findByRole(Role.STUDENT));
+    public ResponseEntity<?> getAllStudents(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+        Optional<User> currentUserOpt = userRepository.findByEmail(userDetails.getUsername());
+        if (currentUserOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("User not found!");
+        }
+        User currentUser = currentUserOpt.get();
+
+        if (currentUser.getRole() == Role.ADMIN) {
+            return ResponseEntity.ok(userRepository.findByRole(Role.STUDENT));
+        } else if (currentUser.getRole() == Role.FACULTY) {
+            String dept = currentUser.getDepartment();
+            if (dept == null || dept.trim().isEmpty()) {
+                return ResponseEntity.ok(List.of());
+            }
+            return ResponseEntity.ok(userRepository.findByRoleAndDepartmentIgnoreCase(Role.STUDENT, dept));
+        } else {
+            return ResponseEntity.status(403).body("Access denied");
+        }
     }
 
     @PostMapping("/create-student")
@@ -55,13 +78,14 @@ public class AdminController {
             return ResponseEntity.badRequest().body("Email is already registered!");
         }
 
-        String regNum = authService.generateNextRegisterNumber();
+        String regNum = authService.generateNextRegisterNumber(request.getDepartment());
         User student = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.STUDENT)
                 .registerNumber(regNum)
+                .department(request.getDepartment())
                 .build();
 
         userRepository.save(student);

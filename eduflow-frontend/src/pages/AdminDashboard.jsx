@@ -25,11 +25,13 @@ function AdminDashboard() {
   const [facultyName, setFacultyName] = useState("");
   const [facultyEmail, setFacultyEmail] = useState("");
   const [facultyPassword, setFacultyPassword] = useState("");
+  const [facultyDepartment, setFacultyDepartment] = useState("");
 
   // Form States - Student
   const [studentName, setStudentName] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
+  const [studentDepartment, setStudentDepartment] = useState("");
 
   // UI States
   const [loading, setLoading] = useState(false);
@@ -76,7 +78,7 @@ function AdminDashboard() {
   // Handlers - Faculty
   const handleCreateFaculty = async (e) => {
     e.preventDefault();
-    if (!facultyName || !facultyEmail || !facultyPassword) {
+    if (!facultyName || !facultyEmail || !facultyPassword || !facultyDepartment) {
       showFeedback("Please fill in all fields", "error");
       return;
     }
@@ -86,7 +88,8 @@ function AdminDashboard() {
         {
           name: facultyName,
           email: facultyEmail,
-          password: facultyPassword
+          password: facultyPassword,
+          department: facultyDepartment
         },
         token
       );
@@ -94,6 +97,7 @@ function AdminDashboard() {
       setFacultyName("");
       setFacultyEmail("");
       setFacultyPassword("");
+      setFacultyDepartment("");
       fetchData();
     } catch (error) {
       showFeedback(error.response?.data || "Failed to create faculty account.", "error");
@@ -119,7 +123,7 @@ function AdminDashboard() {
   // Handlers - Student
   const handleCreateStudent = async (e) => {
     e.preventDefault();
-    if (!studentName || !studentEmail || !studentPassword) {
+    if (!studentName || !studentEmail || !studentPassword || !studentDepartment) {
       showFeedback("Please fill in all fields", "error");
       return;
     }
@@ -129,7 +133,8 @@ function AdminDashboard() {
         {
           name: studentName,
           email: studentEmail,
-          password: studentPassword
+          password: studentPassword,
+          department: studentDepartment
         },
         token
       );
@@ -137,6 +142,7 @@ function AdminDashboard() {
       setStudentName("");
       setStudentEmail("");
       setStudentPassword("");
+      setStudentDepartment("");
       fetchData();
     } catch (error) {
       showFeedback(error.response?.data || "Failed to create student account.", "error");
@@ -163,14 +169,16 @@ function AdminDashboard() {
   const filteredFaculty = faculty.filter(
     (f) =>
       f.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      f.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      f.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      f.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredStudents = students.filter(
     (s) =>
       s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.registerNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+      s.registerNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -285,6 +293,30 @@ function AdminDashboard() {
                   />
                 </div>
 
+                <div className="form-group">
+                  <label>Department</label>
+                  <select
+                    className="input-field"
+                    value={facultyDepartment}
+                    onChange={(e) => setFacultyDepartment(e.target.value)}
+                    required
+                    style={{ appearance: "auto" }}
+                  >
+                    <option value="" disabled>-- Select Department --</option>
+                    <option value="Civil">Civil</option>
+                    <option value="CSE">CSE</option>
+                    <option value="CSE (AI & ML/Cyber Security)">CSE (AI & ML/Cyber Security)</option>
+                    <option value="EEE">EEE</option>
+                    <option value="ECE">ECE</option>
+                    <option value="Mechanical">Mechanical</option>
+                    <option value="Mechatronics">Mechatronics</option>
+                    <option value="IT">IT</option>
+                    <option value="AI & Data Science">AI & Data Science</option>
+                    <option value="CSBS">CS & Business Systems</option>
+                    <option value="M.Tech CSE">mtech cse 5 years</option>
+                  </select>
+                </div>
+
                 <button className="auth-btn" type="submit" disabled={loading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)" }}>
                   {loading ? "Creating..." : "Create Faculty Account"}
                 </button>
@@ -332,6 +364,30 @@ function AdminDashboard() {
                   />
                 </div>
 
+                <div className="form-group">
+                  <label>Department</label>
+                  <select
+                    className="input-field"
+                    value={studentDepartment}
+                    onChange={(e) => setStudentDepartment(e.target.value)}
+                    required
+                    style={{ appearance: "auto" }}
+                  >
+                    <option value="" disabled>-- Select Department --</option>
+                    <option value="Civil">Civil</option>
+                    <option value="CSE">CSE</option>
+                    <option value="CSE (AI & ML/Cyber Security)">CSE (AI & ML/Cyber Security)</option>
+                    <option value="EEE">EEE</option>
+                    <option value="ECE">ECE</option>
+                    <option value="Mechanical">Mechanical</option>
+                    <option value="Mechatronics">Mechatronics</option>
+                    <option value="IT">IT</option>
+                    <option value="AI & Data Science">AI & Data Science</option>
+                    <option value="CSBS">CS & Business Systems</option>
+                    <option value="M.Tech CSE">mtech cse 5 years</option>
+                  </select>
+                </div>
+
                 <button className="auth-btn" type="submit" disabled={loading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)" }}>
                   {loading ? "Creating..." : "Create Student Account"}
                 </button>
@@ -373,6 +429,7 @@ function AdminDashboard() {
                       {activeTab === "students" && <th style={{ padding: "0.75rem 1rem" }}>Reg No.</th>}
                       <th style={{ padding: "0.75rem 1rem" }}>Name</th>
                       <th style={{ padding: "0.75rem 1rem" }}>Email</th>
+                      <th style={{ padding: "0.75rem 1rem" }}>Department</th>
                       <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Actions</th>
                     </tr>
                   </thead>
@@ -383,6 +440,7 @@ function AdminDashboard() {
                           <tr key={f.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
                             <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{f.name}</td>
                             <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{f.email}</td>
+                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{f.department || "N/A"}</td>
                             <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
                               <button
                                 onClick={() => handleDeleteFaculty(f.id)}
@@ -417,6 +475,7 @@ function AdminDashboard() {
                             <td style={{ padding: "0.75rem 1rem", color: "var(--primary)", fontWeight: "600" }}>{s.registerNumber || "Pending"}</td>
                             <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{s.name}</td>
                             <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{s.email}</td>
+                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{s.department || "N/A"}</td>
                             <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
                               <button
                                 onClick={() => handleDeleteStudent(s.id)}

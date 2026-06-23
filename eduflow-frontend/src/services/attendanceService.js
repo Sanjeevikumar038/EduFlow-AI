@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const ATTENDANCE_API = "http://localhost:8080/api/attendance";
+const API_BASE = `http://${window.location.hostname}:8080`;
+const ATTENDANCE_API = `${API_BASE}/api/attendance`;
 
 export const startSession = (data, token) => {
   return axios.post(`${ATTENDANCE_API}/session/start`, data, {

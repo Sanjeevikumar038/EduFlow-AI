@@ -305,7 +305,7 @@ function FacultyDashboard() {
       <div className="dashboard-header">
         <div className="dashboard-title">
           <h1>Faculty Portal</h1>
-          <p>Welcome back, Professor {name}!</p>
+          <p>Welcome back, Professor {name}! {localStorage.getItem("department") ? `(${localStorage.getItem("department")})` : ""}</p>
         </div>
         <button className="logout-btn" onClick={handleLogout}>
           Logout
@@ -919,60 +919,12 @@ function FacultyDashboard() {
       )}
 
       {activeTab === "students" && (
-        <div style={{ display: "flex", gap: "2rem", flexDirection: "row", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "2rem", flexDirection: "row", flexWrap: "wrap", width: "100%" }}>
           
-          {/* Left Pane: Add Form */}
-          <div className="dashboard-card" style={{ flex: "1 1 350px", background: "rgba(30, 41, 59, 0.4)" }}>
-            <h3 style={{ borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem", marginBottom: "1rem" }}>
-              🎓 Add New Student Profile
-            </h3>
-            <form className="auth-form" onSubmit={handleCreateStudent}>
-              <div className="form-group">
-                <label>Student Name</label>
-                <input
-                  className="input-field"
-                  type="text"
-                  placeholder="Enter full name"
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Email Address</label>
-                <input
-                  className="input-field"
-                  type="email"
-                  placeholder="student@college.edu"
-                  value={studentEmail}
-                  onChange={(e) => setStudentEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Password</label>
-                <input
-                  className="input-field"
-                  type="password"
-                  placeholder="Enter password"
-                  value={studentPassword}
-                  onChange={(e) => setStudentPassword(e.target.value)}
-                  required
-                />
-              </div>
-
-              <button className="auth-btn" type="submit" disabled={loading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)" }}>
-                {loading ? "Creating..." : "Create Student Account"}
-              </button>
-            </form>
-          </div>
-
-          {/* Right Pane: Directory List */}
-          <div style={{ flex: "2 1 600px", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* Directory List (View Only for Faculty) */}
+          <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
             
-            <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.2)", height: "100%", display: "flex", flexDirection: "column" }}>
+            <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.2)", height: "100%", display: "flex", flexDirection: "column", width: "100%" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
                 <h3 style={{ margin: 0 }}>
                   🎓 Student Directory
@@ -1002,7 +954,6 @@ function FacultyDashboard() {
                         <th style={{ padding: "0.75rem 1rem" }}>Reg No.</th>
                         <th style={{ padding: "0.75rem 1rem" }}>Name</th>
                         <th style={{ padding: "0.75rem 1rem" }}>Email</th>
-                        <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1012,29 +963,11 @@ function FacultyDashboard() {
                             <td style={{ padding: "0.75rem 1rem", color: "var(--primary)", fontWeight: "600" }}>{s.registerNumber || "Pending"}</td>
                             <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{s.name}</td>
                             <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{s.email}</td>
-                            <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
-                              <button
-                                onClick={() => handleDeleteStudent(s.id)}
-                                style={{
-                                  background: deletingId === s.id ? "var(--error)" : "transparent",
-                                  border: "1px solid var(--error)",
-                                  color: deletingId === s.id ? "#fff" : "var(--error)",
-                                  borderRadius: "6px",
-                                  padding: "0.3rem 0.75rem",
-                                  cursor: "pointer",
-                                  fontSize: "0.8rem",
-                                  fontWeight: deletingId === s.id ? "600" : "400",
-                                  transition: "all 0.2s ease"
-                                }}
-                              >
-                                {deletingId === s.id ? "Confirm Delete?" : "Delete"}
-                              </button>
-                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="4" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                          <td colSpan="3" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
                             No students found.
                           </td>
                         </tr>

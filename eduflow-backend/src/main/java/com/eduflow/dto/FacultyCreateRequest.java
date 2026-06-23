@@ -16,4 +16,7 @@ public class FacultyCreateRequest {
 
     @NotBlank(message = "Password is required")
     private String password;
+
+    @NotBlank(message = "Department is required")
+    private String department;
 }
