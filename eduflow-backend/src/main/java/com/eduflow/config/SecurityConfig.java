@@ -39,6 +39,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/test/student/**").hasRole("STUDENT")
                         .requestMatchers("/api/test/faculty/**").hasRole("FACULTY")
                         .requestMatchers("/api/test/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/timetable/batch").hasRole("ADMIN")
+                        .requestMatchers("/api/attendance/session/*/export/**").hasAnyRole("FACULTY", "ADMIN")
+                        .requestMatchers("/api/attendance/analytics/low-attendance").hasAnyRole("FACULTY", "ADMIN")
+                        .requestMatchers("/api/leave/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

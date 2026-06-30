@@ -11,4 +11,5 @@ public interface AttendanceSessionRepository extends JpaRepository<AttendanceSes
     List<AttendanceSession> findByFacultyId(Long facultyId);
     List<AttendanceSession> findByActive(boolean active);
     List<AttendanceSession> findByFacultyIdIn(List<Long> facultyIds);
+    boolean existsBySubjectIgnoreCase(String subject);
 }

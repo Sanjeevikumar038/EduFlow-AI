@@ -59,5 +59,48 @@ export const getSessionReport = (sessionId, token) => {
   });
 };
 
+export const getStudentAnalytics = (token) => {
+  return axios.get(`${ATTENDANCE_API}/analytics/student`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
 
+export const getFacultyAnalytics = (token) => {
+  return axios.get(`${ATTENDANCE_API}/analytics/faculty`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
 
+export const getAdminAnalytics = (token) => {
+  return axios.get(`${ATTENDANCE_API}/analytics/admin`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+// ── Export: CSV download ─────────────────────────────────────────────────────
+export const exportSessionCsv = (sessionId, token) => {
+  return axios.get(`${ATTENDANCE_API}/session/${sessionId}/export/csv`, {
+    headers: { Authorization: `Bearer ${token}` },
+    responseType: "blob"
+  });
+};
+
+// ── Export: PDF structured data ──────────────────────────────────────────────
+export const exportSessionPdfData = (sessionId, token) => {
+  return axios.get(`${ATTENDANCE_API}/session/${sessionId}/export/pdf-data`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+
+// ── Low Attendance Students ──────────────────────────────────────────────────
+export const getLowAttendanceStudents = (token) => {
+  return axios.get(`${ATTENDANCE_API}/analytics/low-attendance`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};

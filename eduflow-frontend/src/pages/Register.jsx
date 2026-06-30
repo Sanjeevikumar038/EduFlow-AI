@@ -45,6 +45,7 @@ function Register() {
       localStorage.setItem("token", token);
       localStorage.setItem("role", userRole);
       localStorage.setItem("name", userName);
+      localStorage.setItem("email", email);
       if (response.data.id) {
         localStorage.setItem("userId", response.data.id);
       }

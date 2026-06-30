@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
 
 :root {
   --font-heading: 'Outfit', sans-serif;
@@ -44,24 +45,46 @@ body {
   background-attachment: fixed;
   color: var(--text-main);
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
   -webkit-font-smoothing: antialiased;
 }
 
 #root {
   width: 100%;
-  max-width: 1200px;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
-  border-inline: none; /* remove standard */
-  text-align: left;
+}
+
+/* ─── Glass Card Utility ─────────────────────────────────────────────── */
+.glass-card {
+  background: rgba(17, 24, 39, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+/* ─── Custom Scrollbar ───────────────────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────── */
+.animate-fade-in {
+  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
 }
 
 /* Glassmorphism Auth Card */
@@ -354,6 +377,15 @@ select.input-field {
   0% { top: 5%; }
   50% { top: 95%; }
   100% { top: 5%; }
+}
+
+.analytics-card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.analytics-card-hover:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25) !important;
 }
 
 
