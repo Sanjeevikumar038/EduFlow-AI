@@ -31,4 +31,8 @@ public class Attendance {
     private Double latitude;
 
     private Double longitude;
+
+    private String method; // QR or MANUAL
+
+    private String remarks;
 }

@@ -1,29 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { getStudentAnalytics } from "../../services/attendanceService";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 
 const SUBJECT_NAME_MAP = {
-  "OS": "Operating Systems",
-  "DCN": "Data Communication Networks",
-  "PCD": "Parallel and Cloud Computing",
+  "OS": "Operating Systems", 
+  "DCN": "Data Comm. Networks",
+  "PCD": "Parallel & Cloud Computing", 
   "AIES": "AI Expert Systems",
-  "AGAI": "Agentic AI",
+  "AGAI": "Agentic AI", 
   "SE": "Software Engineering",
-  "CC LAB": "Cloud Computing Lab",
-  "AI LAB": "Artificial Intelligence Lab",
-  "DSA": "Data Structures & Algorithms",
-  "COA": "Computer Organization & Architecture",
-  "DBMS": "Database Management Systems",
+  "DTF": "DTF",
+  "CC LAB": "Cloud Computing Lab", 
+  "AI LAB": "AI Lab",
+  "DSA": "Data Structures & Algo", 
+  "COA": "Computer Org. & Arch.",
+  "DBMS": "Database Mgmt Systems", 
   "TOC": "Theory of Computation",
-  "Java Lab": "Java Programming Lab",
-  "OOPs": "Object Oriented Programming",
-  "WebTech": "Web Technologies",
+  "Java Lab": "Java Programming Lab", 
+  "OOPs": "Object Oriented Prog.",
+  "WebTech": "Web Technologies", 
   "Cloud": "Cloud Computing",
-  "Web Lab": "Web Development Lab",
-  "EDC": "Electronic Devices & Circuits",
-  "DSP": "Digital Signal Processing",
+  "Web Lab": "Web Dev Lab", 
+  "EDC": "Electronic Devices & Cir.",
+  "DSP": "Digital Signal Processing", 
   "VLSI": "VLSI Design",
-  "Embedded Lab": "Embedded Systems Lab"
+  "Embedded Lab": "Embedded Systems Lab",
 };
 
 function SubjectAttendanceCard() {
@@ -32,95 +33,129 @@ function SubjectAttendanceCard() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     getStudentAnalytics(token)
-      .then(res => {
-        const list = res.data?.subjectWiseAttendance || [];
-        setSubjects(list);
-        setLoading(false);
+      .then(res => { 
+        setSubjects(res.data?.subjectWiseAttendance || []); 
+        setLoading(false); 
       })
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="glass-card p-6 rounded-2xl animate-pulse h-[400px]"></div>;
+  if (loading) {
+    return (
+      <div className="premium-card animate-pulse" style={{ height: "380px" }} />
+    );
+  }
 
-  const getBarColor = (percentage) => {
-    if (percentage >= 85) return "bg-emerald-500";
-    if (percentage >= 75) return "bg-blue-500";
-    if (percentage >= 65) return "bg-amber-500";
-    return "bg-rose-500";
+  const getBarColor = (pct) => {
+    if (pct >= 85) return "#10b981"; // Green
+    if (pct >= 75) return "#3b82f6"; // Blue
+    if (pct >= 65) return "#fbbf24"; // Amber
+    return "#ef4444"; // Red
   };
 
-  const getSubjectIcon = (subCode) => {
-    const code = subCode.toUpperCase();
-    if (code.includes("LAB")) return "💻";
-    if (code.includes("OS") || code.includes("SYS")) return "⚙️";
-    if (code.includes("NET") || code.includes("DCN")) return "🌐";
-    if (code.includes("AI") || code.includes("AGAI")) return "🧠";
-    if (code.includes("DB") || code.includes("DBMS")) return "🗄️";
-    if (code.includes("CLOUD") || code.includes("PCD")) return "☁️";
-    return "📝";
-  };
+  const subjectsCount = subjects.length;
 
   return (
-    <div className="glass-card p-6 rounded-2xl h-full flex flex-col">
-      <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-5">
-        <span className="text-purple-400">📊</span> Attendance Percentage by Subject
-      </h2>
-
-      {subjects.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 opacity-60 py-8">
-          <p className="font-semibold px-4 text-center">No attendance has been recorded yet.</p>
+    <div className="premium-card" style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "380px", padding: 0 }}>
+      {/* Header Row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--card-border)" }}>
+        <div>
+          <h3 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-main)", margin: 0 }}>Subject Attendance</h3>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem", display: "inline-block" }}>
+            {subjectsCount} subject{subjectsCount !== 1 ? "s" : ""} tracked
+          </span>
         </div>
-      ) : (
-        <div className="flex-1 space-y-4.5 overflow-y-auto max-h-[450px] custom-scrollbar pr-1">
-          {subjects.map((item, idx) => {
-            const subCode = item.subject || "";
-            const displayName = SUBJECT_NAME_MAP[subCode] || subCode;
-            const percent = item.attendancePercentage || 0;
-            const total = item.presentClasses + item.absentClasses;
+        {subjects.some(s => (s.attendancePercentage ?? 0) < 75) && (
+          <span className="custom-badge custom-badge-red">
+            ⚠ Low
+          </span>
+        )}
+      </div>
 
-            return (
-              <div key={idx} className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700/50 flex items-center justify-center text-sm shrink-0">
-                    {getSubjectIcon(subCode)}
+      {/* Body Area */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }} className="custom-scrollbar">
+        {subjectsCount === 0 ? (
+          /* Empty State */
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", minHeight: "220px", textAlign: "center" }}>
+            {/* Centered bar-chart SVG icon */}
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: "1rem", opacity: 0.5 }}>
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            <p style={{ fontSize: "0.95rem", fontWeight: "700", color: "var(--text-main)", margin: 0 }}>No data yet</p>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0", maxWidth: "220px" }}>
+              Attendance will appear after sessions are held
+            </p>
+          </div>
+        ) : (
+          /* List of tracked subjects */
+          <div className="space-y-4">
+            {subjects.map((item, idx) => {
+              const pct = item.attendancePercentage ?? 0;
+              const present = item.presentClasses ?? 0;
+              const absent = item.absentClasses ?? 0;
+              const total = present + absent;
+              const subCode = item.subject || "";
+              const displayName = SUBJECT_NAME_MAP[subCode] || subCode;
+              const isLow = pct < 75;
+
+              return (
+                <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span 
+                      style={{ fontSize: "0.825rem", fontWeight: "600", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}
+                      title={displayName}
+                    >
+                      {displayName} {isLow && <span style={{ color: "#ef4444" }} title="Below threshold">⚠️</span>}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                        {present}/{total}
+                      </span>
+                      <span style={{ fontSize: "0.825rem", fontWeight: "800", color: getBarColor(pct) }}>
+                        {Math.round(pct)}%
+                      </span>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-slate-200 truncate" title={displayName}>
-                      {displayName}
-                    </div>
-                    {/* Progress Bar Container */}
-                    <div className="w-full bg-slate-800 rounded-full h-1.5 mt-1.5 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-1000 ease-out ${getBarColor(percent)}`}
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
+                  {/* Progress bar */}
+                  <div style={{ height: "6px", borderRadius: "999px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                    <div 
+                      style={{ 
+                        height: "100%", 
+                        width: `${pct}%`, 
+                        borderRadius: "999px", 
+                        background: getBarColor(pct),
+                        transition: "width 1.2s ease-out" 
+                      }} 
+                    />
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-                <div className="shrink-0 text-right">
-                  <div className="text-sm font-bold text-white">{percent.toFixed(0)}%</div>
-                  <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                    {item.presentClasses} / {total} classes
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* View Detailed Attendance */}
-      <Link
-        to="/student/attendance"
-        className="mt-5 text-sm text-purple-400 hover:text-purple-300 font-semibold flex items-center justify-center gap-1.5 transition-colors"
-      >
-        View Detailed Attendance <span>→</span>
-      </Link>
+      {/* Footer link */}
+      <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--card-border)", textAlign: "center" }}>
+        <RouterLink 
+          to="/student/attendance" 
+          style={{ fontSize: "0.75rem", fontWeight: "600", color: "#818cf8", textDecoration: "none", transition: "color 0.2s" }}
+          onMouseEnter={e => e.currentTarget.style.color = "#a5b4fc"}
+          onMouseLeave={e => e.currentTarget.style.color = "#818cf8"}
+        >
+          View detailed attendance →
+        </RouterLink>
+      </div>
     </div>
   );
 }
 
 export default SubjectAttendanceCard;
+

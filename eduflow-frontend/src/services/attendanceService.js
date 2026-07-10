@@ -104,3 +104,39 @@ export const getLowAttendanceStudents = (token) => {
     headers: { Authorization: `Bearer ${token}` }
   });
 };
+
+export const getSessionStudents = (sessionId, token) => {
+  return axios.get(`${ATTENDANCE_API}/session/${sessionId}/students`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+
+export const markManualAttendance = (sessionId, studentId, status, token) => {
+  return axios.post(`${ATTENDANCE_API}/session/${sessionId}/manual`, { studentId, status }, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+
+export const closeSession = (sessionId, token) => {
+  return axios.post(`${ATTENDANCE_API}/session/${sessionId}/close`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+
+export const getMySubjects = (token) => {
+  return axios.get(`${ATTENDANCE_API}/my-subjects`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+
+export const saveBulkAttendance = (sessionId, requests, token) => {
+  return axios.post(`${ATTENDANCE_API}/session/${sessionId}/bulk-manual`, requests, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+
+export const saveManualAttendanceSession = (data, token) => {
+  return axios.post(`${ATTENDANCE_API}/session/save-manual`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};

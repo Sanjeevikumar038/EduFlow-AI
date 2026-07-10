@@ -41,3 +41,29 @@ export const getTimetableVersions = (token, department) =>
 
 export const activateTimetableVersion = (id, token) =>
   axios.post(`${ADMIN_API}/timetable-versions/activate/${id}`, {}, authHeaders(token));
+
+const CODING_API = `${API_BASE}/api/coding`;
+
+export const assignFreeActivityPeriod = (data, token) =>
+  axios.post(`${CODING_API}/assign-activity`, data, authHeaders(token));
+
+export const getActiveFreeActivityChallenge = (date, department, token) =>
+  axios.get(`${CODING_API}/challenge?date=${date}&department=${encodeURIComponent(department)}`, authHeaders(token));
+
+export const runFreeActivitySolution = (data, token) =>
+  axios.post(`${CODING_API}/run`, data, authHeaders(token));
+
+export const submitFreeActivitySolution = (data, token) =>
+  axios.post(`${CODING_API}/submit`, data, authHeaders(token));
+
+export const getFreeActivitySubmissions = (date, token) =>
+  axios.get(`${CODING_API}/submissions?date=${date}`, authHeaders(token));
+
+export const overrideFreeActivityAttendance = (data, token) =>
+  axios.post(`${CODING_API}/override-attendance`, data, authHeaders(token));
+
+export const getCodingHistory = (token) =>
+  axios.get(`${CODING_API}/history`, authHeaders(token));
+
+export const getCodingProblems = (token) =>
+  axios.get(`${CODING_API}/problems`, authHeaders(token));

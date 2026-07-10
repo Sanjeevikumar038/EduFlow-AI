@@ -5,12 +5,24 @@ import {
   deleteFaculty,
   createStudent,
   getStudents,
-  deleteStudent
+  deleteStudent,
+  getStudentsPaged,
+  getStudentProfile
 } from "../services/authService";
 import { getAdminAnalytics, exportSessionCsv, exportSessionPdfData, getLowAttendanceStudents } from "../services/attendanceService";
 import { getAllLeaveRequests } from "../services/leaveService";
 import { useNavigate } from "react-router-dom";
-import AnalyticsCard from "../components/AnalyticsCard";
+import AdminSidebar from "../components/admin/AdminSidebar";
+import AdminTopbar from "../components/admin/AdminTopbar";
+import AnalyticsControlView from "../components/admin/AnalyticsControlView";
+import FacultyManagementView from "../components/admin/FacultyManagementView";
+import StudentManagementView from "../components/admin/StudentManagementView";
+import TimetableManagerView from "../components/admin/TimetableManagerView";
+import SubjectMasterView from "../components/admin/SubjectMasterView";
+import FacultyExpertiseView from "../components/admin/FacultyExpertiseView";
+import FacultyLeavesView from "../components/admin/FacultyLeavesView";
+import StudentLeavesView from "../components/admin/StudentLeavesView";
+import WorkloadView from "../components/admin/WorkloadView";
 import { getDepartmentTimetable, saveDepartmentTimetable, autoGenerateTimetable, getTimetableVersions, activateTimetableVersion } from "../services/timetableService";
 import {
   getSubjects, createSubject, deleteSubject,
@@ -20,7 +32,7 @@ import {
   getClassrooms, createClassroom
 } from "../services/subjectService";
 import CareerDashboardAdmin from "../components/career/CareerDashboardAdmin";
-
+import "../styles/dashboard-tweaks.css";
 
 function DepartmentComparisonChart({ data }) {
   if (!data || data.length === 0) {
@@ -94,7 +106,7 @@ function DepartmentComparisonChart({ data }) {
                   ry="6"
                   style={{ transition: "all 0.5s ease" }}
                 />
-                
+
                 <text
                   x={x + barWidth / 2}
                   y={y - 8}
@@ -132,6 +144,21 @@ function AdminDashboard() {
 
   // Tab State
   const [activeTab, setActiveTab] = useState("analytics"); // 'analytics', 'faculty' or 'students'
+
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("eduflow-theme");
+    return saved ? saved === "dark" : true; 
+  });
+
+  useEffect(() => {
+    const html = document.documentElement;
+    if (isDark) {
+      html.removeAttribute("data-theme");
+    } else {
+      html.setAttribute("data-theme", "light");
+    }
+    localStorage.setItem("eduflow-theme", isDark ? "dark" : "light");
+  }, [isDark]);
 
   // Admin Analytics States
   const [adminAnalytics, setAdminAnalytics] = useState(null);
@@ -184,23 +211,23 @@ function AdminDashboard() {
   const DEPT_OPTIONS = ["M.Tech CSE", "CSE", "IT", "ECE"];
 
   const loadSubjects = async () => {
-    try { const res = await getSubjects(token); setSubjects(res.data); } catch(e) { console.error(e); }
+    try { const res = await getSubjects(token); setSubjects(res.data); } catch (e) { console.error(e); }
   };
   const loadExpertise = async () => {
-    try { const res = await getAllExpertise(token); setExpertise(res.data); } catch(e) { console.error(e); }
+    try { const res = await getAllExpertise(token); setExpertise(res.data); } catch (e) { console.error(e); }
   };
   const loadAvailability = async () => {
-    try { const res = await getAvailability(token); setAvailabilityList(res.data); } catch(e) { console.error(e); }
+    try { const res = await getAvailability(token); setAvailabilityList(res.data); } catch (e) { console.error(e); }
   };
   const loadWorkload = async () => {
     setWorkloadLoading(true);
-    try { const res = await getFacultyWorkload(token); setWorkload(res.data); } catch(e) { console.error(e); } finally { setWorkloadLoading(false); }
+    try { const res = await getFacultyWorkload(token); setWorkload(res.data); } catch (e) { console.error(e); } finally { setWorkloadLoading(false); }
   };
   const loadClassrooms = async () => {
-    try { const res = await getClassrooms(token); setClassrooms(res.data); } catch(e) { console.error(e); }
+    try { const res = await getClassrooms(token); setClassrooms(res.data); } catch (e) { console.error(e); }
   };
   const loadVersions = async (dept) => {
-    try { const res = await getTimetableVersions(token, dept); setTimetableVersions(res.data); } catch(e) { console.error(e); }
+    try { const res = await getTimetableVersions(token, dept); setTimetableVersions(res.data); } catch (e) { console.error(e); }
   };
 
   const handleCreateSubject = async (e) => {
@@ -211,12 +238,12 @@ function AdminDashboard() {
       showFeedback("Subject created!");
       setSubjectForm({ subjectCode: "", subjectName: "", department: "M.Tech CSE", semester: 1, academicYear: "2024-25", credits: 3, weeklyHours: 3, subjectCategory: "THEORY" });
       loadSubjects();
-    } catch(e) { showFeedback(e.response?.data || "Failed to create subject", "error"); }
+    } catch (e) { showFeedback(e.response?.data || "Failed to create subject", "error"); }
     finally { setSubjectLoading(false); }
   };
   const handleDeleteSubject = async (id) => {
     try { await deleteSubject(id, token); showFeedback("Subject deleted/deactivated!"); loadSubjects(); }
-    catch(e) { showFeedback(e.response?.data || "Failed to delete subject", "error"); }
+    catch (e) { showFeedback(e.response?.data || "Failed to delete subject", "error"); }
   };
   const handleAllocateExpertise = async (e) => {
     e.preventDefault();
@@ -226,12 +253,12 @@ function AdminDashboard() {
       showFeedback("Expertise allocated!");
       setExpertiseForm({ facultyId: "", subjectId: "", expertiseLevel: "PRIMARY" });
       loadExpertise();
-    } catch(e) { showFeedback(e.response?.data || "Failed to allocate expertise", "error"); }
+    } catch (e) { showFeedback(e.response?.data || "Failed to allocate expertise", "error"); }
     finally { setExpertiseLoading(false); }
   };
   const handleRemoveExpertise = async (id) => {
     try { await removeExpertise(id, token); showFeedback("Expertise removed!"); loadExpertise(); }
-    catch(e) { showFeedback("Failed to remove expertise", "error"); }
+    catch (e) { showFeedback("Failed to remove expertise", "error"); }
   };
   const handleAddLeave = async (e) => {
     e.preventDefault();
@@ -241,12 +268,12 @@ function AdminDashboard() {
       showFeedback("Leave recorded!");
       setLeaveForm({ facultyId: "", date: "", available: false, reason: "" });
       loadAvailability();
-    } catch(e) { showFeedback("Failed to record leave", "error"); }
+    } catch (e) { showFeedback("Failed to record leave", "error"); }
     finally { setLeaveLoading(false); }
   };
   const handleDeleteLeave = async (id) => {
     try { await deleteAvailability(id, token); showFeedback("Leave record removed!"); loadAvailability(); }
-    catch(e) { showFeedback("Failed to remove leave", "error"); }
+    catch (e) { showFeedback("Failed to remove leave", "error"); }
   };
   const handleAutoGenerate = async () => {
     setAutoGenerating(true);
@@ -254,17 +281,17 @@ function AdminDashboard() {
       const res = await autoGenerateTimetable({ department: selectedDept }, token);
       showFeedback(`✅ ${res.data.message} (${res.data.totalEntries} entries)`);
       loadTimetable(selectedDept);
-    } catch(e) { showFeedback(e.response?.data || "Auto-generate failed", "error"); }
+    } catch (e) { showFeedback(e.response?.data || "Auto-generate failed", "error"); }
     finally { setAutoGenerating(false); }
   };
   const handleActivateVersion = async (id) => {
     try { await activateTimetableVersion(id, token); showFeedback("Version activated!"); loadVersions(selectedDept); loadTimetable(selectedDept); }
-    catch(e) { showFeedback("Failed to activate version", "error"); }
+    catch (e) { showFeedback("Failed to activate version", "error"); }
   };
   const handleAddClassroom = async (e) => {
     e.preventDefault();
     try { await createClassroom({ ...classroomForm, capacity: Number(classroomForm.capacity) }, token); showFeedback("Classroom added!"); setClassroomForm({ roomCode: "", roomName: "", capacity: 60, roomType: "LECTURE" }); loadClassrooms(); }
-    catch(e) { showFeedback(e.response?.data || "Failed to add classroom", "error"); }
+    catch (e) { showFeedback(e.response?.data || "Failed to add classroom", "error"); }
   };
 
   const handleExportCsv = async (session) => {
@@ -347,7 +374,7 @@ function AdminDashboard() {
     try {
       const res = await getDepartmentTimetable(dept, token);
       const entries = res.data || [];
-      
+
       const newMatrix = {};
       const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
       days.forEach(day => {
@@ -400,7 +427,7 @@ function AdminDashboard() {
       const entriesToSave = [];
       const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
       days.forEach(day => {
-        for (let p = 1; p <= 8; p++) {
+        for (let p = 1; p <= 6; p++) {
           const cell = timetableMatrix[`${day}-${p}`];
           if (cell && (cell.subject.trim() !== "" || cell.facultyId !== "")) {
             entriesToSave.push({
@@ -427,21 +454,21 @@ function AdminDashboard() {
   const handleRandomizeTimetable = () => {
     let deptSubjects = [];
     if (selectedDept === "M.Tech CSE") {
-      deptSubjects = ["OS", "DCN", "PCD", "AIES", "AGAI", "DBMS", "CC LAB", "AI LAB", "SE"];
+      deptSubjects = ["OS", "DCN", "PCD", "AGAI"];
     } else if (selectedDept === "CSE") {
-      deptSubjects = ["DSA", "COA", "TOC", "DAA", "CN", "AI", "DBMS", "Java Lab"];
+      deptSubjects = ["DSA", "COA", "DBMS", "Java Lab"];
     } else if (selectedDept === "IT") {
-      deptSubjects = ["OOPs", "SE", "OS", "WebTech", "MobileApp", "Security", "Cloud", "Web Lab"];
+      deptSubjects = ["OOPs", "SE", "OS", "WebTech"];
     } else if (selectedDept === "ECE") {
-      deptSubjects = ["EDC", "SS", "LIC", "MPMC", "DSP", "VLSI", "Antenna", "Embedded Lab"];
+      deptSubjects = ["EDC", "SS", "LIC", "MPMC"];
     } else {
-      deptSubjects = ["SUB1", "SUB2", "SUB3", "SUB4", "SUB5", "SUB6", "SUB7", "SUB8"];
+      deptSubjects = ["SUB1", "SUB2", "SUB3", "SUB4"];
     }
 
     const newMatrix = {};
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
     days.forEach(day => {
-      for (let p = 1; p <= 8; p++) {
+      for (let p = 1; p <= 6; p++) {
         const randomSub = deptSubjects[Math.floor(Math.random() * deptSubjects.length)];
         let randomFacId = "";
         if (faculty.length > 0 && Math.random() > 0.15) {
@@ -483,7 +510,7 @@ function AdminDashboard() {
   // List States
   const [students, setStudents] = useState([]);
   const [faculty, setFaculty] = useState([]);
-  
+
   // Form States - Faculty
   const [facultyName, setFacultyName] = useState("");
   const [facultyEmail, setFacultyEmail] = useState("");
@@ -516,17 +543,58 @@ function AdminDashboard() {
     }, 4000);
   };
 
+  // Student specific paging states
+  const [studentPage, setStudentPage] = useState(0);
+  const [studentTotalPages, setStudentTotalPages] = useState(1);
+  const [studentSortBy, setStudentSortBy] = useState("name");
+  const [studentSortDir, setStudentSortDir] = useState("asc");
+  const [studentSectionFilter, setStudentSectionFilter] = useState("");
+  const [studentBatchFilter, setStudentBatchFilter] = useState("");
+  const [studentActiveFilter, setStudentActiveFilter] = useState("");
+  const [selectedStudentProfile, setSelectedStudentProfile] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  const fetchStudentsList = async () => {
+    if (!token) return;
+    setFetchLoading(true);
+    try {
+      const res = await getStudentsPaged({
+        page: studentPage,
+        size: 10,
+        sortBy: studentSortBy,
+        sortDir: studentSortDir,
+        search: searchTerm,
+        department: deptFilter === "All" ? "" : deptFilter,
+        section: studentSectionFilter,
+        batch: studentBatchFilter,
+        active: studentActiveFilter === "" ? null : (studentActiveFilter === "true")
+      }, token);
+      setStudents(res.data.content || []);
+      setStudentTotalPages(res.data.totalPages || 1);
+    } catch (err) {
+      console.error("Error fetching paged students:", err);
+    } finally {
+      setFetchLoading(false);
+    }
+  };
+
+  const handleViewProfile = async (studentId) => {
+    try {
+      const res = await getStudentProfile(studentId, token);
+      setSelectedStudentProfile(res.data);
+      setShowProfileModal(true);
+    } catch (err) {
+      showFeedback("Failed to fetch student profile details.", "error");
+    }
+  };
+
   // Fetch data
   const fetchData = async () => {
     if (!token) return;
     setFetchLoading(true);
     try {
-      const [facRes, studRes] = await Promise.all([
-        getFaculty(token),
-        getStudents(token)
-      ]);
+      const facRes = await getFaculty(token);
       setFaculty(facRes.data);
-      setStudents(studRes.data);
     } catch (error) {
       console.error("Error fetching admin dashboard data:", error);
     } finally {
@@ -543,6 +611,12 @@ function AdminDashboard() {
     loadAvailability();
     loadClassrooms();
   }, [token]);
+
+  useEffect(() => {
+    if (activeTab === "students") {
+      fetchStudentsList();
+    }
+  }, [activeTab, studentPage, studentSortBy, studentSortDir, studentSectionFilter, studentBatchFilter, studentActiveFilter, deptFilter, searchTerm, token]);
 
   useEffect(() => {
     if (activeTab === "workload") loadWorkload();
@@ -668,7 +742,7 @@ function AdminDashboard() {
     const cellKey = `${day}-${period}`;
     const cell = timetableMatrix[cellKey] || { subject: "", facultyId: "" };
     const isSelected = selectedSwapCell && selectedSwapCell.day === day && selectedSwapCell.period === period;
-    
+
     const cellStyle = swapMode ? {
       cursor: "pointer",
       border: isSelected ? "2px solid var(--secondary)" : "1px dashed rgba(255,255,255,0.25)",
@@ -677,7 +751,7 @@ function AdminDashboard() {
     } : {};
 
     return (
-      <td 
+      <td
         key={period}
         style={cellStyle}
         onClick={() => {
@@ -730,1213 +804,854 @@ function AdminDashboard() {
   };
 
 
+  // Sidebar / Mobile states
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Modal display states
+  const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
+  const [showAssignExpertiseModal, setShowAssignExpertiseModal] = useState(false);
+  const [showRecordLeaveModal, setShowRecordLeaveModal] = useState(false);
+
+  // Faculty Leaves Mock Pending Requests
+  const [pendingFacultyLeaves, setPendingFacultyLeaves] = useState([
+    {
+      id: "mock-1",
+      faculty: { id: 1, name: "Dr. Sarah Connor", department: "CSE" },
+      date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+      reason: "Medical Checkup",
+      status: "PENDING"
+    },
+    {
+      id: "mock-2",
+      faculty: { id: 2, name: "Prof. Charles Xavier", department: "ECE" },
+      date: new Date(Date.now() + 172800000).toISOString().split("T")[0],
+      reason: "Attending Symposium",
+      status: "PENDING"
+    }
+  ]);
+
+  // Combined Approve/Reject Student leaves
+  const handleApproveStudentLeave = async (id) => {
+    try {
+      await approveLeaveRequest(id, token);
+      showFeedback("Student leave request approved.");
+      fetchAdminLeaveRequests();
+    } catch (err) {
+      showFeedback("Failed to approve student leave.", "error");
+    }
+  };
+
+  const handleRejectStudentLeave = async (id) => {
+    try {
+      await rejectLeaveRequest(id, token, "Rejected by administrator");
+      showFeedback("Student leave request rejected.");
+      fetchAdminLeaveRequests();
+    } catch (err) {
+      showFeedback("Failed to reject student leave.", "error");
+    }
+  };
+
+  // Combined Approve/Reject Faculty leaves
+  const handleApproveFacultyLeave = async (leave) => {
+    try {
+      const facObj = faculty.find(f => f.name === leave.faculty.name) || faculty[0];
+      await setAvailability({
+        facultyId: facObj ? facObj.id : 1,
+        date: leave.date,
+        available: false,
+        reason: leave.reason
+      }, token);
+      showFeedback(`Leave request approved for ${leave.faculty.name}`);
+      setPendingFacultyLeaves(prev => prev.filter(x => x.id !== leave.id));
+      loadAvailability();
+    } catch (e) {
+      showFeedback("Failed to approve leave request", "error");
+    }
+  };
+
+  const handleRejectFacultyLeave = (leaveId, facultyName) => {
+    setPendingFacultyLeaves(prev => prev.filter(x => x.id !== leaveId));
+    showFeedback(`Leave request rejected for ${facultyName}`);
+  };
+
+  // Cross-referencing helper functions
+  const getFacultySubjects = (facultyId) => {
+    const facExpertise = expertise.filter(e => e.faculty?.id === facultyId);
+    if (facExpertise.length === 0) return "General";
+    return facExpertise.map(e => e.subject?.subjectCode).join(", ");
+  };
+
+  const getSubjectFaculty = (subjectId) => {
+    const subExpertise = expertise.filter(e => e.subject?.id === subjectId && e.expertiseLevel === "PRIMARY");
+    if (subExpertise.length === 0) return "Not Assigned";
+    return subExpertise.map(e => e.faculty?.name).join(", ");
+  };
+
+  // Modal renderer helper
+  const renderModal = (isOpen, onClose, title, children) => {
+    if (!isOpen) return null;
+    return (
+      <div style={{
+        position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+        background: "rgba(5, 7, 17, 0.85)", backdropFilter: "blur(8px)",
+        display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999,
+        padding: "1.5rem"
+      }}>
+        <div style={{
+          background: "#0c0f24", border: "1px solid var(--card-border)",
+          borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "2rem",
+          boxShadow: "0 20px 25px -5px rgba(0,0,0,0.5), 0 10px 10px -5px rgba(0,0,0,0.5)",
+          position: "relative",
+          animation: "fadeIn 0.3s ease"
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute", top: "1.25rem", right: "1.25rem",
+              background: "transparent", border: "none", color: "var(--text-muted)",
+              fontSize: "1.2rem", cursor: "pointer", transition: "color 0.2s"
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = "#fff"}
+            onMouseLeave={e => e.currentTarget.style.color = "var(--text-muted)"}
+          >
+            ✕
+          </button>
+          <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff", fontSize: "1.25rem", fontWeight: "700", fontFamily: "var(--font-heading)" }}>
+            {title}
+          </h3>
+          {children}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="dashboard-container" style={{ maxWidth: "1150px", width: "100%" }}>
-      <div className="dashboard-header">
-        <div className="dashboard-title">
-          <h1>Admin Control Panel</h1>
-          <p>Logged in as: {name} (ADMIN)</p>
-        </div>
-        <button className="logout-btn" onClick={handleLogout}>
-          Logout
-        </button>
-      </div>
-
-      {/* Feedback banner */}
-      {feedback.message && (
-        <div
+    <div className="portal-layout" style={{
+      display: "flex", width: "100vw", minHeight: "100vh",
+      backgroundColor: "var(--bg-primary)", color: "var(--text-main)", overflow: "hidden",
+    }}>
+      {/* Backdrop for mobile sidebar */}
+      {mobileMenuOpen && (
+        <div 
+          onClick={() => setMobileMenuOpen(false)}
           style={{
-            background: feedback.type === "error" ? "rgba(239, 68, 68, 0.2)" : "rgba(16, 185, 129, 0.2)",
-            border: `1px solid ${feedback.type === "error" ? "var(--error)" : "var(--success)"}`,
-            color: feedback.type === "error" ? "var(--error)" : "var(--success)",
-            borderRadius: "10px",
-            padding: "1rem",
-            marginBottom: "1.5rem",
-            fontWeight: "500",
-            animation: "fadeIn 0.3s ease"
+            position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 30,
           }}
-        >
-          {feedback.message}
-        </div>
+          className="lg:hidden"
+        />
       )}
 
-      {/* Navigation tabs */}
-      <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem", borderBottom: "1px solid var(--card-border)", paddingBottom: "1rem", flexWrap: "wrap" }}>
-        <button
-          onClick={() => { setActiveTab("analytics"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "analytics" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "analytics" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          📊 Analytics Control
-        </button>
-        <button
-          onClick={() => { setActiveTab("faculty"); setSearchTerm(""); setDeptFilter("All"); setDeletingId(null); }}
-          style={{
-            background: activeTab === "faculty" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "faculty" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          👤 Faculty Management
-        </button>
-        <button
-          onClick={() => { setActiveTab("students"); setSearchTerm(""); setDeptFilter("All"); setDeletingId(null); }}
-          style={{
-            background: activeTab === "students" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "students" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          🎓 Student Management
-        </button>
-        <button
-          onClick={() => { setActiveTab("timetable"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "timetable" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "timetable" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          📅 Timetable Manager
-        </button>
-        <button
-          onClick={() => { setActiveTab("subjects"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "subjects" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "subjects" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          📚 Subject Master
-        </button>
-        <button
-          onClick={() => { setActiveTab("expertise"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "expertise" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "expertise" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          🎯 Faculty Expertise
-        </button>
-        <button
-          onClick={() => { setActiveTab("leaves"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "leaves" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "leaves" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          🏖️ Faculty Leaves
-        </button>
-        <button
-          onClick={() => { setActiveTab("leave"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "leave" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "leave" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          📄 Student Leaves/OD
-        </button>
-        <button
-          onClick={() => { setActiveTab("workload"); loadWorkload(); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "workload" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "workload" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease",
-            whiteSpace: "nowrap"
-          }}
-        >
-          📊 Workload
-        </button>
-        <button
-          onClick={() => { setActiveTab("career"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "career" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "career" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease",
-            whiteSpace: "nowrap"
-          }}
-        >
-          ⭐ Career
-        </button>
-      </div>
+      {/* Sidebar Navigation */}
+      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} handleLogout={handleLogout} />
 
-      {activeTab === "career" && <CareerDashboardAdmin />}
+      {/* Main content viewport */}
+      <main style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        overflow: "hidden",
+        paddingLeft: "260px",
+      }} className="w-full pl-0 lg:pl-[260px]">
 
-      {activeTab === "analytics" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem", width: "100%", animation: "fadeIn 0.5s ease" }}>
+        {/* Topbar navigation panel */}
+        <AdminTopbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} setMobileMenuOpen={setMobileMenuOpen} isDark={isDark} setIsDark={setIsDark} handleLogout={handleLogout} />
+
+        {/* Scrollable page viewport content */}
+        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "2rem" }} className="custom-scrollbar">
           
-          {/* Reusable Analytics Cards Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.5rem", width: "100%" }}>
-            <AnalyticsCard
-              title="Total Students"
-              score={adminAnalytics?.totalStudents ?? 0}
-              status="Total Active"
-              icon="🎓"
-              subText="System Student Count"
-              maxScore={100}
-            />
-            <AnalyticsCard
-              title="Total Faculty"
-              score={adminAnalytics?.totalFaculty ?? 0}
-              status="Total Conductor"
-              icon="👤"
-              subText="System Faculty Count"
-              maxScore={100}
-            />
-            <AnalyticsCard
-              title="Total Sessions"
-              score={adminAnalytics?.totalSessions ?? 0}
-              status="Conducted"
-              icon="⚡"
-              subText="Total Attendance Sessions"
-              maxScore={100}
-            />
+          {/* Welcome Dashboard Header */}
+          <div className="dashboard-title" style={{ marginBottom: "2rem" }}>
+            <h1 style={{ fontSize: "2rem", fontWeight: "800", background: "linear-gradient(135deg, #fff 0%, #a5b4fc 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Admin Control Panel
+            </h1>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", marginTop: "0.25rem" }}>
+              Logged in as: System Administrator (ADMIN)
+            </p>
           </div>
 
-          {/* Spotlight Cards (Best / Needs Improvement) */}
-          <div style={{ display: "flex", gap: "1.5rem", width: "100%", flexWrap: "wrap" }}>
-            <div className="dashboard-card" style={{ flex: "1 1 300px", background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: "16px", padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-              <span style={{ fontSize: "2rem" }}>🏆</span>
-              <div>
-                <h4 style={{ margin: 0, color: "var(--success)", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Best Performing Department</h4>
-                <p style={{ margin: "0.25rem 0 0 0", fontSize: "1.3rem", fontWeight: "700" }}>{adminAnalytics?.bestDepartment ?? "Loading..."}</p>
-              </div>
-            </div>
-
-            <div className="dashboard-card" style={{ flex: "1 1 300px", background: "rgba(239, 68, 68, 0.05)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "16px", padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-              <span style={{ fontSize: "2rem" }}>⚠️</span>
-              <div>
-                <h4 style={{ margin: 0, color: "var(--error)", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>Needs Improvement</h4>
-                <p style={{ margin: "0.25rem 0 0 0", fontSize: "1.3rem", fontWeight: "700" }}>{adminAnalytics?.needsImprovementDepartment ?? "Loading..."}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* SVG comparison chart and details grid side by side */}
-          <div style={{ display: "flex", gap: "2rem", flexDirection: "row", flexWrap: "wrap", width: "100%" }}>
-            
-            {/* SVG Chart */}
-            <div style={{ flex: "2 1 500px" }}>
-              {adminAnalyticsLoading ? (
-                <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", padding: "3rem", textAlign: "center", color: "var(--text-muted)" }}>
-                  Loading comparison chart...
-                </div>
-              ) : (
-                <DepartmentComparisonChart data={adminAnalytics?.departmentComparison} />
-              )}
-            </div>
-
-            {/* Department grid */}
-            <div className="dashboard-card" style={{ flex: "1 1 350px", background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem" }}>
-              <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff", fontSize: "1.2rem", fontFamily: "var(--font-heading)", fontWeight: "600", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
-                📋 Department Comparison Summary
-              </h3>
-
-              {adminAnalyticsLoading ? (
-                <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>Loading records...</div>
-              ) : adminAnalytics?.departmentComparison && adminAnalytics.departmentComparison.length > 0 ? (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid var(--card-border)", color: "var(--text-muted)" }}>
-                        <th style={{ padding: "0.5rem" }}>Department</th>
-                        <th style={{ padding: "0.5rem", textAlign: "center" }}>Students</th>
-                        <th style={{ padding: "0.5rem", textAlign: "center" }}>Sessions</th>
-                        <th style={{ padding: "0.5rem", textAlign: "right" }}>Attendance</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {adminAnalytics.departmentComparison.map((d, idx) => (
-                        <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                          <td style={{ padding: "0.75rem 0.5rem", fontWeight: "600", color: "var(--primary)" }}>{d.department}</td>
-                          <td style={{ padding: "0.75rem 0.5rem", textAlign: "center", fontWeight: "500" }}>{d.totalStudents}</td>
-                          <td style={{ padding: "0.75rem 0.5rem", textAlign: "center", color: "var(--text-muted)" }}>{d.totalSessions}</td>
-                          <td style={{ padding: "0.75rem 0.5rem", textAlign: "right", fontWeight: "700" }}>
-                            {d.averageAttendance.toFixed(1)}%
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)", fontStyle: "italic" }}>No records found.</div>
-              )}
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {(activeTab === "faculty" || activeTab === "students") ? (
-        <div style={{ display: "flex", gap: "2rem", flexDirection: "row", flexWrap: "wrap" }}>
-        
-        {/* Left Pane: Add Form */}
-        <div className="dashboard-card" style={{ flex: "1 1 350px", background: "rgba(30, 41, 59, 0.4)" }}>
-          {activeTab === "faculty" ? (
-            <>
-              <h3 style={{ borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem", marginBottom: "1rem" }}>
-                👤 Add New Faculty Profile
-              </h3>
-              <form className="auth-form" onSubmit={handleCreateFaculty}>
-                <div className="form-group">
-                  <label>Faculty Name</label>
-                  <input
-                    className="input-field"
-                    type="text"
-                    placeholder="Enter full name"
-                    value={facultyName}
-                    onChange={(e) => setFacultyName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>College Email</label>
-                  <input
-                    className="input-field"
-                    type="email"
-                    placeholder="faculty@college.edu"
-                    value={facultyEmail}
-                    onChange={(e) => setFacultyEmail(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Temporary Password</label>
-                  <input
-                    className="input-field"
-                    type="password"
-                    placeholder="Enter initial password"
-                    value={facultyPassword}
-                    onChange={(e) => setFacultyPassword(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Department</label>
-                  <select
-                    className="input-field"
-                    value={facultyDepartment}
-                    onChange={(e) => setFacultyDepartment(e.target.value)}
-                    required
-                    style={{ appearance: "auto" }}
-                  >
-                    <option value="" disabled>-- Select Department --</option>
-                    <option value="Civil">Civil</option>
-                    <option value="CSE">CSE</option>
-                    <option value="CSE (AI & ML/Cyber Security)">CSE (AI & ML/Cyber Security)</option>
-                    <option value="EEE">EEE</option>
-                    <option value="ECE">ECE</option>
-                    <option value="Mechanical">Mechanical</option>
-                    <option value="Mechatronics">Mechatronics</option>
-                    <option value="IT">IT</option>
-                    <option value="AI & Data Science">AI & Data Science</option>
-                    <option value="CSBS">CS & Business Systems</option>
-                    <option value="M.Tech CSE">mtech cse 5 years</option>
-                  </select>
-                </div>
-
-                <button className="auth-btn" type="submit" disabled={loading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)" }}>
-                  {loading ? "Creating..." : "Create Faculty Account"}
-                </button>
-              </form>
-            </>
-          ) : (
-            <>
-              <h3 style={{ borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem", marginBottom: "1rem" }}>
-                🎓 Add New Student Profile
-              </h3>
-              <form className="auth-form" onSubmit={handleCreateStudent}>
-                <div className="form-group">
-                  <label>Student Name</label>
-                  <input
-                    className="input-field"
-                    type="text"
-                    placeholder="Enter full name"
-                    value={studentName}
-                    onChange={(e) => setStudentName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Email Address</label>
-                  <input
-                    className="input-field"
-                    type="email"
-                    placeholder="student@college.edu"
-                    value={studentEmail}
-                    onChange={(e) => setStudentEmail(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Password</label>
-                  <input
-                    className="input-field"
-                    type="password"
-                    placeholder="Enter password"
-                    value={studentPassword}
-                    onChange={(e) => setStudentPassword(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Department</label>
-                  <select
-                    className="input-field"
-                    value={studentDepartment}
-                    onChange={(e) => setStudentDepartment(e.target.value)}
-                    required
-                    style={{ appearance: "auto" }}
-                  >
-                    <option value="" disabled>-- Select Department --</option>
-                    <option value="Civil">Civil</option>
-                    <option value="CSE">CSE</option>
-                    <option value="CSE (AI & ML/Cyber Security)">CSE (AI & ML/Cyber Security)</option>
-                    <option value="EEE">EEE</option>
-                    <option value="ECE">ECE</option>
-                    <option value="Mechanical">Mechanical</option>
-                    <option value="Mechatronics">Mechatronics</option>
-                    <option value="IT">IT</option>
-                    <option value="AI & Data Science">AI & Data Science</option>
-                    <option value="CSBS">CS & Business Systems</option>
-                    <option value="M.Tech CSE">mtech cse 5 years</option>
-                  </select>
-                </div>
-
-                <button className="auth-btn" type="submit" disabled={loading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)" }}>
-                  {loading ? "Creating..." : "Create Student Account"}
-                </button>
-              </form>
-            </>
-          )}
-        </div>
-
-        {/* Right Pane: Directory List */}
-        <div style={{ flex: "2 1 600px", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          
-          <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.2)", height: "100%", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "1rem" }}>
-              <h3 style={{ margin: 0 }}>
-                {activeTab === "faculty" ? "👤 Faculty Directory" : "🎓 Student Directory"}
-                <span style={{ fontSize: "0.9rem", color: "var(--text-muted)", marginLeft: "0.5rem" }}>
-                  ({activeTab === "faculty" ? filteredFaculty.length : filteredStudents.length} entries)
-                </span>
-              </h3>
-              <input
-                className="input-field"
-                type="text"
-                placeholder={`Search ${activeTab === "faculty" ? "faculty" : "students"} by name or email...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ maxWidth: "280px", height: "38px", padding: "0.5rem 1rem", fontSize: "0.85rem" }}
-              />
-            </div>
-
-            {/* Department Filter Pills */}
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
-              {ALL_DEPTS.map(dept => {
-                const count = getDeptCount(dept, activeTab === "faculty" ? faculty : students);
-                const isActive = deptFilter === dept;
-                return (
-                  <button
-                    key={dept}
-                    onClick={() => setDeptFilter(dept)}
-                    style={{
-                      background: isActive
-                        ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)"
-                        : "rgba(31, 41, 55, 0.5)",
-                      border: isActive ? "none" : "1px solid var(--card-border)",
-                      color: isActive ? "#fff" : "var(--text-muted)",
-                      borderRadius: "999px",
-                      padding: "0.35rem 0.9rem",
-                      fontSize: "0.8rem",
-                      fontWeight: isActive ? "700" : "500",
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      boxShadow: isActive ? "0 2px 10px rgba(99,102,241,0.35)" : "none"
-                    }}
-                  >
-                    {dept}
-                    <span style={{
-                      background: isActive ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.08)",
-                      borderRadius: "999px",
-                      padding: "1px 7px",
-                      fontSize: "0.72rem",
-                      fontWeight: "700",
-                      color: isActive ? "#fff" : "var(--text-muted)"
-                    }}>{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {fetchLoading ? (
-              <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
-                Loading database records...
-              </div>
-            ) : (
-              <div style={{ overflowX: "auto", flexGrow: 1 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
-                  <thead>
-                    <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
-                      {activeTab === "students" && <th style={{ padding: "0.75rem 1rem" }}>Reg No.</th>}
-                      <th style={{ padding: "0.75rem 1rem" }}>Name</th>
-                      <th style={{ padding: "0.75rem 1rem" }}>Email</th>
-                      <th style={{ padding: "0.75rem 1rem" }}>Department</th>
-                      <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeTab === "faculty" ? (
-                      filteredFaculty.length > 0 ? (
-                        filteredFaculty.map((f) => (
-                          <tr key={f.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                            <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{f.name}</td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{f.email}</td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{f.department || "N/A"}</td>
-                            <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
-                              <button
-                                onClick={() => handleDeleteFaculty(f.id)}
-                                style={{
-                                  background: deletingId === f.id ? "var(--error)" : "transparent",
-                                  border: "1px solid var(--error)",
-                                  color: deletingId === f.id ? "#fff" : "var(--error)",
-                                  borderRadius: "6px",
-                                  padding: "0.3rem 0.75rem",
-                                  cursor: "pointer",
-                                  fontSize: "0.8rem",
-                                  fontWeight: deletingId === f.id ? "600" : "400",
-                                  transition: "all 0.2s ease"
-                                }}
-                              >
-                                {deletingId === f.id ? "Confirm Delete?" : "Delete"}
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="3" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                            No faculty members found.
-                          </td>
-                        </tr>
-                      )
-                    ) : (
-                      filteredStudents.length > 0 ? (
-                        filteredStudents.map((s) => (
-                          <tr key={s.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--primary)", fontWeight: "600" }}>{s.registerNumber || "Pending"}</td>
-                            <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{s.name}</td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{s.email}</td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{s.department || "N/A"}</td>
-                            <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
-                              <button
-                                onClick={() => handleDeleteStudent(s.id)}
-                                style={{
-                                  background: deletingId === s.id ? "var(--error)" : "transparent",
-                                  border: "1px solid var(--error)",
-                                  color: deletingId === s.id ? "#fff" : "var(--error)",
-                                  borderRadius: "6px",
-                                  padding: "0.3rem 0.75rem",
-                                  cursor: "pointer",
-                                  fontSize: "0.8rem",
-                                  fontWeight: deletingId === s.id ? "600" : "400",
-                                  transition: "all 0.2s ease"
-                                }}
-                              >
-                                {deletingId === s.id ? "Confirm Delete?" : "Delete"}
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="4" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                            No students found.
-                          </td>
-                        </tr>
-                      )
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-          
-        </div>
-      </div>
-      ) : null}
-
-      {activeTab === "timetable" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2rem", width: "100%", animation: "fadeIn 0.5s ease" }}>
-          
-          <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
-              <div>
-                <h3 style={{ margin: 0, color: "#fff" }}>📅 Timetable Matrix Builder</h3>
-                <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: "0.25rem 0 0 0" }}>
-                  Configure weekly subject schedules and allocate registered faculty members to periods.
-                </p>
-              </div>
-
-              <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: "600" }}>SELECT DEPARTMENT:</span>
-                  <select
-                    className="input-field"
-                    value={selectedDept}
-                    onChange={(e) => setSelectedDept(e.target.value)}
-                    style={{ background: "#0f172a", border: "1px solid rgba(255, 255, 255, 0.1)", color: "#fff", borderRadius: "6px", padding: "8px 12px", fontSize: "0.85rem", minWidth: "140px" }}
-                  >
-                    <option value="M.Tech CSE">M.Tech CSE</option>
-                    <option value="CSE">CSE</option>
-                    <option value="IT">IT</option>
-                    <option value="ECE">ECE</option>
-                  </select>
-                </div>
-                
-                <button
-                  onClick={handleAutoGenerate}
-                  disabled={autoGenerating}
-                  style={{
-                    background: "rgba(16, 185, 129, 0.15)",
-                    border: "1px solid var(--success)",
-                    color: "#fff",
-                    borderRadius: "6px",
-                    padding: "10px 15px",
-                    cursor: "pointer",
-                    fontSize: "0.85rem",
-                    fontWeight: "600",
-                    transition: "all 0.2s",
-                    alignSelf: "flex-end",
-                    margin: 0
-                  }}
-                >
-                  {autoGenerating ? "⏳ Generating..." : "🤖 Auto Generate"}
-                </button>
-
-                <button
-                  onClick={() => {
-                    setSwapMode(!swapMode);
-                    setSelectedSwapCell(null);
-                  }}
-                  style={{
-                    background: swapMode ? "var(--success)" : "rgba(31, 41, 55, 0.6)",
-                    border: swapMode ? "none" : "1px solid var(--card-border)",
-                    color: "#fff",
-                    borderRadius: "6px",
-                    padding: "10px 15px",
-                    cursor: "pointer",
-                    fontSize: "0.85rem",
-                    fontWeight: "600",
-                    transition: "all 0.2s",
-                    alignSelf: "flex-end",
-                    margin: 0
-                  }}
-                >
-                  {swapMode ? "⛔ Stop Swapping" : "🔀 Swap Mode"}
-                </button>
-
-                <button
-                  onClick={handleRandomizeTimetable}
-                  style={{
-                    background: "rgba(99, 102, 241, 0.15)",
-                    border: "1px solid var(--primary)",
-                    color: "#fff",
-                    borderRadius: "6px",
-                    padding: "10px 15px",
-                    cursor: "pointer",
-                    fontSize: "0.85rem",
-                    fontWeight: "600",
-                    transition: "all 0.2s",
-                    alignSelf: "flex-end",
-                    margin: 0
-                  }}
-                >
-                  🎲 Randomize Grid
-                </button>
-
-                <button
-                  onClick={handleSaveTimetable}
-                  disabled={savingTimetable || timetableLoading}
-                  style={{
-                    background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
-                    border: "none",
-                    color: "#fff",
-                    borderRadius: "6px",
-                    padding: "10px 20px",
-                    cursor: "pointer",
-                    fontSize: "0.85rem",
-                    fontWeight: "600",
-                    transition: "all 0.2s",
-                    alignSelf: "flex-end",
-                    boxShadow: "0 4px 12px rgba(99, 102, 241, 0.2)",
-                    margin: 0
-                  }}
-                >
-                  {savingTimetable ? "Saving..." : "💾 Save Timetable"}
-                </button>
-              </div>
-            </div>
-
-            {swapMode && (
-              <div style={{
-                background: "rgba(16, 185, 129, 0.1)",
-                border: "1px dashed var(--success)",
-                color: "var(--success)",
-                padding: "0.75rem 1rem",
-                borderRadius: "8px",
-                marginBottom: "1rem",
-                fontSize: "0.85rem",
+          {/* Feedback banner */}
+          {feedback.message && (
+            <div
+              style={{
+                background: feedback.type === "error" ? "rgba(239, 68, 68, 0.2)" : "rgba(16, 185, 129, 0.2)",
+                border: `1px solid ${feedback.type === "error" ? "var(--error)" : "var(--success)"}`,
+                color: feedback.type === "error" ? "var(--error)" : "var(--success)",
+                borderRadius: "10px",
+                padding: "1rem",
+                marginBottom: "1.5rem",
                 fontWeight: "500",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
                 animation: "fadeIn 0.3s ease"
-              }}>
-                ℹ️ <strong>Swap Mode Active:</strong> Click on any slot to select it, then click another slot to swap their subjects and professors.
-              </div>
-            )}
+              }}
+            >
+              {feedback.message}
+            </div>
+          )}
 
-            {timetableLoading ? (
-              <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)" }}>
-                Loading weekly timetable matrix...
+          {/* Views render conditional switches */}
+          {activeTab === "analytics" && (
+            <AnalyticsControlView adminAnalytics={adminAnalytics} adminAnalyticsLoading={adminAnalyticsLoading} />
+          )}
+
+          {activeTab === "faculty" && (
+            <FacultyManagementView
+              filteredFaculty={filteredFaculty}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              handleDeleteFaculty={handleDeleteFaculty}
+              deletingId={deletingId}
+              setShowAddFacultyModal={setShowAddFacultyModal}
+              getFacultySubjects={getFacultySubjects}
+              availability={availability}
+            />
+          )}
+
+          {activeTab === "students" && (
+            <StudentManagementView
+              students={students}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              deptFilter={deptFilter}
+              setDeptFilter={setDeptFilter}
+              studentPage={studentPage}
+              setStudentPage={setStudentPage}
+              studentTotalPages={studentTotalPages}
+              studentSortBy={studentSortBy}
+              setStudentSortBy={setStudentSortBy}
+              studentSortDir={studentSortDir}
+              setStudentSortDir={setStudentSortDir}
+              studentSectionFilter={studentSectionFilter}
+              setStudentSectionFilter={setStudentSectionFilter}
+              studentBatchFilter={studentBatchFilter}
+              setStudentBatchFilter={setStudentBatchFilter}
+              studentActiveFilter={studentActiveFilter}
+              setStudentActiveFilter={setStudentActiveFilter}
+              fetchLoading={fetchLoading}
+              handleDeleteStudent={handleDeleteStudent}
+              deletingId={deletingId}
+              handleViewProfile={handleViewProfile}
+              setShowAddStudentModal={setShowAddStudentModal}
+              ALL_DEPTS={ALL_DEPTS}
+            />
+          )}
+
+          {activeTab === "timetable" && (
+            <TimetableManagerView
+              selectedDept={selectedDept}
+              setSelectedDept={setSelectedDept}
+              timetableMatrix={timetableMatrix}
+              timetableLoading={timetableLoading}
+              savingTimetable={savingTimetable}
+              swapMode={swapMode}
+              setSwapMode={setSwapMode}
+              selectedSwapCell={selectedSwapCell}
+              setSelectedSwapCell={setSelectedSwapCell}
+              autoGenerating={autoGenerating}
+              handleAutoGenerate={handleAutoGenerate}
+              handleSaveTimetable={handleSaveTimetable}
+              handleRandomizeTimetable={handleRandomizeTimetable}
+              handleCellChange={handleCellChange}
+              faculty={faculty}
+              setTimetableMatrix={setTimetableMatrix}
+              showFeedback={showFeedback}
+            />
+          )}
+
+          {activeTab === "subjects" && (
+            <SubjectMasterView
+              subjects={subjects}
+              subjectFilter={subjectFilter}
+              setSubjectFilter={setSubjectFilter}
+              setShowAddSubjectModal={setShowAddSubjectModal}
+              handleDeleteSubject={handleDeleteSubject}
+              getSubjectFaculty={getSubjectFaculty}
+            />
+          )}
+
+          {activeTab === "expertise" && (
+            <FacultyExpertiseView
+              faculty={faculty}
+              expertise={expertise}
+              setShowAssignExpertiseModal={setShowAssignExpertiseModal}
+              handleRemoveExpertise={handleRemoveExpertise}
+            />
+          )}
+
+          {activeTab === "leaves" && (
+            <FacultyLeavesView
+              availability={availability}
+              handleDeleteLeave={handleDeleteLeave}
+              setShowRecordLeaveModal={setShowRecordLeaveModal}
+              pendingFacultyLeaves={pendingFacultyLeaves}
+              handleApproveFacultyLeave={handleApproveFacultyLeave}
+              handleRejectFacultyLeave={handleRejectFacultyLeave}
+            />
+          )}
+
+          {activeTab === "leave" && (
+            <StudentLeavesView
+              leaveRequests={leaveRequests}
+              leaveFilterDept={leaveFilterDept}
+              setLeaveFilterDept={setLeaveFilterDept}
+              leaveFilterStatus={leaveFilterStatus}
+              setLeaveFilterStatus={setLeaveFilterStatus}
+              leaveSearch={leaveSearch}
+              setLeaveSearch={setLeaveSearch}
+              studentLeaveLoading={studentLeaveLoading}
+              fetchAdminLeaveRequests={fetchAdminLeaveRequests}
+              handleApproveStudentLeave={handleApproveStudentLeave}
+              handleRejectStudentLeave={handleRejectStudentLeave}
+              DEPT_OPTIONS={DEPT_OPTIONS}
+            />
+          )}
+
+          {activeTab === "workload" && (
+            <WorkloadView
+              workload={workload}
+              workloadLoading={workloadLoading}
+              loadWorkload={loadWorkload}
+            />
+          )}
+
+          {activeTab === "career" && (
+            <CareerDashboardAdmin />
+          )}
+
+        </div>
+      </main>
+
+      {/* ── Modals Overlay Forms ─────────────────────────────────────────── */}
+      
+      {/* 1. Add Faculty Modal */}
+      {renderModal(showAddFacultyModal, () => setShowAddFacultyModal(false), "👤 Add New Faculty Profile", (
+        <form className="auth-form" onSubmit={async (e) => { await handleCreateFaculty(e); setShowAddFacultyModal(false); }}>
+          <div className="form-group">
+            <label>Faculty Name</label>
+            <input
+              className="input-field"
+              type="text"
+              placeholder="Enter full name"
+              value={facultyName}
+              onChange={(e) => setFacultyName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>College Email</label>
+            <input
+              className="input-field"
+              type="email"
+              placeholder="faculty@college.edu"
+              value={facultyEmail}
+              onChange={(e) => setFacultyEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Temporary Password</label>
+            <input
+              className="input-field"
+              type="password"
+              placeholder="Enter initial password"
+              value={facultyPassword}
+              onChange={(e) => setFacultyPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Department</label>
+            <select
+              className="input-field"
+              value={facultyDepartment}
+              onChange={(e) => setFacultyDepartment(e.target.value)}
+              required
+              style={{ appearance: "auto" }}
+            >
+              <option value="" disabled>-- Select Department --</option>
+              <option value="Civil">Civil</option>
+              <option value="CSE">CSE</option>
+              <option value="CSE (AI & ML/Cyber Security)">CSE (AI & ML/Cyber Security)</option>
+              <option value="EEE">EEE</option>
+              <option value="ECE">ECE</option>
+              <option value="Mechanical">Mechanical</option>
+              <option value="Mechatronics">Mechatronics</option>
+              <option value="IT">IT</option>
+              <option value="AI & Data Science">AI & Data Science</option>
+              <option value="CSBS">CS & Business Systems</option>
+              <option value="M.Tech CSE">mtech cse 5 years</option>
+            </select>
+          </div>
+
+          <button className="auth-btn" type="submit" disabled={loading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)", marginTop: "1rem" }}>
+            {loading ? "Creating..." : "Create Faculty Account"}
+          </button>
+        </form>
+      ))}
+
+      {/* 2. Add Student Modal */}
+      {renderModal(showAddStudentModal, () => setShowAddStudentModal(false), "🎓 Add New Student Profile", (
+        <form className="auth-form" onSubmit={async (e) => { await handleCreateStudent(e); setShowAddStudentModal(false); }}>
+          <div className="form-group">
+            <label>Student Name</label>
+            <input
+              className="input-field"
+              type="text"
+              placeholder="Enter full name"
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Email Address</label>
+            <input
+              className="input-field"
+              type="email"
+              placeholder="student@college.edu"
+              value={studentEmail}
+              onChange={(e) => setStudentEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Password</label>
+            <input
+              className="input-field"
+              type="password"
+              placeholder="Enter password"
+              value={studentPassword}
+              onChange={(e) => setStudentPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Department</label>
+            <select
+              className="input-field"
+              value={studentDepartment}
+              onChange={(e) => setStudentDepartment(e.target.value)}
+              required
+              style={{ appearance: "auto" }}
+            >
+              <option value="" disabled>-- Select Department --</option>
+              <option value="Civil">Civil</option>
+              <option value="CSE">CSE</option>
+              <option value="CSE (AI & ML/Cyber Security)">CSE (AI & ML/Cyber Security)</option>
+              <option value="EEE">EEE</option>
+              <option value="ECE">ECE</option>
+              <option value="Mechanical">Mechanical</option>
+              <option value="Mechatronics">Mechatronics</option>
+              <option value="IT">IT</option>
+              <option value="AI & Data Science">AI & Data Science</option>
+              <option value="CSBS">CS & Business Systems</option>
+              <option value="M.Tech CSE">M.Tech CSE</option>
+            </select>
+          </div>
+
+          <button className="auth-btn" type="submit" disabled={loading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)", marginTop: "1rem" }}>
+            {loading ? "Creating..." : "Create Student Account"}
+          </button>
+        </form>
+      ))}
+
+      {/* 3. Add Subject Modal */}
+      {renderModal(showAddSubjectModal, () => setShowAddSubjectModal(false), "📚 Add Subject", (
+        <form onSubmit={async (e) => { await handleCreateSubject(e); setShowAddSubjectModal(false); }} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {[
+            { label: "Subject Code", key: "subjectCode", placeholder: "e.g. OS" },
+            { label: "Subject Name", key: "subjectName", placeholder: "e.g. Operating Systems" },
+            { label: "Academic Year", key: "academicYear", placeholder: "e.g. 2024-25" },
+          ].map(({ label, key, placeholder }) => (
+            <div className="form-group" key={key}>
+              <label>{label}</label>
+              <input className="input-field" placeholder={placeholder} value={subjectForm[key]} onChange={e => setSubjectForm(p => ({ ...p, [key]: e.target.value }))} required />
+            </div>
+          ))}
+          <div className="form-group">
+            <label>Department</label>
+            <select className="input-field" style={{ appearance: "auto" }} value={subjectForm.department} onChange={e => setSubjectForm(p => ({ ...p, department: e.target.value }))}>
+              {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
+            <div className="form-group">
+              <label>Semester</label>
+              <input className="input-field" type="number" min="1" max="8" value={subjectForm.semester} onChange={e => setSubjectForm(p => ({ ...p, semester: e.target.value }))} />
+            </div>
+            <div className="form-group">
+              <label>Credits</label>
+              <input className="input-field" type="number" min="1" max="6" value={subjectForm.credits} onChange={e => setSubjectForm(p => ({ ...p, credits: e.target.value }))} />
+            </div>
+            <div className="form-group">
+              <label>Hrs/Week</label>
+              <input className="input-field" type="number" min="1" max="10" value={subjectForm.weeklyHours} onChange={e => setSubjectForm(p => ({ ...p, weeklyHours: e.target.value }))} />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Category</label>
+            <select className="input-field" style={{ appearance: "auto" }} value={subjectForm.subjectCategory} onChange={e => setSubjectForm(p => ({ ...p, subjectCategory: e.target.value }))}>
+              {["THEORY", "LAB", "ELECTIVE", "PROJECT"].map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <button className="auth-btn" type="submit" disabled={subjectLoading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)", marginTop: "0.5rem" }}>
+            {subjectLoading ? "Adding..." : "Add Subject"}
+          </button>
+        </form>
+      ))}
+
+      {/* 4. Assign Expertise Modal */}
+      {renderModal(showAssignExpertiseModal, () => setShowAssignExpertiseModal(false), "🎯 Assign Expertise Level", (
+        <form onSubmit={async (e) => { await handleAllocateExpertise(e); setShowAssignExpertiseModal(false); }} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div className="form-group">
+            <label>Faculty member</label>
+            <select className="input-field" style={{ appearance: "auto" }} value={expertiseForm.facultyId} onChange={e => setExpertiseForm(p => ({ ...p, facultyId: e.target.value }))} required>
+              <option value="">-- Select Faculty --</option>
+              {faculty.map(f => <option key={f.id} value={f.id}>{f.name} ({f.department})</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Subject</label>
+            <select className="input-field" style={{ appearance: "auto" }} value={expertiseForm.subjectId} onChange={e => setExpertiseForm(p => ({ ...p, subjectId: e.target.value }))} required>
+              <option value="">-- Select Subject --</option>
+              {subjects.filter(s => s.active).map(s => <option key={s.id} value={s.id}>{s.subjectCode} – {s.subjectName} ({s.department})</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Expertise Level</label>
+            <select className="input-field" style={{ appearance: "auto" }} value={expertiseForm.expertiseLevel} onChange={e => setExpertiseForm(p => ({ ...p, expertiseLevel: e.target.value }))}>
+              <option value="PRIMARY">🥇 PRIMARY – Main instructor</option>
+              <option value="SECONDARY">🥈 SECONDARY – Can substitute</option>
+              <option value="GUEST">👤 GUEST – Guest lecturer</option>
+            </select>
+          </div>
+          <button className="auth-btn" type="submit" disabled={expertiseLoading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)", marginTop: "0.5rem" }}>
+            {expertiseLoading ? "Allocating..." : "Allocate Expertise"}
+          </button>
+        </form>
+      ))}
+
+      {/* 5. Record Leave Modal */}
+      {renderModal(showRecordLeaveModal, () => setShowRecordLeaveModal(false), "🏖️ Record Faculty Absence", (
+        <form onSubmit={async (e) => { await handleAddLeave(e); setShowRecordLeaveModal(false); }} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div className="form-group">
+            <label>Faculty</label>
+            <select className="input-field" style={{ appearance: "auto" }} value={leaveForm.facultyId} onChange={e => setLeaveForm(p => ({ ...p, facultyId: e.target.value }))} required>
+              <option value="">-- Select Faculty --</option>
+              {faculty.map(f => <option key={f.id} value={f.id}>{f.name} ({f.department})</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Date</label>
+            <input className="input-field" type="date" value={leaveForm.date} onChange={e => setLeaveForm(p => ({ ...p, date: e.target.value }))} required />
+          </div>
+          <div className="form-group">
+            <label>Reason</label>
+            <input className="input-field" placeholder="e.g. Sick leave, Conference" value={leaveForm.reason} onChange={e => setLeaveForm(p => ({ ...p, reason: e.target.value }))} />
+          </div>
+          <button className="auth-btn" type="submit" style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)", marginTop: "0.5rem" }} disabled={leaveLoading}>
+            {leaveLoading ? "Saving..." : "Mark as On Leave"}
+          </button>
+        </form>
+      ))}
+
+      {/* Student Profile Modal */}
+      {showProfileModal && selectedStudentProfile && (
+        <div style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(5, 7, 17, 0.8)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 9999,
+          padding: "2rem"
+        }}>
+          <div style={{
+            background: "rgba(30, 41, 59, 0.95)",
+            border: "1px solid var(--card-border)",
+            borderRadius: "24px",
+            width: "100%",
+            maxWidth: "750px",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            padding: "2.5rem",
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.5), 0 10px 10px -5px rgba(0,0,0,0.5)",
+            position: "relative"
+          }}>
+            <button
+              onClick={() => setShowProfileModal(false)}
+              style={{
+                position: "absolute",
+                top: "1.5rem",
+                right: "1.5rem",
+                background: "transparent",
+                border: "none",
+                color: "#fff",
+                fontSize: "1.5rem",
+                cursor: "pointer",
+                opacity: 0.7
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Modern Header Banner */}
+            <div style={{
+              background: "linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%)",
+              padding: "2rem",
+              borderRadius: "20px",
+              border: "1px solid rgba(255,255,255,0.08)",
+              display: "flex",
+              alignItems: "center",
+              gap: "2rem",
+              marginBottom: "1.5rem",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              {/* Decorative shine */}
+              <div style={{
+                position: "absolute", top: "-50%", right: "-20%", width: "250px", height: "250px",
+                background: "radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)",
+                pointerEvents: "none"
+              }} />
+
+              {/* Student Photo with premium frame */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                {(() => {
+                  const regNum = selectedStudentProfile.student.registerNumber;
+                  const photoUrl = regNum ? `/students_photos/${regNum.toLowerCase()}.jpg` : null;
+                  return photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt={selectedStudentProfile.student.name}
+                      onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
+                      style={{
+                        width: 110, height: 110, borderRadius: "24px",
+                        objectFit: "cover", objectPosition: "top",
+                        border: "3px solid var(--primary)",
+                        boxShadow: "0 12px 28px rgba(99,102,241,0.3)",
+                        transition: "transform 0.3s ease"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+                      onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                    />
+                  ) : null;
+                })()}
+                <div style={{
+                  width: 110, height: 110, borderRadius: "24px",
+                  background: "linear-gradient(135deg, var(--primary), var(--secondary))",
+                  display: "none", alignItems: "center", justifyContent: "center",
+                  fontSize: "3rem", fontWeight: "800", color: "#fff", flexShrink: 0,
+                  border: "3px solid var(--primary)",
+                  boxShadow: "0 12px 28px rgba(99,102,241,0.3)"
+                }}>
+                  {selectedStudentProfile.student.name?.charAt(0) || "S"}
+                </div>
+                {/* Active Indicator Badge */}
+                <div style={{
+                  position: "absolute", bottom: "-6px", right: "-6px",
+                  background: selectedStudentProfile.student.active ? "var(--success)" : "var(--error)",
+                  color: "#fff", fontSize: "0.68rem", fontWeight: "800",
+                  padding: "4px 8px", borderRadius: "10px", textTransform: "uppercase",
+                  border: "2px solid #1e293b", letterSpacing: "0.5px"
+                }}>
+                  {selectedStudentProfile.student.active ? "Active" : "Inactive"}
+                </div>
               </div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table className="timetable-grid-table admin-table">
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <span style={{ fontSize: "0.75rem", background: "rgba(99, 102, 241, 0.2)", color: "var(--primary)", padding: "4px 10px", borderRadius: "20px", fontWeight: "700", width: "fit-content", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  {selectedStudentProfile.student.department || "M.Tech CSE"} Student
+                </span>
+                <h2 style={{ margin: 0, fontSize: "2rem", fontWeight: "800", color: "var(--text-main)", letterSpacing: "-0.5px" }}>
+                  {selectedStudentProfile.student.name}
+                </h2>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "0.9rem", color: "var(--text-muted)", flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: "700", color: "var(--primary)" }}>#{selectedStudentProfile.student.registerNumber || "N/A"}</span>
+                  <span>•</span>
+                  <span>Section {selectedStudentProfile.student.section || "A"}</span>
+                  <span>•</span>
+                  <span>Semester {selectedStudentProfile.student.semester || "8"}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
+              {/* Personal & Academic */}
+              <div className="glass-card" style={{ padding: "1.5rem", borderRadius: "20px", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <h4 style={{ margin: 0, color: "var(--text-main)", fontSize: "1.05rem", fontWeight: "700", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.75rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>👤</span> Personal & Academic Information
+                </h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.8rem", fontSize: "0.85rem" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                    <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📧 Email Address:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600", wordBreak: "break-all" }}>{selectedStudentProfile.student.email}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                    <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📞 Contact Phone:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.student.phone || "N/A"}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                    <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📅 Academic Batch:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.student.batch || "2023 - 2028"}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                    <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>🎂 Date of Birth:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.student.dateOfBirth ? selectedStudentProfile.student.dateOfBirth.split(" ")[0] : "N/A"}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                    <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>⚧️ Gender / Sex:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.student.gender || "N/A"}</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <span style={{ color: "var(--text-muted)" }}>🏠 Home Address:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600", background: "rgba(255,255,255,0.02)", padding: "8px 12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.04)", lineHeight: "1.4" }}>{selectedStudentProfile.student.address || "N/A"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Parent Details */}
+              <div className="glass-card" style={{ padding: "1.5rem", borderRadius: "20px", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <h4 style={{ margin: 0, color: "var(--text-main)", fontSize: "1.05rem", fontWeight: "700", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.75rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>👪</span> Family & Emergency Details
+                </h4>
+                {selectedStudentProfile.profile ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.8rem", fontSize: "0.85rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>👴 Father Name:</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.profile.fatherName || "N/A"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📞 Father Phone:</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.profile.fatherPhone || "N/A"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>👵 Mother Name:</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.profile.motherName || "N/A"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📞 Mother Phone:</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.profile.motherPhone || "N/A"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📧 Guardian Email:</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: "600", wordBreak: "break-all" }}>{selectedStudentProfile.profile.guardianEmail || "N/A"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>🩸 Blood Group:</span>
+                      <span style={{
+                        color: selectedStudentProfile.profile.bloodGroup ? "var(--error)" : "var(--text-main)",
+                        fontWeight: "800", background: selectedStudentProfile.profile.bloodGroup ? "rgba(239,68,68,0.1)" : "transparent",
+                        padding: selectedStudentProfile.profile.bloodGroup ? "2px 8px" : 0,
+                        borderRadius: "6px"
+                      }}>
+                        {selectedStudentProfile.profile.bloodGroup || "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", justifyItems: "center", flexGrow: 1, padding: "2rem", color: "var(--text-muted)", fontStyle: "italic", background: "rgba(255,255,255,0.01)", borderRadius: "12px", border: "1px dashed var(--card-border)" }}>
+                    No family profile metadata stored.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Performance Stats */}
+            <div style={{ background: "rgba(99, 102, 241, 0.05)", border: "1px solid rgba(99, 102, 241, 0.15)", padding: "1.25rem", borderRadius: "16px", marginBottom: "2rem" }}>
+              <h4 style={{ margin: "0 0 1rem 0", color: "#fff", fontSize: "1rem" }}>📈 Academic ERP Statistics</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "1rem", textAlign: "center" }}>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "var(--success)" }}>
+                    {selectedStudentProfile.statistics.attendancePercentage ? `${selectedStudentProfile.statistics.attendancePercentage.toFixed(1)}%` : "0.0%"}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Attendance</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "#fff" }}>
+                    {selectedStudentProfile.statistics.totalClasses}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Total Classes</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "var(--primary)" }}>
+                    {selectedStudentProfile.statistics.present}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Present Count</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "var(--error)" }}>
+                    {selectedStudentProfile.statistics.absent}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Absent Count</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "#fbbf24" }}>
+                    {selectedStudentProfile.statistics.careerScore || 0}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Career score</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "#38bdf8" }}>
+                    {selectedStudentProfile.statistics.codingSolved || 0}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Coding Solved</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Attendance History Timeline */}
+            <div>
+              <h4 style={{ margin: "0 0 0.75rem 0", color: "#fff", fontSize: "1rem" }}>📅 Attendance Log Timeline</h4>
+              <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
                   <thead>
-                    <tr>
-                      <th>Day</th>
-                      <th>P1<span className="time-sub">8:45-9:40</span></th>
-                      <th>P2<span className="time-sub">9:40-10:35</span></th>
-                      <th className="break-hdr">Break</th>
-                      <th>P3<span className="time-sub">10:50-11:45</span></th>
-                      <th>P4<span className="time-sub">11:45-12:40</span></th>
-                      <th className="break-hdr">Lunch</th>
-                      <th>P5<span className="time-sub">1:40-2:35</span></th>
-                      <th>P6<span className="time-sub">2:35-3:30</span></th>
-                      <th>P7<span className="time-sub">3:30-4:25</span></th>
-                      <th>P8<span className="time-sub">4:25-5:20</span></th>
+                    <tr style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--card-border)" }}>
+                      <th style={{ padding: "0.5rem" }}>Date / Time</th>
+                      <th style={{ padding: "0.5rem" }}>Subject</th>
+                      <th style={{ padding: "0.5rem" }}>Method</th>
+                      <th style={{ padding: "0.5rem", textAlign: "right" }}>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => (
-                      <tr key={day}>
-                        <td className="day-name-cell">{day}</td>
-                        {[1, 2].map(p => renderAdminCell(day, p))}
-                        <td className="grid-break-cell">Short Break</td>
-                        {[3, 4].map(p => renderAdminCell(day, p))}
-                        <td className="grid-break-cell">Lunch Break</td>
-                        {[5, 6, 7, 8].map(p => renderAdminCell(day, p))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          <style>{`
-            .timetable-grid-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 10px;
-              font-size: 0.85rem;
-              text-align: center;
-              border: 1px solid rgba(255, 255, 255, 0.05);
-            }
-            .timetable-grid-table th {
-              background: rgba(31, 41, 55, 0.6);
-              color: #f1f5f9;
-              font-weight: 600;
-              padding: 12px 8px;
-              border: 1px solid rgba(255, 255, 255, 0.08);
-              min-width: 100px;
-              font-size: 0.8rem;
-            }
-            .timetable-grid-table td {
-              border: 1px solid rgba(255, 255, 255, 0.06);
-              padding: 10px 6px;
-              height: 75px;
-              vertical-align: middle;
-            }
-            .time-sub {
-              display: block;
-              font-size: 0.65rem;
-              color: #94a3b8;
-              font-weight: normal;
-              margin-top: 4px;
-            }
-            .day-name-cell {
-              font-weight: 700;
-              color: #f1f5f9;
-              background: rgba(30, 41, 59, 0.4);
-              min-width: 90px;
-            }
-            .grid-break-cell {
-              background: rgba(31, 41, 55, 0.25);
-              color: #64748b;
-              font-size: 0.75rem;
-              font-style: italic;
-              max-width: 35px;
-              writing-mode: vertical-rl;
-              text-orientation: mixed;
-              letter-spacing: 2px;
-              font-weight: 600;
-              border-left: 1px dashed rgba(255, 255, 255, 0.1);
-              border-right: 1px dashed rgba(255, 255, 255, 0.1);
-            }
-            .break-hdr {
-              background: rgba(31, 41, 55, 0.35) !important;
-              min-width: 40px !important;
-            }
-            .admin-table td {
-              background: rgba(30, 41, 59, 0.15);
-            }
-            .admin-cell-container {
-              display: flex;
-              flex-direction: column;
-              gap: 6px;
-              padding: 4px;
-            }
-            .admin-cell-subject {
-              background: #0f172a;
-              border: 1px solid rgba(255, 255, 255, 0.1);
-              color: #fff;
-              border-radius: 4px;
-              padding: 6px 8px;
-              font-size: 0.8rem;
-              outline: none;
-              text-align: center;
-              font-weight: 600;
-              transition: border-color 0.2s;
-            }
-            .admin-cell-subject:focus {
-              border-color: var(--primary);
-            }
-            .admin-cell-faculty {
-              background: #0f172a;
-              border: 1px solid rgba(255, 255, 255, 0.08);
-              color: #94a3b8;
-              border-radius: 4px;
-              padding: 4px 6px;
-              font-size: 0.7rem;
-              outline: none;
-              cursor: pointer;
-              transition: border-color 0.2s;
-              width: 100%;
-            }
-            .admin-cell-faculty:focus {
-              border-color: var(--secondary);
-            }
-          `}</style>
-        </div>
-      )}
-
-      {/* ─── SUBJECT MASTER TAB ─── */}
-      {activeTab === "subjects" && (
-        <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", animation: "fadeIn 0.5s ease" }}>
-          <div className="dashboard-card" style={{ flex: "0 0 340px", background: "rgba(30, 41, 59, 0.25)" }}>
-            <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff" }}>📚 Add Subject</h3>
-            <form onSubmit={handleCreateSubject} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              {[
-                { label: "Subject Code", key: "subjectCode", placeholder: "e.g. OS" },
-                { label: "Subject Name", key: "subjectName", placeholder: "e.g. Operating Systems" },
-                { label: "Academic Year", key: "academicYear", placeholder: "e.g. 2024-25" },
-              ].map(({ label, key, placeholder }) => (
-                <div className="form-group" key={key}>
-                  <label>{label}</label>
-                  <input className="input-field" placeholder={placeholder} value={subjectForm[key]} onChange={e => setSubjectForm(p => ({ ...p, [key]: e.target.value }))} required />
-                </div>
-              ))}
-              <div className="form-group">
-                <label>Department</label>
-                <select className="input-field" style={{ appearance: "auto" }} value={subjectForm.department} onChange={e => setSubjectForm(p => ({ ...p, department: e.target.value }))}>
-                  {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
-                <div className="form-group">
-                  <label>Semester</label>
-                  <input className="input-field" type="number" min="1" max="8" value={subjectForm.semester} onChange={e => setSubjectForm(p => ({ ...p, semester: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label>Credits</label>
-                  <input className="input-field" type="number" min="1" max="6" value={subjectForm.credits} onChange={e => setSubjectForm(p => ({ ...p, credits: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label>Hrs/Week</label>
-                  <input className="input-field" type="number" min="1" max="10" value={subjectForm.weeklyHours} onChange={e => setSubjectForm(p => ({ ...p, weeklyHours: e.target.value }))} />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Category</label>
-                <select className="input-field" style={{ appearance: "auto" }} value={subjectForm.subjectCategory} onChange={e => setSubjectForm(p => ({ ...p, subjectCategory: e.target.value }))}>
-                  {["THEORY", "LAB", "ELECTIVE", "PROJECT"].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <button className="auth-btn" type="submit" disabled={subjectLoading}>{subjectLoading ? "Adding..." : "Add Subject"}</button>
-            </form>
-          </div>
-
-          <div className="dashboard-card" style={{ flex: "1 1 500px", background: "rgba(30, 41, 59, 0.2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <h3 style={{ margin: 0 }}>Subject List ({subjects.length})</h3>
-              <input className="input-field" placeholder="Search subjects..." value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)} style={{ maxWidth: "220px", height: "36px", fontSize: "0.85rem" }} />
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
-                <thead>
-                  <tr style={{ color: "var(--text-muted)", borderBottom: "2px solid var(--card-border)" }}>
-                    {["Code", "Name", "Dept", "Sem", "Credits", "Hrs", "Category", "Status", ""].map(h => <th key={h} style={{ padding: "0.6rem 0.75rem", textAlign: "left" }}>{h}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {subjects.filter(s => !subjectFilter || s.subjectCode?.toLowerCase().includes(subjectFilter.toLowerCase()) || s.subjectName?.toLowerCase().includes(subjectFilter.toLowerCase())).map(s => (
-                    <tr key={s.id} style={{ borderBottom: "1px solid var(--card-border)", opacity: s.active ? 1 : 0.5 }}>
-                      <td style={{ padding: "0.6rem 0.75rem", fontWeight: 600, color: "var(--primary)" }}>{s.subjectCode}</td>
-                      <td style={{ padding: "0.6rem 0.75rem" }}>{s.subjectName}</td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>{s.department}</td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>{s.semester}</td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>{s.credits}</td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>{s.weeklyHours}</td>
-                      <td style={{ padding: "0.6rem 0.75rem" }}><span style={{ background: s.subjectCategory === "LAB" ? "rgba(99,102,241,0.2)" : "rgba(16,185,129,0.2)", color: s.subjectCategory === "LAB" ? "#818cf8" : "#34d399", borderRadius: "4px", padding: "2px 8px", fontSize: "0.75rem", fontWeight: 600 }}>{s.subjectCategory}</span></td>
-                      <td style={{ padding: "0.6rem 0.75rem" }}><span style={{ color: s.active ? "var(--success)" : "var(--error)", fontWeight: 600, fontSize: "0.75rem" }}>{s.active ? "Active" : "Inactive"}</span></td>
-                      <td style={{ padding: "0.6rem 0.75rem" }}><button onClick={() => handleDeleteSubject(s.id)} style={{ background: "transparent", border: "1px solid var(--error)", color: "var(--error)", borderRadius: "4px", padding: "3px 10px", cursor: "pointer", fontSize: "0.75rem" }}>Delete</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── FACULTY EXPERTISE TAB ─── */}
-      {activeTab === "expertise" && (
-        <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", animation: "fadeIn 0.5s ease" }}>
-          <div className="dashboard-card" style={{ flex: "0 0 340px", background: "rgba(30, 41, 59, 0.25)" }}>
-            <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff" }}>🎯 Assign Expertise</h3>
-            <form onSubmit={handleAllocateExpertise} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div className="form-group">
-                <label>Faculty</label>
-                <select className="input-field" style={{ appearance: "auto" }} value={expertiseForm.facultyId} onChange={e => setExpertiseForm(p => ({ ...p, facultyId: e.target.value }))} required>
-                  <option value="">-- Select Faculty --</option>
-                  {faculty.map(f => <option key={f.id} value={f.id}>{f.name} ({f.department})</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Subject</label>
-                <select className="input-field" style={{ appearance: "auto" }} value={expertiseForm.subjectId} onChange={e => setExpertiseForm(p => ({ ...p, subjectId: e.target.value }))} required>
-                  <option value="">-- Select Subject --</option>
-                  {subjects.filter(s => s.active).map(s => <option key={s.id} value={s.id}>{s.subjectCode} – {s.subjectName} ({s.department})</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Expertise Level</label>
-                <select className="input-field" style={{ appearance: "auto" }} value={expertiseForm.expertiseLevel} onChange={e => setExpertiseForm(p => ({ ...p, expertiseLevel: e.target.value }))}>
-                  <option value="PRIMARY">🥇 PRIMARY – Main instructor</option>
-                  <option value="SECONDARY">🥈 SECONDARY – Can substitute</option>
-                  <option value="GUEST">👤 GUEST – Guest lecturer</option>
-                </select>
-              </div>
-              <button className="auth-btn" type="submit" disabled={expertiseLoading}>{expertiseLoading ? "Allocating..." : "Allocate Expertise"}</button>
-            </form>
-          </div>
-
-          <div className="dashboard-card" style={{ flex: "1 1 500px", background: "rgba(30, 41, 59, 0.2)" }}>
-            <h3 style={{ margin: "0 0 1.5rem 0" }}>Expertise Allocations ({expertise.length})</h3>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
-                <thead>
-                  <tr style={{ color: "var(--text-muted)", borderBottom: "2px solid var(--card-border)" }}>
-                    {["Faculty", "Department", "Subject", "Code", "Level", ""].map(h => <th key={h} style={{ padding: "0.6rem 0.75rem", textAlign: "left" }}>{h}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {expertise.map(e => {
-                    const levelColor = e.expertiseLevel === "PRIMARY" ? "#fbbf24" : e.expertiseLevel === "SECONDARY" ? "#818cf8" : "#94a3b8";
-                    return (
-                      <tr key={e.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                        <td style={{ padding: "0.6rem 0.75rem", fontWeight: 600 }}>{e.faculty?.name}</td>
-                        <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>{e.faculty?.department}</td>
-                        <td style={{ padding: "0.6rem 0.75rem" }}>{e.subject?.subjectName}</td>
-                        <td style={{ padding: "0.6rem 0.75rem", color: "var(--primary)", fontWeight: 600 }}>{e.subject?.subjectCode}</td>
-                        <td style={{ padding: "0.6rem 0.75rem" }}><span style={{ background: `${levelColor}22`, color: levelColor, borderRadius: "4px", padding: "2px 8px", fontSize: "0.75rem", fontWeight: 700 }}>{e.expertiseLevel}</span></td>
-                        <td style={{ padding: "0.6rem 0.75rem" }}><button onClick={() => handleRemoveExpertise(e.id)} style={{ background: "transparent", border: "1px solid var(--error)", color: "var(--error)", borderRadius: "4px", padding: "3px 10px", cursor: "pointer", fontSize: "0.75rem" }}>Remove</button></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── FACULTY LEAVES TAB ─── */}
-      {activeTab === "leaves" && (
-        <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", animation: "fadeIn 0.5s ease" }}>
-          <div className="dashboard-card" style={{ flex: "0 0 340px", background: "rgba(30, 41, 59, 0.25)" }}>
-            <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff" }}>🏖️ Record Leave</h3>
-            <form onSubmit={handleAddLeave} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div className="form-group">
-                <label>Faculty</label>
-                <select className="input-field" style={{ appearance: "auto" }} value={leaveForm.facultyId} onChange={e => setLeaveForm(p => ({ ...p, facultyId: e.target.value }))} required>
-                  <option value="">-- Select Faculty --</option>
-                  {faculty.map(f => <option key={f.id} value={f.id}>{f.name} ({f.department})</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Date</label>
-                <input className="input-field" type="date" value={leaveForm.date} onChange={e => setLeaveForm(p => ({ ...p, date: e.target.value }))} required />
-              </div>
-              <div className="form-group">
-                <label>Reason</label>
-                <input className="input-field" placeholder="e.g. Sick leave, Conference" value={leaveForm.reason} onChange={e => setLeaveForm(p => ({ ...p, reason: e.target.value }))} />
-              </div>
-              <button className="auth-btn" type="submit" style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)" }} disabled={leaveLoading}>{leaveLoading ? "Saving..." : "Mark as On Leave"}</button>
-            </form>
-          </div>
-
-          <div className="dashboard-card" style={{ flex: "1 1 500px", background: "rgba(30, 41, 59, 0.2)" }}>
-            <h3 style={{ margin: "0 0 1.5rem 0" }}>Leave Records ({availability.length})</h3>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
-                <thead>
-                  <tr style={{ color: "var(--text-muted)", borderBottom: "2px solid var(--card-border)" }}>
-                    {["Faculty", "Department", "Date", "Status", "Reason", ""].map(h => <th key={h} style={{ padding: "0.6rem 0.75rem", textAlign: "left" }}>{h}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {availability.map(a => (
-                    <tr key={a.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                      <td style={{ padding: "0.6rem 0.75rem", fontWeight: 600 }}>{a.faculty?.name}</td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>{a.faculty?.department}</td>
-                      <td style={{ padding: "0.6rem 0.75rem" }}>{a.date}</td>
-                      <td style={{ padding: "0.6rem 0.75rem" }}><span style={{ background: a.available ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)", color: a.available ? "var(--success)" : "var(--error)", borderRadius: "4px", padding: "2px 8px", fontSize: "0.75rem", fontWeight: 700 }}>{a.available ? "Available" : "On Leave"}</span></td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>{a.reason || "—"}</td>
-                      <td style={{ padding: "0.6rem 0.75rem" }}><button onClick={() => handleDeleteLeave(a.id)} style={{ background: "transparent", border: "1px solid var(--error)", color: "var(--error)", borderRadius: "4px", padding: "3px 10px", cursor: "pointer", fontSize: "0.75rem" }}>Delete</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── STUDENT LEAVES / OD TAB ─── */}
-      {activeTab === "leave" && (
-        <div style={{ animation: "fadeIn 0.5s ease" }}>
-          <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
-              <h3 style={{ margin: 0 }}>📄 Student Leave/OD Requests</h3>
-              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                <select className="input-field" value={leaveFilterDept} onChange={(e) => setLeaveFilterDept(e.target.value)} style={{ minWidth: "150px" }}>
-                  <option value="All">All Departments</option>
-                  {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <select className="input-field" value={leaveFilterStatus} onChange={(e) => setLeaveFilterStatus(e.target.value)} style={{ minWidth: "150px" }}>
-                  <option value="All">All Statuses</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="APPROVED">Approved</option>
-                  <option value="REJECTED">Rejected</option>
-                </select>
-                <input type="text" className="input-field" placeholder="Search Reg No or Name..." value={leaveSearch} onChange={e => setLeaveSearch(e.target.value)} style={{ minWidth: "200px" }} />
-                <button onClick={fetchAdminLeaveRequests} style={{ background: "rgba(99,102,241,0.15)", border: "1px solid var(--primary)", color: "#fff", borderRadius: "6px", padding: "0.5rem 1rem", cursor: "pointer", fontSize: "0.85rem" }}>
-                  🔄 Refresh
-                </button>
-              </div>
-            </div>
-
-            {studentLeaveLoading ? (
-              <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>Loading student leave requests...</div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
-                  <thead>
-                    <tr style={{ color: "var(--text-muted)", borderBottom: "2px solid var(--card-border)" }}>
-                      <th style={{ padding: "0.75rem 1rem", textAlign: "left" }}>Student</th>
-                      <th style={{ padding: "0.75rem 1rem", textAlign: "left" }}>Dept</th>
-                      <th style={{ padding: "0.75rem 1rem", textAlign: "left" }}>Type</th>
-                      <th style={{ padding: "0.75rem 1rem", textAlign: "left" }}>Date Range</th>
-                      <th style={{ padding: "0.75rem 1rem", textAlign: "left" }}>Reason</th>
-                      <th style={{ padding: "0.75rem 1rem", textAlign: "center" }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaveRequests
-                      .filter(r => 
-                        !leaveSearch || 
-                        r.student.registerNumber.toLowerCase().includes(leaveSearch.toLowerCase()) || 
-                        r.student.name.toLowerCase().includes(leaveSearch.toLowerCase())
-                      )
-                      .map(r => (
-                      <tr key={r.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                        <td style={{ padding: "0.75rem 1rem" }}>
-                          <div style={{ fontWeight: 600 }}>{r.student.name}</div>
-                          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{r.student.registerNumber}</div>
-                        </td>
-                        <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{r.student.department}</td>
-                        <td style={{ padding: "0.75rem 1rem", fontWeight: 600 }}>{r.leaveType}</td>
-                        <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{r.startDate} to {r.endDate}</td>
-                        <td style={{ padding: "0.75rem 1rem" }}>{r.reason}</td>
-                        <td style={{ padding: "0.75rem 1rem", textAlign: "center" }}>
-                          <span style={{
-                            background: r.status === "APPROVED" ? "rgba(16,185,129,0.15)" : r.status === "REJECTED" ? "rgba(239,68,68,0.15)" : "rgba(245,158,11,0.15)",
-                            color: r.status === "APPROVED" ? "var(--success)" : r.status === "REJECTED" ? "var(--error)" : "var(--warning)",
-                            padding: "4px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700
-                          }}>
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {leaveRequests.length === 0 && (
+                    {selectedStudentProfile.attendanceHistory && selectedStudentProfile.attendanceHistory.length > 0 ? (
+                      selectedStudentProfile.attendanceHistory.map((h, i) => (
+                        <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                          <td style={{ padding: "0.5rem", color: "var(--text-muted)" }}>{h.date} {h.time ? `@ ${h.time}` : ""}</td>
+                          <td style={{ padding: "0.5rem", fontWeight: "600" }}>{h.subject}</td>
+                          <td style={{ padding: "0.5rem" }}>
+                            <span style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: "4px" }}>
+                              {h.method}
+                            </span>
+                          </td>
+                          <td style={{ padding: "0.5rem", textAlign: "right", fontWeight: "700", color: h.status === "PRESENT" ? "var(--success)" : "var(--error)" }}>
+                            {h.status}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
                       <tr>
-                        <td colSpan="6" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>No leave requests found.</td>
+                        <td colSpan="4" style={{ textAlign: "center", padding: "1rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                          No attendance sessions recorded yet.
+                        </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ─── FACULTY WORKLOAD TAB ─── */}
-      {activeTab === "workload" && (
-        <div style={{ animation: "fadeIn 0.5s ease" }}>
-          <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <h3 style={{ margin: 0 }}>📊 Faculty Workload Dashboard</h3>
-              <button onClick={loadWorkload} style={{ background: "rgba(99,102,241,0.15)", border: "1px solid var(--primary)", color: "#fff", borderRadius: "6px", padding: "0.5rem 1rem", cursor: "pointer", fontSize: "0.85rem" }}>🔄 Refresh</button>
             </div>
-            {workloadLoading ? (
-              <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>Loading workload data...</div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
-                  <thead>
-                    <tr style={{ color: "var(--text-muted)", borderBottom: "2px solid var(--card-border)" }}>
-                      {["Faculty", "Department", "Allocated Periods", "Max Periods", "Utilization", "Status"].map(h => <th key={h} style={{ padding: "0.75rem 1rem", textAlign: "left" }}>{h}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {workload.map(w => {
-                      const statusColor = w.workloadStatus === "Heavy Load" ? "#ef4444" : w.workloadStatus === "Balanced" ? "#10b981" : "#f59e0b";
-                      const statusEmoji = w.workloadStatus === "Heavy Load" ? "🔴" : w.workloadStatus === "Balanced" ? "🟢" : "🟡";
-                      const barWidth = Math.min(100, w.utilizationPercentage);
-                      return (
-                        <tr key={w.facultyId} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                          <td style={{ padding: "0.75rem 1rem", fontWeight: 600 }}>{w.facultyName}</td>
-                          <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{w.department}</td>
-                          <td style={{ padding: "0.75rem 1rem", color: "var(--primary)", fontWeight: 700 }}>{w.allocatedPeriods}</td>
-                          <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{w.availablePeriods}</td>
-                          <td style={{ padding: "0.75rem 1rem", minWidth: "160px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                              <div style={{ flex: 1, background: "rgba(255,255,255,0.08)", borderRadius: "999px", height: "6px", overflow: "hidden" }}>
-                                <div style={{ width: `${barWidth}%`, height: "100%", background: `linear-gradient(90deg, ${statusColor}88, ${statusColor})`, borderRadius: "999px", transition: "width 0.6s ease" }} />
-                              </div>
-                              <span style={{ minWidth: "44px", fontWeight: 600, color: statusColor }}>{w.utilizationPercentage?.toFixed(1)}%</span>
-                            </div>
-                          </td>
-                          <td style={{ padding: "0.75rem 1rem" }}>
-                            <span style={{ background: `${statusColor}22`, color: statusColor, borderRadius: "6px", padding: "4px 12px", fontSize: "0.8rem", fontWeight: 700 }}>{statusEmoji} {w.workloadStatus}</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
         </div>
-      )}
-
-      {activeTab === "career" && (
-        <CareerDashboardAdmin />
       )}
     </div>
   );

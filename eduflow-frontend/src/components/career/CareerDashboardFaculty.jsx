@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_BASE from '../../services/api';
 
 const CareerDashboardFaculty = () => {
     const [data, setData] = useState(null);
@@ -10,7 +11,7 @@ const CareerDashboardFaculty = () => {
 
     const fetchFacultyData = async () => {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:8080/api/career/faculty?department=${department}`, {
+        const res = await fetch(`${API_BASE}/api/career/faculty?department=${department}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {

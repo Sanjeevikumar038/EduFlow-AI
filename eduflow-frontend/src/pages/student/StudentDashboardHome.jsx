@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import "../../styles/dashboard-tweaks.css";
 import AttendanceCard from "../../components/dashboard/AttendanceCard";
 import CodingCard from "../../components/dashboard/CodingCard";
 import InterviewCard from "../../components/dashboard/InterviewCard";
@@ -9,104 +10,132 @@ import QuickActions from "../../components/dashboard/QuickActions";
 import { getCurrentClassStatus } from "../../services/timetableService";
 
 function StudentDashboardHome() {
-  const name = localStorage.getItem("name") || "Sanju";
-  let email = localStorage.getItem("email") || "sanju@gmail.com";
-  if (!email.includes("@")) {
-    email = "sanju@gmail.com";
-  }
-  const registerNumber = localStorage.getItem("registerNumber") || "727723EUC1001";
-  const department = localStorage.getItem("department") || "M.Tech CSE";
-  const [currentClass, setCurrentClass] = useState("Checking...");
+  const name = localStorage.getItem("name") || "Student";
+  const email = localStorage.getItem("email") || "";
+  const registerNumber = localStorage.getItem("registerNumber") || "—";
+  const department = localStorage.getItem("department") || "—";
+
+  const [currentClass, setCurrentClass] = useState(null);
+  const [classStatus, setClassStatus] = useState("checking");
+
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) {
-      getCurrentClassStatus(null, token)
-        .then(res => {
-          if (res.data?.status === "WEEKEND") {
-            setCurrentClass("Weekend");
-          } else {
-            setCurrentClass(res.data?.currentClass?.subject || "Free Hour");
-          }
-        })
-        .catch(() => setCurrentClass("Free Hour"));
-    }
+    if (!token) return;
+    getCurrentClassStatus(null, token)
+      .then(res => {
+        const d = res.data;
+        if (d?.status === "WEEKEND") {
+          setClassStatus("weekend");
+          setCurrentClass(null);
+        } else if (d?.status === "CLASS" && d?.currentClass?.subject) {
+          setClassStatus("class");
+          setCurrentClass(d.currentClass.subject);
+        } else if (d?.status === "LUNCH") {
+          setClassStatus("break");
+          setCurrentClass("Lunch Break");
+        } else if (d?.status === "BREAK") {
+          setClassStatus("break");
+          setCurrentClass("Short Break");
+        } else if (d?.status === "ENDED") {
+          setClassStatus("ended");
+          setCurrentClass("Classes Ended");
+        } else if (d?.status === "BEFORE_COLLEGE") {
+          setClassStatus("before");
+          setCurrentClass("Before College Hours");
+        } else {
+          setClassStatus("free");
+          setCurrentClass("Free Hour");
+        }
+      })
+      .catch(() => {
+        setClassStatus("free");
+        setCurrentClass("Free Hour");
+      });
   }, []);
 
+  const statusConfig = {
+    class:   { dot: "bg-emerald-500", text: "text-emerald-400", label: "In Progress" },
+    free:    { dot: "bg-amber-500",   text: "text-amber-400",   label: "Free Hour"   },
+    break:   { dot: "bg-blue-500",    text: "text-blue-400",    label: "Break"       },
+    ended:   { dot: "bg-slate-500",   text: "text-slate-400",   label: "Ended"       },
+    weekend: { dot: "bg-slate-500",   text: "text-slate-400",   label: "Weekend"     },
+    before:  { dot: "bg-slate-500",   text: "text-slate-400",   label: "Not Started" },
+    checking:{ dot: "bg-slate-600 animate-pulse", text: "text-slate-500", label: "Checking..." },
+  };
+  const sc = statusConfig[classStatus] || statusConfig.checking;
+
+  // Dynamically parse first name and initials from the logged-in student's name
+  const firstName = name ? name.split(" ")[0] : "Student";
+  const initials = name
+    ? name.split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().substring(0, 2)
+    : "ST";
+
   return (
-    <div className="animate-fade-in space-y-6 w-full pb-6">
-      
-      {/* Welcome & Info Banner */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Welcome back, {name}! 👋</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Stay consistent and keep learning every day.</p>
-          </div>
-          
-          <div className="shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-800/40 border border-slate-700/50">
-            <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Current Class</span>
-            <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              {currentClass}
-            </span>
-          </div>
+    <div className="w-full pb-8 space-y-6" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+
+      {/* ── Welcome Section ── */}
+      <div 
+        className="premium-card" 
+        style={{ 
+          background: "linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, var(--bg-card) 100%)",
+          padding: "2rem",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1.25rem",
+        }}
+      >
+        <div>
+          <h1 style={{ fontFamily: "var(--font-heading)", fontSize: "2rem", fontWeight: "700", color: "var(--text-main)", margin: 0 }}>
+            Welcome back, {firstName}! 👋
+          </h1>
+          <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+            Stay consistent and keep learning every day.
+          </p>
         </div>
 
-        {/* Horizontal Info Bar */}
-        <div className="glass-card p-4 rounded-2xl flex flex-wrap items-center justify-between gap-y-4 gap-x-8 text-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-sm border border-slate-700/50 shrink-0">✉️</div>
-            <div>
-              <div className="text-slate-500 font-semibold uppercase tracking-wider text-[9px]">Email ID</div>
-              <div className="font-bold text-slate-200 mt-0.5" title={email}>{email}</div>
+        {/* Horizontal Info Strip */}
+        <div 
+          style={{ 
+            display: "flex", 
+            flexWrap: "wrap", 
+            gap: "1.5rem 3rem", 
+            paddingTop: "1.25rem", 
+            borderTop: "1px solid rgba(99, 102, 241, 0.12)" 
+          }}
+        >
+          {[
+            { label: "Email ID", value: email || "727723euci045@skcet.ac.in" },
+            { label: "Reg No.", value: registerNumber || "727723EUCI045" },
+            { label: "Department", value: department || "M.Tech CSE" },
+            { label: "Semester", value: "8" },
+            { label: "Batch", value: "2023 – 2028" },
+          ].map((item, idx) => (
+            <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <span style={{ fontSize: "0.65rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>
+                {item.label}
+              </span>
+              <span style={{ fontSize: "0.875rem", fontWeight: "600", color: "var(--text-main)" }}>
+                {item.value}
+              </span>
             </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-sm border border-slate-700/50 shrink-0">🆔</div>
-            <div>
-              <div className="text-slate-500 font-semibold uppercase tracking-wider text-[9px]">Reg No.</div>
-              <div className="font-bold text-slate-200 mt-0.5">{registerNumber}</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-sm border border-slate-700/50 shrink-0">🏫</div>
-            <div>
-              <div className="text-slate-500 font-semibold uppercase tracking-wider text-[9px]">Department</div>
-              <div className="font-bold text-slate-200 mt-0.5">{department}</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-sm border border-slate-700/50 shrink-0">🎓</div>
-            <div>
-              <div className="text-slate-500 font-semibold uppercase tracking-wider text-[9px]">Semester</div>
-              <div className="font-bold text-slate-200 mt-0.5">10</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-sm border border-slate-700/50 shrink-0">📅</div>
-            <div>
-              <div className="text-slate-500 font-semibold uppercase tracking-wider text-[9px]">Batch</div>
-              <div className="font-bold text-slate-200 mt-0.5">2023 - 2025</div>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Row 1: 4 Analytics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* ── Stat Cards Row (4 cards responsive grid) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <AttendanceCard />
         <CodingCard />
         <InterviewCard />
         <CareerCard />
       </div>
 
-      {/* Row 2: Today's Schedule + Subject Wise Attendance */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      {/* ── Two-Column Row (Schedule + Subject Attendance) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-3">
           <ScheduleCard />
         </div>
@@ -115,18 +144,18 @@ function StudentDashboardHome() {
         </div>
       </div>
 
-      {/* Row 3: Quick Actions */}
-      <div>
-        <QuickActions />
-      </div>
-
-      {/* Footer */}
-      <footer className="text-center text-xs text-slate-500 pt-6 pb-2 border-t border-slate-800/50">
-        © {new Date().getFullYear()} EduFlow. All rights reserved.
-      </footer>
+      {/* ── Quick Actions ── */}
+      <QuickActions />
 
     </div>
   );
+}
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Morning";
+  if (h < 17) return "Afternoon";
+  return "Evening";
 }
 
 export default StudentDashboardHome;

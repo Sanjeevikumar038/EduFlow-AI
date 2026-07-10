@@ -75,6 +75,8 @@ public class AdminController {
     //  STUDENT MANAGEMENT
     // ─────────────────────────────────────────
 
+    @Autowired private StudentProfileRepository studentProfileRepository;
+
     @GetMapping("/students")
     public ResponseEntity<?> getAllStudents(@AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) return ResponseEntity.status(401).body("Unauthorized");
@@ -91,6 +93,8 @@ public class AdminController {
             return ResponseEntity.status(403).body("Access denied");
         }
     }
+
+
 
     @PostMapping("/create-student")
     public ResponseEntity<?> createStudent(@Valid @RequestBody RegisterRequest request) {
@@ -111,12 +115,14 @@ public class AdminController {
     }
 
     @DeleteMapping("/students/{id}")
+    @Transactional
     public ResponseEntity<?> deleteStudent(@PathVariable Long id) {
         return userRepository.findById(id)
                 .map(user -> {
                     if (user.getRole() != Role.STUDENT) {
                         return ResponseEntity.badRequest().body("User is not a student!");
                     }
+                    studentProfileRepository.findByUserId(id).ifPresent(studentProfileRepository::delete);
                     userRepository.delete(user);
                     return ResponseEntity.ok("Student account deleted successfully!");
                 })

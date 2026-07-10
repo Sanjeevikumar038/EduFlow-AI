@@ -8,6 +8,7 @@ import com.eduflow.dto.StudentAnalyticsResponse;
 import com.eduflow.dto.FacultyAnalyticsResponse;
 import com.eduflow.dto.AdminAnalyticsResponse;
 import com.eduflow.dto.LowAttendanceStudentResponse;
+import com.eduflow.dto.SaveManualAttendanceRequest;
 import com.eduflow.entity.AttendanceSession;
 import com.eduflow.entity.Attendance;
 import com.eduflow.entity.LeaveRequest;
@@ -19,6 +20,10 @@ import com.eduflow.repository.AttendanceRepository;
 import com.eduflow.repository.LeaveRequestRepository;
 import com.eduflow.repository.UserRepository;
 import com.eduflow.security.SecurityUtils;
+import com.eduflow.repository.FacultyExpertiseRepository;
+import com.eduflow.entity.FacultyExpertise;
+import com.eduflow.repository.SubjectMasterRepository;
+import com.eduflow.entity.SubjectMaster;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -27,6 +32,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
@@ -35,6 +41,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/attendance")
@@ -52,11 +60,58 @@ public class AttendanceController {
     @Autowired
     private LeaveRequestRepository leaveRequestRepository;
 
+    @Autowired
+    private FacultyExpertiseRepository facultyExpertiseRepository;
+
+    @Autowired
+    private SubjectMasterRepository subjectMasterRepository;
+
+    private boolean isFacultyAssignedToSubject(User faculty, String subjectCodeOrName) {
+        if (faculty.isClassAdvisor() || faculty.getRole() == Role.ADMIN) {
+            return true;
+        }
+        List<FacultyExpertise> expertises = facultyExpertiseRepository.findByFacultyId(faculty.getId());
+        for (FacultyExpertise fe : expertises) {
+            if (fe.getSubject().getSubjectCode().equalsIgnoreCase(subjectCodeOrName.trim()) ||
+                fe.getSubject().getSubjectName().equalsIgnoreCase(subjectCodeOrName.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void populateOtp(AttendanceSession session) {
         if (session != null) {
             long timeInterval = System.currentTimeMillis() / 10000; // 10 second steps
             session.setCurrentOtp(SecurityUtils.generateOTP(session.getId(), timeInterval));
         }
+    }
+
+    @GetMapping("/my-subjects")
+    public ResponseEntity<?> getMySubjects(@AuthenticationPrincipal UserDetails userDetails) {
+        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("User not found!");
+        }
+        User user = userOpt.get();
+        if (user.getRole() == Role.ADMIN) {
+            return ResponseEntity.ok(subjectMasterRepository.findByActiveTrue());
+        }
+        if (user.isClassAdvisor()) {
+            String dept = user.getDepartment();
+            if (dept != null && !dept.trim().isEmpty()) {
+                return ResponseEntity.ok(subjectMasterRepository.findByDepartmentIgnoreCaseAndActiveTrue(dept));
+            } else {
+                return ResponseEntity.ok(subjectMasterRepository.findByActiveTrue());
+            }
+        }
+        // Regular faculty: get their expertises
+        List<FacultyExpertise> expertises = facultyExpertiseRepository.findByFacultyId(user.getId());
+        List<SubjectMaster> subjects = expertises.stream()
+                .map(FacultyExpertise::getSubject)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(subjects);
     }
 
     @PostMapping("/session/start")
@@ -72,6 +127,10 @@ public class AttendanceController {
         User user = userOpt.get();
         if (user.getRole() != Role.FACULTY) {
             return ResponseEntity.status(403).body("Only faculty can start attendance sessions!");
+        }
+
+        if (!isFacultyAssignedToSubject(user, request.getSubject())) {
+            return ResponseEntity.status(403).body("You do not have permission to start attendance for subject " + request.getSubject() + "!");
         }
 
         // Deactivate any existing active sessions in this department to maintain a single active session per department
@@ -300,6 +359,7 @@ public class AttendanceController {
                 .status("PRESENT")
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
+                .method("QR")
                 .build();
 
         attendanceRepository.save(attendance);
@@ -391,28 +451,50 @@ public class AttendanceController {
             sessions = new java.util.ArrayList<>(attendanceSessionRepository.findAll());
         } else if (user.getRole() == Role.FACULTY) {
             String dept = user.getDepartment();
+            List<AttendanceSession> rawSessions;
             if (dept == null || dept.trim().isEmpty()) {
-                sessions = new java.util.ArrayList<>(attendanceSessionRepository.findByFacultyId(user.getId()));
+                rawSessions = attendanceSessionRepository.findByFacultyId(user.getId());
             } else {
                 List<User> departmentFaculties = userRepository.findByRoleAndDepartmentIgnoreCase(Role.FACULTY, dept);
-                List<Long> facultyIds = departmentFaculties.stream().map(User::getId).toList();
+                List<Long> facultyIds = departmentFaculties.stream().map(User::getId).filter(id -> id != null).toList();
                 if (facultyIds.isEmpty()) {
-                    sessions = new java.util.ArrayList<>();
+                    rawSessions = new java.util.ArrayList<>();
                 } else {
-                    sessions = new java.util.ArrayList<>(attendanceSessionRepository.findByFacultyIdIn(facultyIds));
+                    rawSessions = attendanceSessionRepository.findByFacultyIdIn(facultyIds);
                 }
+            }
+            if (!user.isClassAdvisor()) {
+                List<FacultyExpertise> expertises = facultyExpertiseRepository.findByFacultyId(user.getId());
+                List<String> assignedSubjects = expertises.stream()
+                    .filter(fe -> fe.getSubject() != null && fe.getSubject().getSubjectCode() != null)
+                    .map(fe -> fe.getSubject().getSubjectCode().toLowerCase().trim())
+                    .toList();
+                sessions = rawSessions.stream()
+                    .filter(s -> s.getSubject() != null && assignedSubjects.contains(s.getSubject().toLowerCase().trim()))
+                    .collect(java.util.stream.Collectors.toList());
+            } else {
+                sessions = new java.util.ArrayList<>(rawSessions);
             }
         } else {
             return ResponseEntity.status(403).body("Students cannot view all sessions!");
         }
 
         // Sort latest first
-        sessions.sort((s1, s2) -> s2.getId().compareTo(s1.getId()));
+        sessions.sort((s1, s2) -> {
+            if (s1.getId() == null && s2.getId() == null) return 0;
+            if (s1.getId() == null) return 1;
+            if (s2.getId() == null) return -1;
+            return s2.getId().compareTo(s1.getId());
+        });
 
         // Populate conductor/faculty names for frontend
         for (AttendanceSession s : sessions) {
-            Optional<User> fOpt = userRepository.findById(s.getFacultyId());
-            s.setFacultyName(fOpt.map(User::getName).orElse("Unknown"));
+            if (s.getFacultyId() != null) {
+                Optional<User> fOpt = userRepository.findById(s.getFacultyId());
+                s.setFacultyName(fOpt.map(User::getName).orElse("Unknown"));
+            } else {
+                s.setFacultyName("System");
+            }
         }
 
         return ResponseEntity.ok(sessions);
@@ -449,7 +531,11 @@ public class AttendanceController {
             }
         }
 
-        if (!isCreatorOrSameDept && user.getRole() != Role.ADMIN) {
+        if (user.getRole() == Role.FACULTY) {
+            if (!session.getFacultyId().equals(user.getId()) && !user.isClassAdvisor() && !isFacultyAssignedToSubject(user, session.getSubject())) {
+                return ResponseEntity.status(403).body("You do not have permission to view this report!");
+            }
+        } else if (user.getRole() != Role.ADMIN) {
             return ResponseEntity.status(403).body("You do not have permission to view this report!");
         }
 
@@ -730,6 +816,9 @@ public class AttendanceController {
         if (userOpt.isEmpty()) return ResponseEntity.badRequest().body("User not found!");
         User user = userOpt.get();
         if (user.getRole() == Role.STUDENT) return ResponseEntity.status(403).body("Access denied.");
+        if (user.getRole() == Role.FACULTY && !user.isClassAdvisor()) {
+            return ResponseEntity.status(403).body("Only Class Advisors can monitor low attendance students!");
+        }
 
         List<User> allStudents;
         if (user.getRole() == Role.ADMIN) {
@@ -837,6 +926,19 @@ public class AttendanceController {
 
         // Get all sessions conducted by department faculty
         List<AttendanceSession> sessions = attendanceSessionRepository.findByFacultyIdIn(facultyIds);
+
+        // Subject-only restriction for subject faculties
+        if (!faculty.isClassAdvisor() && faculty.getRole() != Role.ADMIN) {
+            List<FacultyExpertise> expertises = facultyExpertiseRepository.findByFacultyId(faculty.getId());
+            List<String> assignedSubjects = expertises.stream()
+                .map(fe -> fe.getSubject().getSubjectCode().toLowerCase().trim())
+                .toList();
+
+            sessions = sessions.stream()
+                .filter(s -> s.getSubject() != null && assignedSubjects.contains(s.getSubject().toLowerCase().trim()))
+                .collect(java.util.stream.Collectors.toList());
+        }
+
         List<Long> sessionIds = sessions.stream().map(AttendanceSession::getId).toList();
 
         // Calculate Present Today & Absent Today
@@ -1015,9 +1117,308 @@ public class AttendanceController {
                 .totalStudents(totalStudents)
                 .totalFaculty(totalFaculty)
                 .totalSessions(totalSessions)
-                .bestDepartment(bestDept)
                 .needsImprovementDepartment(needsImprovementDept)
                 .departmentComparison(comparisonList)
                 .build());
+    }
+
+    @PostMapping("/session/create")
+    public ResponseEntity<?> createSessionAlias(
+            @Valid @RequestBody StartSessionRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return startSession(request, userDetails);
+    }
+
+    @GetMapping("/session/{id}")
+    public ResponseEntity<?> getSessionById(@PathVariable Long id) {
+        Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(id);
+        if (sessionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        AttendanceSession session = sessionOpt.get();
+        populateOtp(session);
+        Optional<User> creatorOpt = userRepository.findById(session.getFacultyId());
+        session.setFacultyName(creatorOpt.map(User::getName).orElse("Unknown"));
+        return ResponseEntity.ok(session);
+    }
+
+    @GetMapping("/session/{id}/students")
+    public ResponseEntity<?> getSessionStudents(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("User not found!");
+        }
+        User user = userOpt.get();
+
+        Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(id);
+        if (sessionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        AttendanceSession session = sessionOpt.get();
+
+        if (user.getRole() == Role.FACULTY) {
+            if (!session.getFacultyId().equals(user.getId()) && !user.isClassAdvisor() && !isFacultyAssignedToSubject(user, session.getSubject())) {
+                return ResponseEntity.status(403).body("You do not have permission to view this session's attendance records!");
+            }
+        } else if (user.getRole() != Role.ADMIN) {
+            return ResponseEntity.status(403).body("Access denied.");
+        }
+
+        Optional<User> hostOpt = userRepository.findById(session.getFacultyId());
+        if (hostOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Host faculty not found!");
+        }
+        String dept = hostOpt.get().getDepartment();
+
+        List<User> students = userRepository.findByRoleAndDepartmentIgnoreCase(Role.STUDENT, dept);
+
+        List<Attendance> attendances = attendanceRepository.findBySessionId(id);
+        Map<Long, Attendance> attendanceMap = attendances.stream()
+                .collect(Collectors.toMap(Attendance::getStudentId, a -> a));
+
+        List<Map<String, Object>> result = students.stream().map(student -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("studentId", student.getId());
+            map.put("name", student.getName());
+            map.put("registerNumber", student.getRegisterNumber());
+            
+            Attendance att = attendanceMap.get(student.getId());
+            if (att != null) {
+                map.put("status", att.getStatus());
+                map.put("qrStatus", "QR".equalsIgnoreCase(att.getMethod()) ? "Checked In" : "Manual");
+                map.put("method", att.getMethod() != null ? att.getMethod() : "QR");
+                map.put("time", att.getTime());
+                map.put("remarks", att.getRemarks());
+            } else {
+                map.put("status", "PENDING");
+                map.put("qrStatus", "Not Checked In");
+                map.put("method", null);
+                map.put("time", null);
+                map.put("remarks", null);
+            }
+            return map;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/session/{id}/manual")
+    @Transactional
+    public ResponseEntity<?> manualMarkAttendance(
+            @PathVariable Long id,
+            @RequestBody com.eduflow.dto.ManualMarkRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        if (userOpt.isEmpty()) return ResponseEntity.badRequest().body("User not found!");
+        User user = userOpt.get();
+
+        Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(id);
+        if (sessionOpt.isEmpty()) return ResponseEntity.notFound().build();
+        AttendanceSession session = sessionOpt.get();
+
+        if (user.getRole() == Role.FACULTY) {
+            if (!session.getFacultyId().equals(user.getId()) && !user.isClassAdvisor() && !isFacultyAssignedToSubject(user, session.getSubject())) {
+                return ResponseEntity.status(403).body("You do not have permission to modify this session's attendance!");
+            }
+        } else if (user.getRole() != Role.ADMIN) {
+            return ResponseEntity.status(403).body("Access denied.");
+        }
+
+        // Allow manual marking even for inactive/closed QR sessions
+        /*
+        if (!session.isActive()) {
+            return ResponseEntity.badRequest().body("Attendance session is closed and locked!");
+        }
+        */
+
+        Optional<User> studentOpt = userRepository.findById(request.getStudentId());
+        if (studentOpt.isEmpty()) return ResponseEntity.badRequest().body("Student not found!");
+
+        List<Attendance> existing = attendanceRepository.findBySessionId(id);
+        Optional<Attendance> recordOpt = existing.stream()
+                .filter(a -> a.getStudentId().equals(request.getStudentId()))
+                .findFirst();
+
+        Attendance attendance;
+        if (recordOpt.isPresent()) {
+            attendance = recordOpt.get();
+            attendance.setStatus(request.getStatus().toUpperCase());
+            attendance.setTime(LocalTime.now());
+            attendance.setMethod("MANUAL");
+        } else {
+            attendance = Attendance.builder()
+                    .studentId(request.getStudentId())
+                    .sessionId(id)
+                    .date(LocalDate.now())
+                    .time(LocalTime.now())
+                    .status(request.getStatus().toUpperCase())
+                    .method("MANUAL")
+                    .build();
+        }
+
+        attendanceRepository.save(attendance);
+        return ResponseEntity.ok("Attendance manually marked as " + request.getStatus().toUpperCase() + "!");
+    }
+
+    @PostMapping("/session/{id}/bulk-manual")
+    @Transactional
+    public ResponseEntity<?> bulkManualMarkAttendance(
+            @PathVariable Long id,
+            @RequestBody List<com.eduflow.dto.ManualMarkRequest> requests,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        if (userOpt.isEmpty()) return ResponseEntity.badRequest().body("User not found!");
+        User user = userOpt.get();
+
+        Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(id);
+        if (sessionOpt.isEmpty()) return ResponseEntity.notFound().build();
+        AttendanceSession session = sessionOpt.get();
+
+        if (user.getRole() == Role.FACULTY) {
+            if (!session.getFacultyId().equals(user.getId()) && !user.isClassAdvisor() && !isFacultyAssignedToSubject(user, session.getSubject())) {
+                return ResponseEntity.status(403).body("You do not have permission to modify this session's attendance!");
+            }
+        } else if (user.getRole() != Role.ADMIN) {
+            return ResponseEntity.status(403).body("Access denied.");
+        }
+
+        // Allow manual marking even for inactive/closed sessions
+        /*
+        if (!session.isActive()) {
+            return ResponseEntity.badRequest().body("Attendance session is closed and locked!");
+        }
+        */
+
+        List<Attendance> existing = attendanceRepository.findBySessionId(id);
+        Map<Long, Attendance> attendanceMap = existing.stream()
+                .collect(Collectors.toMap(Attendance::getStudentId, a -> a));
+
+        List<Attendance> toSave = new ArrayList<>();
+        for (com.eduflow.dto.ManualMarkRequest req : requests) {
+            Optional<User> studentOpt = userRepository.findById(req.getStudentId());
+            if (studentOpt.isEmpty()) continue;
+
+            Attendance att = attendanceMap.get(req.getStudentId());
+            if (att != null) {
+                att.setStatus(req.getStatus().toUpperCase());
+                att.setTime(LocalTime.now());
+                att.setMethod("MANUAL");
+                att.setRemarks(req.getRemarks());
+                toSave.add(att);
+            } else {
+                toSave.add(Attendance.builder()
+                        .studentId(req.getStudentId())
+                        .sessionId(id)
+                        .date(LocalDate.now())
+                        .time(LocalTime.now())
+                        .status(req.getStatus().toUpperCase())
+                        .method("MANUAL")
+                        .remarks(req.getRemarks())
+                        .build());
+            }
+        }
+
+        attendanceRepository.saveAll(toSave);
+        return ResponseEntity.ok("Attendance register updated successfully!");
+    }
+
+    @PostMapping("/session/save-manual")
+    @Transactional
+    public ResponseEntity<?> saveManualSession(
+            @RequestBody com.eduflow.dto.SaveManualAttendanceRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        if (userOpt.isEmpty()) return ResponseEntity.badRequest().body("User not found!");
+        User user = userOpt.get();
+
+        if (user.getRole() != Role.FACULTY && user.getRole() != Role.ADMIN) {
+            return ResponseEntity.status(403).body("Only faculty or admin can record manual attendance!");
+        }
+
+        if (!isFacultyAssignedToSubject(user, request.getSubject())) {
+            return ResponseEntity.status(403).body("You do not have permission to record attendance for subject " + request.getSubject() + "!");
+        }
+
+        // Parse date and times
+        LocalDate localDate = LocalDate.parse(request.getDate());
+        LocalTime start = LocalTime.parse(request.getStartTime());
+        LocalTime end = LocalTime.parse(request.getEndTime());
+        LocalDateTime startDateTime = LocalDateTime.of(localDate, start);
+        LocalDateTime endDateTime = LocalDateTime.of(localDate, end);
+
+        // Check if session already exists
+        List<AttendanceSession> duplicates = attendanceSessionRepository.findBySubjectIgnoreCaseAndStartTime(request.getSubject(), startDateTime);
+        AttendanceSession sessionToUse;
+        if (!duplicates.isEmpty()) {
+            sessionToUse = duplicates.get(0);
+        } else {
+            // Deactivate any existing active sessions in this department to maintain a single active session per department
+            List<AttendanceSession> activeSessions = attendanceSessionRepository.findByActive(true);
+            for (AttendanceSession session : activeSessions) {
+                Optional<User> creatorOpt = userRepository.findById(session.getFacultyId());
+                if (creatorOpt.isPresent()) {
+                    User creator = creatorOpt.get();
+                    if (user.getDepartment() != null && user.getDepartment().equalsIgnoreCase(creator.getDepartment())) {
+                        session.setActive(false);
+                        attendanceSessionRepository.save(session);
+                    }
+                } else if (session.getFacultyId().equals(user.getId())) {
+                    session.setActive(false);
+                    attendanceSessionRepository.save(session);
+                }
+            }
+
+            // Create a new locked (inactive) manual session
+            sessionToUse = AttendanceSession.builder()
+                    .subject(request.getSubject())
+                    .facultyId(user.getId())
+                    .startTime(startDateTime)
+                    .expiryTime(endDateTime)
+                    .active(false)
+                    .build();
+            attendanceSessionRepository.save(sessionToUse);
+        }
+
+        // Get existing attendances for this session to update or insert
+        List<Attendance> existing = attendanceRepository.findBySessionId(sessionToUse.getId());
+        Map<Long, Attendance> attendanceMap = existing.stream()
+                .collect(Collectors.toMap(Attendance::getStudentId, a -> a));
+
+        List<Attendance> toSave = new ArrayList<>();
+        for (com.eduflow.dto.ManualMarkRequest req : request.getRecords()) {
+            Optional<User> studentOpt = userRepository.findById(req.getStudentId());
+            if (studentOpt.isEmpty()) continue;
+
+            Attendance att = attendanceMap.get(req.getStudentId());
+            if (att != null) {
+                att.setStatus(req.getStatus().toUpperCase());
+                att.setTime(start);
+                att.setMethod("MANUAL");
+                att.setRemarks(req.getRemarks());
+                toSave.add(att);
+            } else {
+                toSave.add(Attendance.builder()
+                        .studentId(req.getStudentId())
+                        .sessionId(sessionToUse.getId())
+                        .date(localDate)
+                        .time(start)
+                        .status(req.getStatus().toUpperCase())
+                        .method("MANUAL")
+                        .remarks(req.getRemarks())
+                        .build());
+            }
+        }
+
+        attendanceRepository.saveAll(toSave);
+        return ResponseEntity.ok("Manual attendance saved successfully!");
+    }
+
+    @PostMapping("/session/{id}/close")
+    public ResponseEntity<?> closeSession(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return endSession(id, userDetails);
     }
 }

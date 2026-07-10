@@ -1,21 +1,48 @@
 import { useState, useEffect } from "react";
-import { getStudents, createStudent, deleteStudent } from "../services/authService";
-import { startSession, endSession, getActiveSession, getSessionRecords, getAllSessions, getSessionReport, getFacultyAnalytics, exportSessionCsv, exportSessionPdfData, getLowAttendanceStudents } from "../services/attendanceService";
+import { getStudents, createStudent, deleteStudent, getStudentsPaged, getStudentProfile } from "../services/authService";
+import { startSession, endSession, getActiveSession, getSessionRecords, getAllSessions, getSessionReport, getFacultyAnalytics, exportSessionCsv, exportSessionPdfData, getLowAttendanceStudents, getSessionStudents, markManualAttendance, closeSession, getMySubjects, saveBulkAttendance, saveManualAttendanceSession } from "../services/attendanceService";
 import { useNavigate } from "react-router-dom";
 import AnalyticsCard from "../components/AnalyticsCard";
-import { getDepartmentTimetable, getCurrentClassStatus, getSuggestedSubject } from "../services/timetableService";
+import { getDepartmentTimetable, getCurrentClassStatus, getSuggestedSubject, assignFreeActivityPeriod, getFreeActivitySubmissions, overrideFreeActivityAttendance, getCodingProblems } from "../services/timetableService";
 import SimulationControl from "../components/SimulationControl";
 import { getDepartmentLeaveRequests, approveLeaveRequest, rejectLeaveRequest } from "../services/leaveService";
 import CareerDashboardFaculty from "../components/career/CareerDashboardFaculty";
+import FacultySidebar from "../components/faculty/FacultySidebar";
+import FacultyTopbar from "../components/faculty/FacultyTopbar";
+import FacultyOverviewView from "../components/faculty/FacultyOverviewView";
+import FacultyQrSessionView from "../components/faculty/FacultyQrSessionView";
+import FacultyManualAttendanceView from "../components/faculty/FacultyManualAttendanceView";
+import FacultyScheduleView from "../components/faculty/FacultyScheduleView";
+import FacultyCareerView from "../components/faculty/FacultyCareerView";
+import FacultyAdvisorStudentsView from "../components/faculty/FacultyAdvisorStudentsView";
+import FacultyAdvisorLeavesView from "../components/faculty/FacultyAdvisorLeavesView";
+import FacultyAdvisorAnalyticsView from "../components/faculty/FacultyAdvisorAnalyticsView";
 
 
 function FacultyDashboard() {
   const navigate = useNavigate();
   const name = localStorage.getItem("name") || "Faculty";
   const token = localStorage.getItem("token");
+  const isAdvisor = localStorage.getItem("classAdvisor") === "true";
 
   // Tab State
-  const [activeTab, setActiveTab] = useState("overview"); // 'overview', 'qr-session', or 'students'
+  const [activeTab, setActiveTab] = useState("overview"); 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("eduflow-theme");
+    return saved ? saved === "dark" : true; 
+  });
+
+  useEffect(() => {
+    const html = document.documentElement;
+    if (isDark) {
+      html.removeAttribute("data-theme");
+    } else {
+      html.setAttribute("data-theme", "light");
+    }
+    localStorage.setItem("eduflow-theme", isDark ? "dark" : "light");
+  }, [isDark]);
 
   // Student directory states
   const [students, setStudents] = useState([]);
@@ -34,11 +61,13 @@ function FacultyDashboard() {
   // Attendance Session States
   const [activeSession, setActiveSession] = useState(null);
   const [sessionSubject, setSessionSubject] = useState("");
+  const [facultySubjects, setFacultySubjects] = useState([]);
   const [customSubject, setCustomSubject] = useState("");
   const [sessionDuration, setSessionDuration] = useState(5);
   const [timeLeft, setTimeLeft] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [checkedInStudents, setCheckedInStudents] = useState([]);
+  const [sessionStudents, setSessionStudents] = useState([]);
 
   // Analytics States
   const [sessions, setSessions] = useState([]);
@@ -69,6 +98,41 @@ function FacultyDashboard() {
   const [rejectReason, setRejectReason] = useState("");
   const [rejectingId, setRejectingId] = useState(null);
   const [exportingId, setExportingId] = useState(null);
+
+  // Attendance Register States
+  const [registerSessionId, setRegisterSessionId] = useState("");
+  const [registerRecords, setRegisterRecords] = useState([]);
+  const [localRegisterRecords, setLocalRegisterRecords] = useState([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [registerFilterSubject, setRegisterFilterSubject] = useState("");
+  const [registerFilterDate, setRegisterFilterDate] = useState("");
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerMode, setRegisterMode] = useState("manual"); // "manual" or "existing"
+  const [manualDate, setManualDate] = useState(new Date().toISOString().substring(0, 10));
+  const [manualStartTime, setManualStartTime] = useState("09:30");
+  const [manualEndTime, setManualEndTime] = useState("10:30");
+  const [manualSubject, setManualSubject] = useState("");
+
+  // Free Activity states
+  const [freeActivityDay, setFreeActivityDay] = useState("Monday");
+  const [freeActivityName, setFreeActivityName] = useState("Coding Practice");
+  const [freeActivitySubmissions, setFreeActivitySubmissions] = useState([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [questionBankProblems, setQuestionBankProblems] = useState([]);
+  const [selectedProblemId, setSelectedProblemId] = useState("");
+
+  const fetchQuestionBank = async () => {
+    if (!token) return;
+    try {
+      const res = await getCodingProblems(token);
+      setQuestionBankProblems(res.data || []);
+      if (res.data && res.data.length > 0) {
+        setSelectedProblemId(res.data[0].id);
+      }
+    } catch (err) {
+      console.error("Error fetching question bank:", err);
+    }
+  };
 
   const fetchFacultyAnalyticsData = async () => {
     if (!token) return;
@@ -105,39 +169,112 @@ function FacultyDashboard() {
     }
   }, [activeTab, simParams, token]);
 
+  const handleAssignFreeActivity = async (e) => {
+    e.preventDefault();
+    if (!token) return;
+    setLoading(true);
+    try {
+      const getSimulatedDate = (weekdayName) => {
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const targetIndex = daysOfWeek.indexOf(weekdayName);
+        if (targetIndex === -1) return new Date().toISOString().split("T")[0];
+        const today = new Date();
+        const todayIndex = today.getDay();
+        const diff = targetIndex - todayIndex;
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + diff);
+        return targetDate.toISOString().split("T")[0];
+      };
+
+      const date = getSimulatedDate(freeActivityDay);
+      const dept = localStorage.getItem("department") || "M.Tech CSE";
+      await assignFreeActivityPeriod({
+        date: date,
+        activityName: freeActivityName,
+        department: dept,
+        questionBankId: freeActivityName === "Coding Practice" ? selectedProblemId : null
+      }, token);
+      showFeedback(`Successfully assigned "${freeActivityName}" to ${freeActivityDay}'s Free Activity Period.`);
+      fetchTimetableAndStatus();
+      fetchFreeActivitySubmissions();
+    } catch (err) {
+      console.error(err);
+      showFeedback("Failed to assign Free Activity Period.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchFreeActivitySubmissions = async () => {
+    if (!token) return;
+    setSubmissionsLoading(true);
+    try {
+      const getSimulatedDate = (weekdayName) => {
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const targetIndex = daysOfWeek.indexOf(weekdayName);
+        if (targetIndex === -1) return new Date().toISOString().split("T")[0];
+        const today = new Date();
+        const todayIndex = today.getDay();
+        const diff = targetIndex - todayIndex;
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + diff);
+        return targetDate.toISOString().split("T")[0];
+      };
+
+      const date = getSimulatedDate(freeActivityDay);
+      const res = await getFreeActivitySubmissions(date, token);
+      setFreeActivitySubmissions(res.data || []);
+    } catch (err) {
+      console.error("Error fetching submissions:", err);
+    } finally {
+      setSubmissionsLoading(false);
+    }
+  };
+
+  const handleOverrideAttendance = async (submissionId, status) => {
+    if (!token) return;
+    try {
+      await overrideFreeActivityAttendance({ submissionId, status }, token);
+      showFeedback(`Attendance successfully overridden to ${status}.`);
+      fetchFreeActivitySubmissions();
+    } catch (err) {
+      console.error("Error overriding attendance:", err);
+      showFeedback("Failed to override attendance.", "error");
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "schedule") {
+      fetchFreeActivitySubmissions();
+      fetchQuestionBank();
+    }
+  }, [activeTab, freeActivityDay, token]);
+
+  // Fetch faculty subjects
+  useEffect(() => {
+    if (token) {
+      getMySubjects(token)
+        .then(res => {
+          const subjects = res.data || [];
+          setFacultySubjects(subjects);
+          if (subjects.length === 1) {
+            setSessionSubject(subjects[0].subjectCode);
+            setRegisterFilterSubject(subjects[0].subjectCode);
+            setManualSubject(subjects[0].subjectCode);
+          } else if (subjects.length > 1) {
+            setManualSubject(subjects[0].subjectCode);
+          }
+        })
+        .catch(err => console.error("Error fetching faculty subjects:", err));
+    }
+  }, [token]);
+
   // QR Selection prefill hook
   useEffect(() => {
     if (activeTab === "qr-session" && !activeSession && token) {
       getSuggestedSubject(simParams, token).then(res => {
         if (res.data?.suggestedSubject) {
-          const sub = res.data.suggestedSubject;
-          const standardSubjects = [
-            "Software Engineering", "Artificial Intelligence", 
-            "Database Management Systems", "Computer Networks", 
-            "Cybersecurity", "Cloud Computing", "Operating Systems",
-            "Data Communication & Networks", "Parallel and Cloud Computing",
-            "Artificial Intelligence Expert Systems", "Agentic AI",
-            "Cloud Computing Lab", "AI & Agentic AI Lab"
-          ];
-          const mapAbbr = {
-            "OS": "Operating Systems",
-            "DCN": "Data Communication & Networks",
-            "PCD": "Parallel and Cloud Computing",
-            "AIES": "Artificial Intelligence Expert Systems",
-            "AGAI": "Agentic AI",
-            "DBMS": "Database Management Systems",
-            "SE": "Software Engineering",
-            "CC LAB": "Cloud Computing Lab",
-            "AI LAB": "AI & Agentic AI Lab"
-          };
-          const mappedName = mapAbbr[sub] || sub;
-          
-          if (standardSubjects.includes(mappedName)) {
-            setSessionSubject(mappedName);
-          } else {
-            setSessionSubject("Custom");
-            setCustomSubject(mappedName);
-          }
+          setSessionSubject(res.data.suggestedSubject);
         }
       }).catch(err => console.log(err));
     }
@@ -388,10 +525,32 @@ function FacultyDashboard() {
   const fetchSessionRecords = async () => {
     if (!token || !activeSession) return;
     try {
-      const res = await getSessionRecords(activeSession.id, token);
-      setCheckedInStudents(res.data || []);
+      const res = await getSessionStudents(activeSession.id, token);
+      const allStuds = res.data || [];
+      setSessionStudents(allStuds);
+
+      // Filter present/late to populate checkedInStudents for backward-compatibility counts
+      const presentList = allStuds.filter(s => s.status === "PRESENT" || s.status === "LATE").map(s => ({
+        id: s.studentId,
+        studentName: s.name,
+        registerNumber: s.registerNumber,
+        time: s.time,
+        status: s.status
+      }));
+      setCheckedInStudents(presentList);
     } catch (error) {
-      console.error("Error fetching check-ins:", error);
+      console.error("Error fetching session students roster:", error);
+    }
+  };
+
+  const handleManualOverride = async (studentId, status) => {
+    if (!token || !activeSession) return;
+    try {
+      await markManualAttendance(activeSession.id, studentId, status, token);
+      showFeedback(`Manually marked student as ${status}`);
+      fetchSessionRecords();
+    } catch (error) {
+      showFeedback(error.response?.data || "Failed to update attendance status.", "error");
     }
   };
 
@@ -399,6 +558,7 @@ function FacultyDashboard() {
   useEffect(() => {
     if (!activeSession) {
       setCheckedInStudents([]);
+      setSessionStudents([]);
       return;
     }
 
@@ -411,11 +571,54 @@ function FacultyDashboard() {
     return () => clearInterval(recordsInterval);
   }, [activeSession]);
 
+  const [studentPage, setStudentPage] = useState(0);
+  const [studentTotalPages, setStudentTotalPages] = useState(1);
+  const [studentSortBy, setStudentSortBy] = useState("name");
+  const [studentSortDir, setStudentSortDir] = useState("asc");
+  const [studentSectionFilter, setStudentSectionFilter] = useState("");
+  const [studentBatchFilter, setStudentBatchFilter] = useState("");
+  const [selectedStudentProfile, setSelectedStudentProfile] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  const fetchFacultyStudentsList = async () => {
+    if (!token) return;
+    setFetchLoading(true);
+    try {
+      const dept = localStorage.getItem("department") || "M.Tech CSE";
+      const res = await getStudentsPaged({
+        page: studentPage,
+        size: 10,
+        sortBy: studentSortBy,
+        sortDir: studentSortDir,
+        search: searchTerm,
+        department: dept,
+        section: studentSectionFilter,
+        batch: studentBatchFilter
+      }, token);
+      setStudents(res.data.content || []);
+      setStudentTotalPages(res.data.totalPages || 1);
+    } catch (err) {
+      console.error("Error fetching faculty paged students:", err);
+    } finally {
+      setFetchLoading(false);
+    }
+  };
+
+  const handleViewProfile = async (studentId) => {
+    try {
+      const res = await getStudentProfile(studentId, token);
+      setSelectedStudentProfile(res.data);
+      setShowProfileModal(true);
+    } catch (err) {
+      showFeedback("Failed to fetch student profile details.", "error");
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "students") {
-      fetchStudents();
+      fetchFacultyStudentsList();
     }
-  }, [activeTab, token]);
+  }, [activeTab, studentPage, studentSortBy, studentSortDir, studentSectionFilter, studentBatchFilter, searchTerm, token]);
 
   const fetchSessions = async () => {
     if (!token) return;
@@ -445,13 +648,153 @@ function FacultyDashboard() {
     }
   };
 
+  const loadRegisterSession = async (sessionId) => {
+    if (!sessionId) {
+      setRegisterRecords([]);
+      setLocalRegisterRecords([]);
+      setHasUnsavedChanges(false);
+      return;
+    }
+    setRegisterLoading(true);
+    try {
+      const res = await getSessionStudents(sessionId, token);
+      const records = res.data || [];
+      setRegisterRecords(records);
+      setLocalRegisterRecords(JSON.parse(JSON.stringify(records))); // deep copy
+      setHasUnsavedChanges(false);
+    } catch (err) {
+      showFeedback("Failed to load attendance register records.", "error");
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  const handleRegisterOverride = (studentId, status) => {
+    setLocalRegisterRecords(prev => prev.map(r => r.studentId === studentId ? { ...r, status: status } : r));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleRemarksChange = (studentId, val) => {
+    setLocalRegisterRecords(prev => prev.map(r => r.studentId === studentId ? { ...r, remarks: val } : r));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSaveRegister = async () => {
+    if (!registerSessionId) return;
+    setRegisterLoading(true);
+    try {
+      const requests = localRegisterRecords.map(r => ({
+        studentId: r.studentId,
+        status: r.status === "PENDING" ? "ABSENT" : r.status,
+        remarks: r.remarks || ""
+      }));
+      await saveBulkAttendance(registerSessionId, requests, token);
+      showFeedback("Attendance register saved/updated successfully!");
+      setHasUnsavedChanges(false);
+      await loadRegisterSession(registerSessionId);
+    } catch (error) {
+      showFeedback(error.response?.data || "Failed to save/update attendance register.", "error");
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  const handleSaveManualAttendance = async () => {
+    if (!manualSubject) {
+      showFeedback("Please select a subject.", "error");
+      return;
+    }
+    if (!manualDate || !manualStartTime || !manualEndTime) {
+      showFeedback("Please fill in Date, Start Time, and End Time.", "error");
+      return;
+    }
+    setRegisterLoading(true);
+    try {
+      const payload = {
+        date: manualDate,
+        startTime: manualStartTime,
+        endTime: manualEndTime,
+        subject: manualSubject,
+        records: localRegisterRecords.map(r => ({
+          studentId: r.studentId,
+          status: r.status === "PENDING" ? "ABSENT" : r.status,
+          remarks: r.remarks || ""
+        }))
+      };
+      await saveManualAttendanceSession(payload, token);
+      showFeedback("Manual attendance saved successfully!");
+      setHasUnsavedChanges(false);
+      await fetchSessions();
+      setRegisterMode("existing");
+    } catch (error) {
+      showFeedback(error.response?.data || "Failed to save manual attendance.", "error");
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  const handleRegisterCloseSession = async () => {
+    if (!registerSessionId) return;
+    try {
+      await closeSession(registerSessionId, token);
+      showFeedback("Attendance session closed and locked successfully.");
+      fetchSessions();
+      loadRegisterSession(registerSessionId);
+    } catch (error) {
+      showFeedback(error.response?.data || "Failed to close attendance session.", "error");
+    }
+  };
+
   useEffect(() => {
-    if (activeTab === "analytics") {
+    if (activeTab === "analytics" || activeTab === "register") {
       fetchSessions();
       setSelectedSession(null);
       setReportRecords([]);
+      if (activeTab === "register") {
+        fetchStudents();
+        if (registerMode === "existing" && registerSessionId) {
+          loadRegisterSession(registerSessionId);
+        }
+      }
     }
-  }, [activeTab]);
+  }, [activeTab, registerMode, registerSessionId]);
+
+  useEffect(() => {
+    if (activeTab === "register" && registerMode === "manual" && students.length > 0) {
+      const dept = localStorage.getItem("department") || "M.Tech CSE";
+      const deptStudents = students.filter(s => s.department && s.department.toLowerCase() === dept.toLowerCase());
+      const initialRecords = deptStudents.map(s => ({
+        studentId: s.id,
+        registerNumber: s.registerNumber,
+        name: s.name,
+        status: "PRESENT",
+        remarks: ""
+      }));
+      setLocalRegisterRecords(initialRecords);
+      setHasUnsavedChanges(true);
+    }
+  }, [activeTab, registerMode, students]);
+
+  useEffect(() => {
+    if (activeTab === "register" && registerMode === "manual" && manualDate && manualStartTime && manualSubject && sessions.length > 0) {
+      const match = sessions.find(s => {
+        const sDate = s.startTime.substring(0, 10);
+        const sTime = s.startTime.substring(11, 16);
+        return s.subject.toLowerCase() === manualSubject.toLowerCase() &&
+               sDate === manualDate &&
+               sTime === manualStartTime;
+      });
+
+      if (match) {
+        showFeedback("An attendance session already exists for this date and time. Opening it for editing.", "info");
+        setRegisterMode("existing");
+        setRegisterSessionId(String(match.id));
+        setRegisterFilterSubject(manualSubject);
+        setRegisterFilterDate(manualDate);
+        loadRegisterSession(match.id);
+      }
+    }
+  }, [manualDate, manualStartTime, manualSubject, sessions, registerMode, activeTab]);
 
   const handleCreateStudent = async (e) => {
     e.preventDefault();
@@ -497,9 +840,9 @@ function FacultyDashboard() {
 
   const handleStartSession = async (e) => {
     e.preventDefault();
-    const finalSubject = sessionSubject === "Custom" ? customSubject : sessionSubject;
+    const finalSubject = sessionSubject;
     if (!finalSubject) {
-      showFeedback("Please select or enter a subject.", "error");
+      showFeedback("Please select a subject.", "error");
       return;
     }
     setSessionLoading(true);
@@ -548,1591 +891,533 @@ function FacultyDashboard() {
       s.registerNumber?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const renderFacultyGridCell = (day, period) => {
-    const entry = timetableData.find(e => e.dayOfWeek === day && e.period === period);
-    const isMyClass = entry && entry.faculty && entry.faculty.id === Number(localStorage.getItem("userId"));
-    
-    const isActiveCell = currentClassStatus && 
-      currentClassStatus.status === "CLASS" && 
-      currentClassStatus.periodNumber === period && 
-      (simParams?.simulatedDay 
-        ? simParams.simulatedDay === day 
-        : new Date().toLocaleDateString("en-US", { weekday: "long" }) === day);
+  const email = localStorage.getItem("email") || "";
+  const department = localStorage.getItem("department") || "M.Tech CSE";
 
-    if (isMyClass) {
-      return (
-        <td key={period} className={`grid-class-cell active-faculty-class-cell ${isActiveCell ? "active-cell" : ""}`}>
-          <div className="cell-subject">{entry.subject}</div>
-          <div className="cell-dept">{entry.department}</div>
-        </td>
-      );
-    } else if (entry && entry.subject && entry.subject.trim() !== "") {
-      return (
-        <td key={period} className="grid-class-cell other-faculty-class-cell">
-          <div className="cell-subject-muted">{entry.subject}</div>
-          <div className="cell-faculty-muted">{entry.faculty?.name || "Unassigned"}</div>
-        </td>
-      );
+  let subtitle = "";
+  if (isAdvisor) {
+    subtitle = `Class Advisor • ${department}`;
+  } else {
+    let assignedSubject = "";
+    if (email.toLowerCase() === "divya@skcet.ac.in") {
+      assignedSubject = "Agentic AI";
+    } else if (email.toLowerCase() === "sreeraj@skcet.ac.in") {
+      assignedSubject = "Design Thinking Fundamentals";
+    } else if (email.toLowerCase() === "pradeep@skcet.ac.in") {
+      assignedSubject = "Data Communication Networks";
+    } else if (email.toLowerCase() === "vimit@skcet.ac.in") {
+      assignedSubject = "Software Engineering";
     } else {
-      return (
-        <td key={period} className="free-cell">
-          <div className="cell-subject-muted">-</div>
-        </td>
-      );
+      assignedSubject = "M.Tech CSE";
     }
-  };
+    subtitle = `Subject Faculty • ${assignedSubject}`;
+  }
 
   return (
-    <div className="dashboard-container" style={{ maxWidth: "1150px", width: "100%" }}>
-      <div className="dashboard-header">
-        <div className="dashboard-title">
-          <h1>Faculty Portal</h1>
-          <p>Welcome back, Professor {name}! {localStorage.getItem("department") ? `(${localStorage.getItem("department")})` : ""}</p>
-        </div>
-        <button className="logout-btn" onClick={handleLogout}>
-          Logout
-        </button>
-      </div>
-
-      {/* Feedback banner */}
-      {feedback.message && (
-        <div
+    <div className="portal-layout" style={{
+      display: "flex", width: "100vw", minHeight: "100vh",
+      backgroundColor: "var(--bg-primary)", color: "var(--text-main)", overflow: "hidden",
+    }}>
+      {/* Backdrop for mobile sidebar */}
+      {mobileMenuOpen && (
+        <div 
+          onClick={() => setMobileMenuOpen(false)}
           style={{
-            background: feedback.type === "error" ? "rgba(239, 68, 68, 0.2)" : "rgba(16, 185, 129, 0.2)",
-            border: `1px solid ${feedback.type === "error" ? "var(--error)" : "var(--success)"}`,
-            color: feedback.type === "error" ? "var(--error)" : "var(--success)",
-            borderRadius: "10px",
-            padding: "1rem",
-            marginBottom: "1.5rem",
-            fontWeight: "500",
-            animation: "fadeIn 0.3s ease"
+            position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 30,
           }}
-        >
-          {feedback.message}
-        </div>
+          className="lg:hidden"
+        />
       )}
 
-      {/* Navigation tabs */}
-      <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem", borderBottom: "1px solid var(--card-border)", paddingBottom: "1rem", flexWrap: "wrap" }}>
-        <button
-          onClick={() => { setActiveTab("overview"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "overview" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "overview" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          📊 Dashboard Overview
-        </button>
-        <button
-          onClick={() => { setActiveTab("qr-session"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "qr-session" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "qr-session" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem"
-          }}
-        >
-          ⚡ QR Session
-          {activeSession && (
-            <span style={{
-              width: "8px",
-              height: "8px",
-              backgroundColor: "var(--success)",
-              borderRadius: "50%",
-              display: "inline-block",
-              boxShadow: "0 0 8px var(--success)"
-            }} />
-          )}
-        </button>
-        <button
-          onClick={() => { setActiveTab("analytics"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "analytics" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "analytics" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          📊 Attendance Analytics
-        </button>
-        <button
-          onClick={() => { setActiveTab("students"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "students" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "students" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          🎓 Manage Students
-        </button>
-        <button
-          onClick={() => { setActiveTab("schedule"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "schedule" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "schedule" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          📅 My Schedule
-        </button>
-        <button
-          onClick={() => { setActiveTab("leave"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "leave" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "leave" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem"
-          }}
-        >
-          📋 Leave Requests
-          {leaveRequests.filter(r => r.status === "PENDING").length > 0 && (
-            <span style={{
-              background: "var(--warning)", color: "#000", borderRadius: "50%",
-              width: "18px", height: "18px", fontSize: "0.7rem", fontWeight: "700",
-              display: "flex", alignItems: "center", justifyContent: "center"
-            }}>{leaveRequests.filter(r => r.status === "PENDING").length}</span>
-          )}
-        </button>
-        <button
-          onClick={() => { setActiveTab("career"); setSearchTerm(""); setDeletingId(null); }}
-          style={{
-            background: activeTab === "career" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
-            color: "#fff",
-            border: activeTab === "career" ? "none" : "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.75rem 1.5rem",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          ⭐ Career
-        </button>
-      </div>
+      {/* Sidebar Navigation */}
+      <FacultySidebar activeTab={activeTab} setActiveTab={setActiveTab} handleLogout={handleLogout} name={name} subtitle={subtitle} mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
 
-      {activeTab === "overview" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem", width: "100%" }}>
-          {/* Live Proximity Check-in session card (if active) */}
-          {activeSession && (
-            <div className="live-monitor-card" style={{
-              background: "linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(17, 24, 39, 0.85) 100%)",
-              border: "1px solid rgba(99, 102, 241, 0.3)",
-              borderRadius: "20px",
+      {/* Main viewport */}
+      <main style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        overflow: "hidden",
+        paddingLeft: "260px",
+      }} className="w-full pl-0 lg:pl-[260px]">
+
+        {/* Topbar navigation panel */}
+        <FacultyTopbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} setMobileMenuOpen={setMobileMenuOpen} name={name} subtitle={subtitle} isDark={isDark} setIsDark={setIsDark} handleLogout={handleLogout} />
+
+        {/* Scrollable page viewport content */}
+        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "2rem" }} className="custom-scrollbar">
+          
+          {/* Welcome section with single rounded pill badge */}
+          <div className="dashboard-title" style={{ marginBottom: "2rem" }}>
+            <h1 style={{ fontSize: "2rem", fontWeight: "800", background: "linear-gradient(135deg, #fff 0%, #a5b4fc 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Welcome back, {name}
+            </h1>
+            <div style={{ marginTop: "0.5rem" }}>
+              <span style={{
+                fontSize: "0.8rem",
+                fontWeight: "700",
+                color: "#e11d48",
+                background: "rgba(244, 63, 94, 0.1)",
+                border: "1px solid rgba(244, 63, 94, 0.2)",
+                padding: "0.3rem 0.8rem",
+                borderRadius: "20px",
+                display: "inline-block"
+              }}>
+                {subtitle}
+              </span>
+            </div>
+          </div>
+
+          {/* Feedback banner */}
+          {feedback.message && (
+            <div
+              style={{
+                background: feedback.type === "error" ? "rgba(239, 68, 68, 0.2)" : "rgba(16, 185, 129, 0.2)",
+                border: `1px solid ${feedback.type === "error" ? "var(--error)" : "var(--success)"}`,
+                color: feedback.type === "error" ? "var(--error)" : "var(--success)",
+                borderRadius: "10px",
+                padding: "1rem",
+                marginBottom: "1.5rem",
+                fontWeight: "500",
+                animation: "fadeIn 0.3s ease"
+              }}
+            >
+              {feedback.message}
+            </div>
+          )}
+
+          {/* Render Views */}
+          {activeTab === "overview" && (
+            <FacultyOverviewView
+              facultyAnalytics={facultyAnalytics}
+              facultyAnalyticsLoading={facultyAnalyticsLoading}
+              currentClassStatus={currentClassStatus}
+              timetableLoading={timetableLoading}
+              sessions={sessions}
+            />
+          )}
+
+          {activeTab === "qr-session" && (
+            <FacultyQrSessionView
+              activeSession={activeSession}
+              sessionSubject={sessionSubject}
+              setSessionSubject={setSessionSubject}
+              facultySubjects={facultySubjects}
+              customSubject={customSubject}
+              setCustomSubject={setCustomSubject}
+              sessionDuration={sessionDuration}
+              setSessionDuration={setSessionDuration}
+              timeLeft={timeLeft}
+              sessionLoading={sessionLoading}
+              checkedInStudents={checkedInStudents}
+              sessionStudents={sessionStudents}
+              handleStartSession={handleStartSession}
+              handleEndSession={handleEndSession}
+              formatTimeLeft={formatTimeLeft}
+              handleManualOverride={handleManualOverride}
+            />
+          )}
+
+          {activeTab === "register" && (
+            <FacultyManualAttendanceView
+              registerRecords={registerRecords}
+              localRegisterRecords={localRegisterRecords}
+              setLocalRegisterRecords={setLocalRegisterRecords}
+              hasUnsavedChanges={hasUnsavedChanges}
+              setHasUnsavedChanges={setHasUnsavedChanges}
+              registerFilterSubject={registerFilterSubject}
+              setRegisterFilterSubject={setRegisterFilterSubject}
+              registerFilterDate={registerFilterDate}
+              setRegisterFilterDate={setRegisterFilterDate}
+              registerLoading={registerLoading}
+              registerMode={registerMode}
+              setRegisterMode={setRegisterMode}
+              manualDate={manualDate}
+              setManualDate={setManualDate}
+              manualStartTime={manualStartTime}
+              setManualStartTime={setManualStartTime}
+              manualEndTime={manualEndTime}
+              setManualEndTime={setManualEndTime}
+              manualSubject={manualSubject}
+              setManualSubject={setManualSubject}
+              facultySubjects={facultySubjects}
+              sessions={sessions}
+              loadRegisterSession={loadRegisterSession}
+              handleRegisterOverride={handleRegisterOverride}
+              handleRemarksChange={handleRemarksChange}
+              handleSaveRegister={handleSaveRegister}
+              handleSaveManualAttendance={handleSaveManualAttendance}
+              handleRegisterCloseSession={handleRegisterCloseSession}
+              registerSessionId={registerSessionId}
+              setRegisterSessionId={setRegisterSessionId}
+            />
+          )}
+
+          {activeTab === "schedule" && (
+            <FacultyScheduleView
+              timetableData={timetableData}
+              currentClassStatus={currentClassStatus}
+              timetableLoading={timetableLoading}
+              simParams={simParams}
+            />
+          )}
+
+          {activeTab === "career" && (
+            <FacultyCareerView />
+          )}
+
+          {/* Advisor-specific views */}
+          {isAdvisor && activeTab === "students" && (
+            <FacultyAdvisorStudentsView
+              students={students}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              studentPage={studentPage}
+              setStudentPage={setStudentPage}
+              studentTotalPages={studentTotalPages}
+              studentSortBy={studentSortBy}
+              setStudentSortBy={setStudentSortBy}
+              studentSortDir={studentSortDir}
+              setStudentSortDir={setStudentSortDir}
+              studentSectionFilter={studentSectionFilter}
+              setStudentSectionFilter={setStudentSectionFilter}
+              studentBatchFilter={studentBatchFilter}
+              setStudentBatchFilter={setStudentBatchFilter}
+              fetchLoading={fetchLoading}
+              handleViewProfile={handleViewProfile}
+            />
+          )}
+
+          {isAdvisor && activeTab === "leave" && (
+            <FacultyAdvisorLeavesView
+              leaveRequests={leaveRequests}
+              leaveFilter={leaveFilter}
+              setLeaveFilter={setLeaveFilter}
+              leaveLoading={leaveLoading}
+              rejectReason={rejectReason}
+              setRejectReason={setRejectReason}
+              rejectingId={rejectingId}
+              setRejectingId={setRejectingId}
+              handleApproveLeave={handleApproveLeave}
+              handleRejectLeave={handleRejectLeave}
+              fetchLeaveRequests={fetchLeaveRequests}
+            />
+          )}
+
+          {isAdvisor && activeTab === "analytics" && (
+            <FacultyAdvisorAnalyticsView
+              lowAttendanceStudents={lowAttendanceStudents}
+              lowAttendanceLoading={lowAttendanceLoading}
+              fetchLowAttendanceStudents={fetchLowAttendanceStudents}
+              handleExportCsv={handleExportCsv}
+              handlePrintPdf={handlePrintPdf}
+              exportingId={exportingId}
+              sessions={sessions}
+              analyticsLoading={analyticsLoading}
+              handleViewReport={handleViewReport}
+              selectedSession={selectedSession}
+              reportLoading={reportLoading}
+              reportRecords={reportRecords}
+            />
+          )}
+
+        </div>
+      </main>
+
+      {/* Student Profile Modal (Common to advisor views) */}
+      {showProfileModal && selectedStudentProfile && (
+        <div style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(5, 7, 17, 0.8)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 9999,
+          padding: "2rem"
+        }}>
+          <div style={{
+            background: "rgba(30, 41, 59, 0.95)",
+            border: "1px solid var(--card-border)",
+            borderRadius: "24px",
+            width: "100%",
+            maxWidth: "750px",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            padding: "2.5rem",
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.5), 0 10px 10px -5px rgba(0,0,0,0.5)",
+            position: "relative"
+          }}>
+            <button
+              onClick={() => setShowProfileModal(false)}
+              style={{
+                position: "absolute",
+                top: "1.5rem",
+                right: "1.5rem",
+                background: "transparent",
+                border: "none",
+                color: "#fff",
+                fontSize: "1.5rem",
+                cursor: "pointer",
+                opacity: 0.7
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Modern Header Banner */}
+            <div style={{
+              background: "linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%)",
               padding: "2rem",
-              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
-              animation: "fadeIn 0.5s ease",
+              borderRadius: "20px",
+              border: "1px solid rgba(255,255,255,0.08)",
+              display: "flex",
+              alignItems: "center",
+              gap: "2rem",
+              marginBottom: "1.5rem",
               position: "relative",
               overflow: "hidden"
             }}>
-              {/* background design element */}
+              {/* Decorative radial shine */}
               <div style={{
-                position: "absolute",
-                top: "-50px",
-                right: "-50px",
-                width: "150px",
-                height: "150px",
-                background: "radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%)",
+                position: "absolute", top: "-50%", right: "-20%", width: "250px", height: "250px",
+                background: "radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)",
                 pointerEvents: "none"
               }} />
 
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "2rem" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                    <span className="status-dot" style={{
-                      width: "8px",
-                      height: "8px",
-                      backgroundColor: "var(--success)",
-                      borderRadius: "50%",
-                      display: "inline-block",
-                      animation: "pulse 1.5s infinite"
-                    }} />
-                    <span style={{ color: "var(--success)", fontSize: "0.8rem", fontWeight: "600", letterSpacing: "1px", textTransform: "uppercase" }}>
-                      Live Attendance Monitoring
-                    </span>
-                  </div>
-                  <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "2rem", fontWeight: "700", margin: "0 0 0.25rem 0", color: "#fff" }}>
-                    {activeSession.subject}
-                  </h2>
-                  <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", margin: "0 0 1rem 0" }}>
-                    Conducted by Professor {activeSession.facultyName || "Unknown"}
-                  </p>
-                  
-                  <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", marginTop: "1.25rem", flexWrap: "wrap" }}>
-                    <div style={{
-                      background: "rgba(99, 102, 241, 0.1)",
-                      border: "1px solid rgba(99, 102, 241, 0.2)",
-                      borderRadius: "12px",
-                      padding: "0.75rem 1.5rem"
-                    }}>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600" }}>Present</div>
-                      <div style={{ fontSize: "1.8rem", fontWeight: "700", color: "var(--primary)" }}>
-                        {checkedInStudents.length}
-                      </div>
-                    </div>
-                    <div style={{
-                      background: "rgba(255, 255, 255, 0.03)",
-                      border: "1px solid rgba(255, 255, 255, 0.05)",
-                      borderRadius: "12px",
-                      padding: "0.75rem 1.5rem"
-                    }}>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600" }}>Time Left</div>
-                      <div style={{ fontSize: "1.8rem", fontWeight: "700", color: timeLeft < 60 ? "var(--error)" : "#fff" }}>
-                        {formatTimeLeft(timeLeft)}
-                      </div>
-                    </div>
-
-                    <div style={{
-                      background: "rgba(255, 255, 255, 0.03)",
-                      border: "1px solid rgba(255, 255, 255, 0.05)",
-                      borderRadius: "12px",
-                      padding: "0.75rem 1.5rem",
-                      minWidth: "220px",
-                      flexGrow: 1
-                    }}>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", marginBottom: "0.4rem" }}>
-                        Attendance Progress
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                        <div style={{ flexGrow: 1, height: "8px", background: "rgba(255, 255, 255, 0.1)", borderRadius: "4px", overflow: "hidden" }}>
-                          <div style={{
-                            width: `${totalStudentsCount > 0 ? Math.round((checkedInStudents.length / totalStudentsCount) * 100) : 0}%`,
-                            height: "100%",
-                            background: "linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)",
-                            borderRadius: "4px",
-                            transition: "width 0.5s ease"
-                          }} />
-                        </div>
-                        <span style={{ fontSize: "0.95rem", fontWeight: "700", color: "var(--primary)" }}>
-                          {totalStudentsCount > 0 ? Math.round((checkedInStudents.length / totalStudentsCount) * 100) : 0}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ minWidth: "260px", flex: "1 0 260px" }}>
-                  <h4 style={{ color: "var(--text-muted)", textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "1px", margin: "0 0 0.75rem 0" }}>
-                    Recently Checked In
-                  </h4>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                    {checkedInStudents.length > 0 ? (
-                      [...checkedInStudents]
-                        .sort((a, b) => b.id - a.id)
-                        .slice(0, 4)
-                        .map((student) => (
-                          <div key={student.id} style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            padding: "0.4rem 0.8rem",
-                            background: "rgba(16, 185, 129, 0.05)",
-                            border: "1px solid rgba(16, 185, 129, 0.15)",
-                            borderRadius: "8px",
-                            animation: "fadeIn 0.3s ease"
-                          }}>
-                            <span style={{ color: "var(--success)", fontWeight: "bold" }}>✓</span>
-                            <span style={{ fontWeight: "500", fontSize: "0.9rem" }}>{student.studentName}</span>
-                            <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                              {student.time ? student.time.substring(0, 5) : ""}
-                            </span>
-                          </div>
-                        ))
-                    ) : (
-                      <div style={{ color: "var(--text-muted)", fontSize: "0.85rem", fontStyle: "italic", padding: "0.5rem" }}>
-                        📡 Awaiting scans...
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  onClick={() => setActiveTab("qr-session")}
-                  style={{
-                    background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "0.6rem 1.2rem",
-                    fontWeight: "600",
-                    fontSize: "0.85rem",
-                    cursor: "pointer",
-                    boxShadow: "0 4px 12px rgba(99, 102, 241, 0.2)",
-                    transition: "all 0.3s ease"
-                  }}
-                >
-                  🔍 View QR Scanner Screen
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Reusable Analytics Cards Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.5rem", width: "100%" }}>
-            <AnalyticsCard
-              title="Department Students"
-              score={facultyAnalytics?.totalStudents ?? 0}
-              status={facultyAnalytics?.department ?? "N/A"}
-              icon="🎓"
-              subText="Registered Active Students"
-              maxScore={100} // absolute count
-            />
-            <AnalyticsCard
-              title="Present Today"
-              score={facultyAnalytics?.presentToday ?? 0}
-              status="Active"
-              icon="✓"
-              subText="Unique Students Checked In"
-              maxScore={facultyAnalytics?.totalStudents || 1}
-            />
-            <AnalyticsCard
-              title="Absent Today"
-              score={facultyAnalytics?.absentToday ?? 0}
-              status={facultyAnalytics?.absentToday > 0 ? "Warning" : "Clean"}
-              icon="✗"
-              subText="Not Checked In Today"
-              maxScore={facultyAnalytics?.totalStudents || 1}
-            />
-            <AnalyticsCard
-              title="Avg Attendance"
-              score={facultyAnalytics?.averageAttendance ?? 0}
-              status="Dept Avg"
-              icon="📈"
-              subText="Cumulative Avg Rate"
-              maxScore={100}
-            />
-          </div>
-
-          {/* Student Rankings section */}
-          <div style={{ display: "flex", gap: "2rem", flexDirection: "row", flexWrap: "wrap", width: "100%" }}>
-            
-            {/* Top 5 Performers */}
-            <div style={{ flex: "1 1 450px" }}>
-              <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem" }}>
-                <h3 style={{ margin: "0 0 1.5rem 0", color: "var(--success)", fontSize: "1.25rem", fontFamily: "var(--font-heading)", fontWeight: "600", display: "flex", alignItems: "center", gap: "0.5rem", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
-                  🏆 Top 5 Performing Students
-                </h3>
-                {facultyAnalyticsLoading ? (
-                  <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>Loading top performers...</div>
-                ) : facultyAnalytics?.topStudents && facultyAnalytics.topStudents.length > 0 ? (
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1px solid var(--card-border)", color: "var(--text-muted)" }}>
-                          <th style={{ padding: "0.5rem" }}>Rank</th>
-                          <th style={{ padding: "0.5rem" }}>Reg No.</th>
-                          <th style={{ padding: "0.5rem" }}>Name</th>
-                          <th style={{ padding: "0.5rem", textAlign: "right" }}>Attendance</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {facultyAnalytics.topStudents.map((s, idx) => (
-                          <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                            <td style={{ padding: "0.75rem 0.5rem", fontWeight: "700", color: idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : "var(--text-muted)" }}>
-                              #{idx + 1}
-                            </td>
-                            <td style={{ padding: "0.75rem 0.5rem", color: "var(--primary)", fontWeight: "600" }}>{s.registerNumber}</td>
-                            <td style={{ padding: "0.75rem 0.5rem", fontWeight: "500" }}>{s.name}</td>
-                            <td style={{ padding: "0.75rem 0.5rem", textAlign: "right", color: "var(--success)", fontWeight: "700" }}>
-                              {s.attendancePercentage.toFixed(1)}%
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)", fontStyle: "italic" }}>No records found.</div>
-                )}
-              </div>
-            </div>
-
-            {/* Students At Risk (Bottom 5) */}
-            <div style={{ flex: "1 1 450px" }}>
-              <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem" }}>
-                <h3 style={{ margin: "0 0 1.5rem 0", color: "var(--error)", fontSize: "1.25rem", fontFamily: "var(--font-heading)", fontWeight: "600", display: "flex", alignItems: "center", gap: "0.5rem", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
-                  ⚠️ Students At Risk (Lowest Attendance)
-                </h3>
-                {facultyAnalyticsLoading ? (
-                  <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>Loading students at risk...</div>
-                ) : facultyAnalytics?.bottomStudents && facultyAnalytics.bottomStudents.length > 0 ? (
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1px solid var(--card-border)", color: "var(--text-muted)" }}>
-                          <th style={{ padding: "0.5rem" }}>Rank</th>
-                          <th style={{ padding: "0.5rem" }}>Reg No.</th>
-                          <th style={{ padding: "0.5rem" }}>Name</th>
-                          <th style={{ padding: "0.5rem", textAlign: "right" }}>Attendance</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {facultyAnalytics.bottomStudents.map((s, idx) => {
-                          const pct = s.attendancePercentage;
-                          const color = pct < 75 ? "var(--error)" : pct <= 85 ? "var(--warning)" : "var(--success)";
-                          return (
-                            <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                              <td style={{ padding: "0.75rem 0.5rem", fontWeight: "700", color: "var(--text-muted)" }}>
-                                #{facultyAnalytics.bottomStudents.length - idx}
-                              </td>
-                              <td style={{ padding: "0.75rem 0.5rem", color: "var(--primary)", fontWeight: "600" }}>{s.registerNumber}</td>
-                              <td style={{ padding: "0.75rem 0.5rem", fontWeight: "500" }}>{s.name}</td>
-                              <td style={{ padding: "0.75rem 0.5rem", textAlign: "right", color: color, fontWeight: "700" }}>
-                                {pct.toFixed(1)}%
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)", fontStyle: "italic" }}>No records found.</div>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Rest of the original navigation cards */}
-          <div className="dashboard-grid" style={{ marginTop: "1rem" }}>
-            <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("qr-session")}>
-              <h3>⚡ Generate QR Session</h3>
-              <p>Instantly generate attendance sessions and dynamically cycle secure QR verification codes for students.</p>
-            </div>
-
-            <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("analytics")}>
-              <h3>📊 Attendance Analytics</h3>
-              <p>Monitor real-time participation statistics, track class records, and export reports for administrative reviews.</p>
-            </div>
-
-            <div className="dashboard-card" style={{ cursor: "pointer" }} onClick={() => setActiveTab("students")}>
-              <h3>🎓 Student Management</h3>
-              <p>Review student records, search profiles, allocate permanent register numbers, and delete student logs.</p>
-            </div>
-
-            <div className="dashboard-card">
-              <h3>💬 Grading & Feedback</h3>
-              <p>Evaluate coding assessments and review mock interview statistics generated by the AI agent.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === "qr-session" && (
-        <div style={{ display: "flex", justifyContent: "center", gap: "2rem", flexWrap: "wrap", width: "100%" }}>
-          {activeSession ? (
-            <>
-              {/* Left Column: QR and Timer */}
-              <div className="dashboard-card" style={{
-                flex: "1 1 350px",
-                maxWidth: "450px",
-                background: "rgba(30, 41, 59, 0.4)",
-                border: "1px solid rgba(99, 102, 241, 0.3)",
-                boxShadow: "0 8px 32px 0 rgba(99, 102, 241, 0.15)",
-                textAlign: "center",
-                padding: "2.5rem",
-                borderRadius: "20px",
-                animation: "fadeIn 0.5s ease"
-              }}>
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-                  <span className="status-dot" style={{
-                    width: "10px",
-                    height: "10px",
-                    backgroundColor: "var(--success)",
-                    borderRadius: "50%",
-                    display: "inline-block",
-                    animation: "pulse 1.5s infinite"
-                  }}></span>
-                  <span style={{ color: "var(--success)", fontWeight: "600", textTransform: "uppercase", fontSize: "0.85rem", letterSpacing: "1px" }}>
-                    Active Session
-                  </span>
-                </div>
-
-                <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.8rem", fontWeight: "700", marginBottom: "0.5rem" }}>
-                  {activeSession.subject}
-                </h2>
-                <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", marginBottom: "2rem" }}>
-                  Session ID: {activeSession.id}
-                </p>
-
-                {/* QR Code Container */}
-                <div style={{
-                  background: "#fff",
-                  padding: "1.5rem",
-                  borderRadius: "16px",
-                  display: "inline-block",
-                  marginBottom: "2rem",
-                  boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-                  border: "2px solid rgba(255, 255, 255, 0.1)"
-                }}>
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=eduflow:session:${activeSession.id}:${activeSession.currentOtp || ""}`}
-                    alt="Session QR Code"
-                    style={{ display: "block" }}
-                  />
-                </div>
-
-                {/* Timer Container */}
-                <div style={{
-                  background: "rgba(31, 41, 55, 0.6)",
-                  border: "1px solid var(--card-border)",
-                  borderRadius: "12px",
-                  padding: "1rem 2rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  margin: "0 auto 2rem auto",
-                  width: "100%",
-                  maxWidth: "280px"
-                }}>
-                  <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "0.25rem" }}>
-                    Time Remaining
-                  </span>
-                  <span style={{
-                    fontFamily: "var(--font-heading)",
-                    fontSize: "2.2rem",
-                    fontWeight: "700",
-                    color: timeLeft < 60 ? "var(--error)" : "var(--primary)",
-                    textShadow: timeLeft < 60 ? "0 0 15px rgba(239, 68, 68, 0.3)" : "0 0 15px rgba(99, 102, 241, 0.3)"
-                  }}>
-                    {formatTimeLeft(timeLeft)}
-                  </span>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
-                  {localStorage.getItem("role") === "ADMIN" || activeSession.facultyId === Number(localStorage.getItem("userId")) ? (
-                    <button
-                      onClick={handleEndSession}
-                      disabled={sessionLoading}
-                      className="logout-btn"
-                      style={{
-                        width: "100%",
-                        maxWidth: "280px",
-                        padding: "0.85rem",
-                        fontSize: "0.95rem",
-                        backgroundColor: "transparent",
-                        border: "1px solid var(--error)",
-                        borderRadius: "10px",
-                        cursor: "pointer",
-                        transition: "all 0.3s ease"
-                      }}
-                    >
-                      {sessionLoading ? "Ending Session..." : "🛑 End Session"}
-                    </button>
-                  ) : (
-                    <div style={{
-                      width: "100%",
-                      maxWidth: "280px",
-                      padding: "0.85rem",
-                      fontSize: "0.85rem",
-                      color: "var(--text-muted)",
-                      fontStyle: "italic",
-                      textAlign: "center",
-                      border: "1px dashed var(--card-border)",
-                      borderRadius: "10px"
-                    }}>
-                      🔒 Only the session creator can end this session.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Column: Live Check-in feed */}
-              <div className="dashboard-card" style={{
-                flex: "2 1 500px",
-                maxWidth: "650px",
-                background: "rgba(30, 41, 59, 0.2)",
-                border: "1px solid var(--card-border)",
-                borderRadius: "20px",
-                padding: "2.5rem",
-                display: "flex",
-                flexDirection: "column",
-                animation: "fadeIn 0.5s ease"
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-                  <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    📋 Live Check-In Feed
-                    <span style={{
-                      fontSize: "0.85rem",
-                      padding: "0.2rem 0.6rem",
-                      background: "rgba(16, 185, 129, 0.15)",
-                      color: "var(--success)",
-                      borderRadius: "12px",
-                      fontWeight: "600"
-                    }}>
-                      {checkedInStudents.length} Present
-                    </span>
-                  </h3>
-                </div>
-
-                <div style={{ overflowY: "auto", maxHeight: "400px", flexGrow: 1, paddingRight: "0.5rem" }}>
-                  {checkedInStudents.length > 0 ? (
-                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
-                          <th style={{ padding: "0.5rem" }}>Reg No.</th>
-                          <th style={{ padding: "0.5rem" }}>Name</th>
-                          <th style={{ padding: "0.5rem" }}>Time</th>
-                          <th style={{ padding: "0.5rem", textAlign: "right" }}>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {checkedInStudents.map((student) => (
-                          <tr key={student.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                            <td style={{ padding: "0.75rem 0.5rem", color: "var(--primary)", fontWeight: "600" }}>
-                              {student.registerNumber}
-                            </td>
-                            <td style={{ padding: "0.75rem 0.5rem", fontWeight: "500" }}>
-                              {student.studentName}
-                            </td>
-                            <td style={{ padding: "0.75rem 0.5rem", color: "var(--text-muted)" }}>
-                              {student.time ? student.time.substring(0, 5) : "N/A"}
-                            </td>
-                            <td style={{ padding: "0.75rem 0.5rem", textAlign: "right" }}>
-                              <span style={{
-                                background: "rgba(16, 185, 129, 0.15)",
-                                color: "var(--success)",
-                                padding: "0.25rem 0.5rem",
-                                borderRadius: "6px",
-                                fontSize: "0.75rem",
-                                fontWeight: "600"
-                              }}>
-                                PRESENT
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div style={{ textAlign: "center", padding: "4rem 2rem", color: "var(--text-muted)" }}>
-                      <div style={{ fontSize: "2rem", marginBottom: "0.75rem", animation: "pulse 2s infinite" }}>📡</div>
-                      <p style={{ margin: 0, fontSize: "0.9rem" }}>Awaiting check-ins...</p>
-                      <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                        Students can scan the QR code to submit their proximity check-in.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          ) : (
-            /* Start Session Form */
-            <div className="dashboard-card" style={{
-              flex: "1 1 450px",
-              maxWidth: "500px",
-              background: "rgba(30, 41, 59, 0.4)",
-              borderRadius: "20px",
-              padding: "2.5rem",
-              animation: "fadeIn 0.5s ease"
-            }}>
-              <h2 style={{
-                fontFamily: "var(--font-heading)",
-                fontSize: "1.75rem",
-                fontWeight: "700",
-                marginBottom: "0.5rem",
-                background: "linear-gradient(135deg, #fff 40%, var(--text-muted) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent"
-              }}>
-                ⚡ Start Attendance Session
-              </h2>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "2rem" }}>
-                Select a subject and specify the active duration to display the QR verification code.
-              </p>
-
-              <form onSubmit={handleStartSession} className="auth-form">
-                <div className="form-group">
-                  <label>Subject Name</label>
-                  <select
-                    className="input-field"
-                    value={sessionSubject}
-                    onChange={(e) => setSessionSubject(e.target.value)}
-                    required
-                  >
-                    <option value="" disabled>-- Select Class Subject --</option>
-                    <option value="Software Engineering">Software Engineering</option>
-                    <option value="Artificial Intelligence">Artificial Intelligence</option>
-                    <option value="Database Management Systems">Database Management Systems</option>
-                    <option value="Computer Networks">Computer Networks</option>
-                    <option value="Cybersecurity">Cybersecurity</option>
-                    <option value="Cloud Computing">Cloud Computing</option>
-                    <option value="Operating Systems">Operating Systems</option>
-                    <option value="Data Communication & Networks">Data Communication & Networks</option>
-                    <option value="Parallel and Cloud Computing">Parallel and Cloud Computing</option>
-                    <option value="Artificial Intelligence Expert Systems">Artificial Intelligence Expert Systems</option>
-                    <option value="Agentic AI">Agentic AI</option>
-                    <option value="Cloud Computing Lab">Cloud Computing Lab</option>
-                    <option value="AI & Agentic AI Lab">AI & Agentic AI Lab</option>
-                    <option value="Custom">-- Custom Subject --</option>
-                  </select>
-                </div>
-
-                {sessionSubject === "Custom" && (
-                  <div className="form-group" style={{ animation: "fadeIn 0.3s ease" }}>
-                    <label>Enter Custom Subject</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="e.g. Full Stack Web Dev"
-                      value={customSubject}
-                      onChange={(e) => setCustomSubject(e.target.value)}
-                      required
-                    />
-                  </div>
-                )}
-
-                <div className="form-group">
-                  <label>Session Expiry (Minutes)</label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    min="1"
-                    max="60"
-                    value={sessionDuration}
-                    onChange={(e) => setSessionDuration(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={sessionLoading}
-                  className="auth-btn"
-                  style={{
-                    background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
-                    marginTop: "1.5rem"
-                  }}
-                >
-                  {sessionLoading ? "Initializing..." : "🚀 Start Attendance Session"}
-                </button>
-              </form>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === "analytics" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2rem", width: "100%", animation: "fadeIn 0.5s ease" }}>
-          {selectedSession ? (
-            /* Selected Session Detail Report */
-            <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.4)", padding: "2.5rem", borderRadius: "20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
-                <div>
-                  <button
-                    onClick={() => setSelectedSession(null)}
-                    style={{
-                      background: "transparent",
-                      border: "1px solid var(--card-border)",
-                      color: "var(--text-muted)",
-                      borderRadius: "6px",
-                      padding: "0.4rem 0.8rem",
-                      cursor: "pointer",
-                      fontSize: "0.85rem",
-                      marginBottom: "1rem",
-                      transition: "all 0.2s"
-                    }}
-                  >
-                    ← Back to Sessions
-                  </button>
-                  <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.75rem", fontWeight: "700", margin: 0 }}>
-                    {selectedSession.subject}
-                  </h2>
-                  <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginTop: "0.25rem" }}>
-                    Session ID: {selectedSession.id} | Conducted on: {new Date(selectedSession.startTime).toLocaleDateString()}
-                  </p>
-                </div>
-
-                <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-                  <button
-                    onClick={() => handleExportCsv(selectedSession)}
-                    disabled={exportingId === selectedSession.id}
-                    style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", color: "var(--success)", borderRadius: "8px", padding: "0.5rem 1rem", fontWeight: "600", fontSize: "0.85rem", cursor: "pointer", transition: "all 0.2s" }}
-                  >
-                    {exportingId === selectedSession.id ? "Exporting..." : "⬇ Export CSV"}
-                  </button>
-                  <button
-                    onClick={() => handlePrintPdf(selectedSession)}
-                    disabled={exportingId === selectedSession.id + "-pdf"}
-                    style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--primary)", borderRadius: "8px", padding: "0.5rem 1rem", fontWeight: "600", fontSize: "0.85rem", cursor: "pointer", transition: "all 0.2s" }}
-                  >
-                    {exportingId === selectedSession.id + "-pdf" ? "Generating..." : "🖨 Print PDF"}
-                  </button>
-
-                  <div style={{ background: "rgba(31, 41, 55, 0.6)", border: "1px solid var(--card-border)", borderRadius: "12px", padding: "0.75rem 1.5rem", textAlign: "right" }}>
-                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", display: "block" }}>Attendance Rate</span>
-                    <span style={{ fontFamily: "var(--font-heading)", fontSize: "1.8rem", fontWeight: "700", color: "var(--primary)" }}>
-                      {reportRecords.length > 0 ? Math.round((reportRecords.filter(r => r.status === "PRESENT").length / reportRecords.length) * 100) : 0}%
-                    </span>
-                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block" }}>
-                      ({reportRecords.filter(r => r.status === "PRESENT").length} / {reportRecords.length} Present)
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {reportLoading ? (
-                <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
-                  Generating attendance roll-call logs...
-                </div>
-              ) : (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
-                        <th style={{ padding: "0.75rem 1rem" }}>Reg No.</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>Student Name</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>Time Checked In</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>GPS Location</th>
-                        <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reportRecords.length > 0 ? (
-                        reportRecords.map((r, idx) => (
-                          <tr key={idx} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--primary)", fontWeight: "600" }}>
-                              {r.registerNumber}
-                            </td>
-                            <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{r.studentName}</td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>
-                              {r.time ? r.time.substring(0, 5) : "--"}
-                            </td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)", fontSize: "0.8rem" }}>
-                              {r.latitude ? `${r.latitude.toFixed(4)}, ${r.longitude.toFixed(4)}` : "--"}
-                            </td>
-                            <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
-                              <span style={{
-                                background: r.status === "PRESENT" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                                color: r.status === "PRESENT" ? "var(--success)" : "var(--error)",
-                                padding: "0.25rem 0.6rem",
-                                borderRadius: "6px",
-                                fontSize: "0.75rem",
-                                fontWeight: "600",
-                                border: `1px solid ${r.status === "PRESENT" ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}`
-                              }}>
-                                {r.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="5" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                            No student directory records found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* Low Attendance Students Panel */}
-              <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.2)", padding: "2.5rem", borderRadius: "20px" }}>
-                <h3 style={{ margin: "0 0 1.5rem 0", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  ⚠️ Low Attendance Students (<span style={{ fontSize: "1rem" }}>Below 75%</span>)
-                </h3>
-                {lowAttendanceLoading ? (
-                  <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
-                    Loading low attendance records...
-                  </div>
-                ) : lowAttendanceStudents && lowAttendanceStudents.length > 0 ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem" }}>
-                    {lowAttendanceStudents.map((student, idx) => (
-                      <div key={idx} style={{
-                        background: "rgba(31, 41, 55, 0.4)",
-                        border: `1px solid ${student.overallAttendance < 60 ? "rgba(239, 68, 68, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
-                        borderRadius: "12px", padding: "1.25rem",
-                        display: "flex", flexDirection: "column", gap: "0.5rem"
-                      }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div>
-                            <div style={{ fontWeight: "700", fontSize: "1.05rem" }}>{student.studentName}</div>
-                            <div style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>{student.registerNumber} • {student.department}</div>
-                          </div>
-                          <div style={{
-                            background: student.overallAttendance < 60 ? "rgba(239, 68, 68, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                            color: student.overallAttendance < 60 ? "var(--error)" : "var(--warning)",
-                            padding: "0.3rem 0.6rem", borderRadius: "6px", fontWeight: "700", fontSize: "0.9rem"
-                          }}>
-                            {(student.overallAttendance || 0).toFixed(1)}%
-                          </div>
-                        </div>
-                        <div style={{ fontSize: "0.8rem", color: "var(--text-main)", marginTop: "0.5rem" }}>
-                          <span style={{ fontWeight: "600", color: "var(--text-muted)" }}>Lowest Subjects:</span>
-                          <ul style={{ margin: "0.25rem 0 0 1.2rem", padding: 0 }}>
-                            {student.subjectBreakdown?.slice(0, 2).map((sb, i) => (
-                              <li key={i}>{sb.subject} ({(sb.attendancePercentage || 0).toFixed(1)}%)</li>
-                            ))}
-                            {student.subjectBreakdown?.length > 2 && <li>...</li>}
-                          </ul>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : sessions.length === 0 && !activeSession ? (
-                  <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                    <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📅</div>
-                    <p style={{ fontWeight: 600 }}>No attendance data available yet.</p>
-                    <p style={{ fontSize: "0.9rem", marginTop: "0.25rem" }}>This report will be generated after attendance sessions are conducted.</p>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                    <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>✅</div>
-                    All students are maintaining good attendance (above 75%).
-                  </div>
-                )}
-              </div>
-
-              {/* Sessions Summary & List */}
-              <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.2)", padding: "2.5rem", borderRadius: "20px" }}>
-                <h3 style={{ margin: "0 0 1.5rem 0" }}>📊 Past Attendance Sessions</h3>
-
-              {analyticsLoading ? (
-                <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
-                  Retrieving session history logs...
-                </div>
-              ) : (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
-                        <th style={{ padding: "0.75rem 1rem" }}>Session ID</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>Subject</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>Conducted By</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>Date</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>Start Time</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>Expiry Time</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>State</th>
-                        <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sessions.length > 0 ? (
-                        sessions.map((s) => (
-                          <tr key={s.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                            <td style={{ padding: "0.75rem 1rem", fontWeight: "600", color: "var(--primary)" }}>{s.id}</td>
-                            <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{s.subject}</td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-main)", fontWeight: "500" }}>{s.facultyName || "Unknown"}</td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>
-                              {new Date(s.startTime).toLocaleDateString()}
-                            </td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>
-                              {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>
-                              {new Date(s.expiryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </td>
-                            <td style={{ padding: "0.75rem 1rem" }}>
-                              <span style={{
-                                color: s.active ? "var(--success)" : "var(--text-muted)",
-                                fontWeight: "600",
-                                fontSize: "0.8rem",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "0.25rem"
-                              }}>
-                                {s.active ? (
-                                  <>
-                                    <span className="status-dot" style={{
-                                      width: "6px",
-                                      height: "6px",
-                                      backgroundColor: "var(--success)",
-                                      borderRadius: "50%",
-                                      display: "inline-block",
-                                      animation: "pulse 1.5s infinite"
-                                    }}></span>
-                                    ACTIVE
-                                  </>
-                                ) : "COMPLETED"}
-                              </span>
-                            </td>
-                            <td style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
-                              <button
-                                onClick={() => handleViewReport(s)}
-                                style={{
-                                  background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
-                                  border: "none",
-                                  color: "#fff",
-                                  borderRadius: "6px",
-                                  padding: "0.4rem 0.9rem",
-                                  cursor: "pointer",
-                                  fontSize: "0.8rem",
-                                  fontWeight: "600",
-                                  transition: "all 0.2s"
-                                }}
-                              >
-                                View Report
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="8" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                            No attendance sessions conducted yet.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ─── LEAVE REQUESTS TAB ─────────────────────────────────────────── */}
-      {activeTab === "leave" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2rem", width: "100%", animation: "fadeIn 0.5s ease" }}>
-          <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.3)", borderRadius: "20px", padding: "2.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
-              <h3 style={{ margin: 0, fontFamily: "var(--font-heading)", fontSize: "1.4rem", fontWeight: "700" }}>
-                📋 Department Leave Requests
-              </h3>
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                {["ALL", "PENDING", "APPROVED", "REJECTED"].map(f => (
-                  <button key={f} onClick={() => { setLeaveFilter(f); fetchLeaveRequests(f); }}
-                    style={{
-                      background: leaveFilter === f ? "linear-gradient(135deg, var(--primary), var(--secondary))" : "rgba(31,41,55,0.5)",
-                      border: leaveFilter === f ? "none" : "1px solid var(--card-border)",
-                      color: "#fff", borderRadius: "6px", padding: "0.4rem 0.9rem",
-                      fontWeight: "600", fontSize: "0.8rem", cursor: "pointer", transition: "all 0.2s"
-                    }}>{f}</button>
-                ))}
-              </div>
-            </div>
-
-            {leaveLoading ? (
-              <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>Loading leave requests...</div>
-            ) : leaveRequests.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "4rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>📭</div>
-                No {leaveFilter !== "ALL" ? leaveFilter.toLowerCase() : ""} leave requests found.
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                {leaveRequests.map(lr => (
-                  <div key={lr.id} style={{
-                    background: lr.status === "APPROVED" ? "rgba(16,185,129,0.06)" : lr.status === "REJECTED" ? "rgba(239,68,68,0.06)" : "rgba(245,158,11,0.06)",
-                    border: `1px solid ${lr.status === "APPROVED" ? "rgba(16,185,129,0.2)" : lr.status === "REJECTED" ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.25)"}`,
-                    borderRadius: "14px", padding: "1.5rem", animation: "fadeIn 0.3s ease"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                          <span style={{
-                            background: lr.status === "APPROVED" ? "rgba(16,185,129,0.15)" : lr.status === "REJECTED" ? "rgba(239,68,68,0.15)" : "rgba(245,158,11,0.15)",
-                            color: lr.status === "APPROVED" ? "var(--success)" : lr.status === "REJECTED" ? "var(--error)" : "var(--warning)",
-                            border: `1px solid ${lr.status === "APPROVED" ? "rgba(16,185,129,0.3)" : lr.status === "REJECTED" ? "rgba(239,68,68,0.3)" : "rgba(245,158,11,0.3)"}`,
-                            borderRadius: "6px", padding: "0.2rem 0.6rem", fontSize: "0.7rem", fontWeight: "700"
-                          }}>{lr.status}</span>
-                          <span style={{ background: "rgba(99,102,241,0.1)", color: "var(--primary)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "6px", padding: "0.2rem 0.6rem", fontSize: "0.7rem", fontWeight: "600" }}>
-                            {lr.type}
-                          </span>
-                        </div>
-                        <div style={{ fontWeight: "700", fontSize: "1rem" }}>{lr.studentName || `Student #${lr.studentId}`}</div>
-                        <div style={{ color: "var(--text-muted)", fontSize: "0.82rem", marginTop: "0.2rem" }}>
-                          Reg: {lr.registerNumber || "N/A"} • {lr.department}
-                        </div>
-                        <div style={{ marginTop: "0.5rem", color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                          📅 {lr.fromDate} → {lr.toDate}
-                        </div>
-                        {lr.reason && <div style={{ marginTop: "0.5rem", color: "var(--text-main)", fontSize: "0.85rem", fontStyle: "italic" }}>"{lr.reason}"</div>}
-                        {lr.rejectionReason && <div style={{ marginTop: "0.35rem", color: "var(--error)", fontSize: "0.8rem" }}>Rejection reason: {lr.rejectionReason}</div>}
-                        <div style={{ marginTop: "0.5rem", color: "var(--text-muted)", fontSize: "0.75rem" }}>
-                          Submitted: {lr.createdAt ? new Date(lr.createdAt).toLocaleString() : ""}
-                        </div>
-                      </div>
-
-                      {lr.status === "PENDING" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: "200px" }}>
-                          {rejectingId === lr.id ? (
-                            <>
-                              <input type="text" className="input-field" placeholder="Rejection reason (optional)"
-                                value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                                style={{ fontSize: "0.82rem", padding: "0.5rem 0.75rem" }} />
-                              <div style={{ display: "flex", gap: "0.5rem" }}>
-                                <button onClick={() => handleRejectLeave(lr.id)}
-                                  style={{ flex: 1, background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--error)", borderRadius: "6px", padding: "0.45rem", fontWeight: "600", fontSize: "0.82rem", cursor: "pointer" }}>
-                                  Confirm Reject
-                                </button>
-                                <button onClick={() => { setRejectingId(null); setRejectReason(""); }}
-                                  style={{ background: "transparent", border: "1px solid var(--card-border)", color: "var(--text-muted)", borderRadius: "6px", padding: "0.45rem 0.75rem", cursor: "pointer", fontSize: "0.82rem" }}>
-                                  Cancel
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <button onClick={() => handleApproveLeave(lr.id)}
-                                style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "var(--success)", borderRadius: "8px", padding: "0.6rem 1.2rem", fontWeight: "600", fontSize: "0.85rem", cursor: "pointer", transition: "all 0.2s" }}>
-                                ✓ Approve
-                              </button>
-                              <button onClick={() => setRejectingId(lr.id)}
-                                style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "var(--error)", borderRadius: "8px", padding: "0.6rem 1.2rem", fontWeight: "600", fontSize: "0.85rem", cursor: "pointer", transition: "all 0.2s" }}>
-                                ✗ Reject
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {activeTab === "students" && (
-        <div style={{ display: "flex", gap: "2rem", flexDirection: "row", flexWrap: "wrap", width: "100%" }}>
-          
-          {/* Directory List (View Only for Faculty) */}
-          <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-            
-            <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.2)", height: "100%", display: "flex", flexDirection: "column", width: "100%" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
-                <h3 style={{ margin: 0 }}>
-                  🎓 Student Directory
-                  <span style={{ fontSize: "0.9rem", color: "var(--text-muted)", marginLeft: "0.5rem" }}>
-                    ({filteredStudents.length} entries)
-                  </span>
-                </h3>
-                <input
-                  className="input-field"
-                  type="text"
-                  placeholder="Search students by name, email, or reg no..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ maxWidth: "300px", height: "38px", padding: "0.5rem 1rem", fontSize: "0.85rem" }}
-                />
-              </div>
-
-              {fetchLoading ? (
-                <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
-                  Loading database records...
-                </div>
-              ) : (
-                <div style={{ overflowX: "auto", flexGrow: 1 }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
-                        <th style={{ padding: "0.75rem 1rem" }}>Reg No.</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>Name</th>
-                        <th style={{ padding: "0.75rem 1rem" }}>Email</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredStudents.length > 0 ? (
-                        filteredStudents.map((s) => (
-                          <tr key={s.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--primary)", fontWeight: "600" }}>{s.registerNumber || "Pending"}</td>
-                            <td style={{ padding: "0.75rem 1rem", fontWeight: "500" }}>{s.name}</td>
-                            <td style={{ padding: "0.75rem 1rem", color: "var(--text-muted)" }}>{s.email}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="3" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                            No students found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            
-          </div>
-
-        </div>
-      )}
-
-      {activeTab === "schedule" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2rem", width: "100%" }}>
-          <SimulationControl onChange={(params) => setSimParams(params)} />
-
-          {/* Current Class Live Alert for Faculty */}
-          {currentClassStatus && (
-            <div className="faculty-tracker-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem" }}>
-              <div className="dashboard-card status-tracker-card" style={{
-                background: "rgba(30, 41, 59, 0.25)",
-                border: "1px solid var(--card-border)",
-                borderRadius: "20px",
-                padding: "1.5rem"
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                  <span className="tracker-badge" style={{
-                    padding: "0.4rem 0.8rem",
-                    borderRadius: "6px",
-                    fontSize: "0.75rem",
-                    fontWeight: "700",
-                    textTransform: "uppercase",
-                    background: currentClassStatus.status === "CLASS" ? "rgba(99, 102, 241, 0.15)" : "rgba(148, 163, 184, 0.1)",
-                    color: currentClassStatus.status === "CLASS" ? "var(--primary)" : "var(--text-muted)",
-                    border: `1px solid ${currentClassStatus.status === "CLASS" ? "rgba(99, 102, 241, 0.3)" : "rgba(148, 163, 184, 0.2)"}`
-                  }}>
-                    {currentClassStatus.status === "CLASS" ? "Department active class" : currentClassStatus.status}
-                  </span>
-                  {currentClassStatus.status === "CLASS" && currentClassStatus.periodNumber && (
-                    <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Period {currentClassStatus.periodNumber}</span>
-                  )}
-                </div>
-
-                {currentClassStatus.status === "CLASS" && currentClassStatus.currentClass ? (
-                  <div>
-                    <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.4rem", color: "#fff" }}>
-                      {currentClassStatus.currentClass.subject}
-                    </h3>
-                    <p style={{ color: "var(--text-muted)", margin: "0 0 1.5rem 0", fontSize: "0.9rem" }}>
-                      Department: <span style={{ color: "#fff" }}>{currentClassStatus.currentClass.department}</span> | Instructor: <span style={{ color: "#fff" }}>{currentClassStatus.currentClass.faculty?.name || "Unassigned"}</span>
-                    </p>
-
-                    {currentClassStatus.currentClass.faculty?.id === Number(localStorage.getItem("userId")) ? (
-                      <div style={{
-                        background: "rgba(16, 185, 129, 0.1)",
-                        border: "1px solid rgba(16, 185, 129, 0.2)",
-                        borderRadius: "10px",
-                        padding: "1rem",
-                        marginTop: "1rem"
-                      }}>
-                        <p style={{ color: "var(--success)", fontSize: "0.85rem", fontWeight: "600", margin: "0 0 0.75rem 0" }}>
-                          🚨 You are scheduled to teach this class right now!
-                        </p>
-                        {!activeSession ? (
-                          <button
-                            onClick={() => {
-                              const sub = currentClassStatus.currentClass.subject;
-                              const standardSubjects = [
-                                "Software Engineering", "Artificial Intelligence", 
-                                "Database Management Systems", "Computer Networks", 
-                                "Cybersecurity", "Cloud Computing", "Operating Systems",
-                                "Data Communication & Networks", "Parallel and Cloud Computing",
-                                "Artificial Intelligence Expert Systems", "Agentic AI",
-                                "Cloud Computing Lab", "AI & Agentic AI Lab"
-                              ];
-                              const mapAbbr = {
-                                "OS": "Operating Systems",
-                                "DCN": "Data Communication & Networks",
-                                "PCD": "Parallel and Cloud Computing",
-                                "AIES": "Artificial Intelligence Expert Systems",
-                                "AGAI": "Agentic AI",
-                                "DBMS": "Database Management Systems",
-                                "SE": "Software Engineering",
-                                "CC LAB": "Cloud Computing Lab",
-                                "AI LAB": "AI & Agentic AI Lab"
-                              };
-                              const mappedName = mapAbbr[sub] || sub;
-                              if (standardSubjects.includes(mappedName)) {
-                                setSessionSubject(mappedName);
-                              } else {
-                                setSessionSubject("Custom");
-                                setCustomSubject(mappedName);
-                              }
-                              setActiveTab("qr-session");
-                            }}
-                            className="auth-btn"
-                            style={{
-                              background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
-                              padding: "0.6rem 1rem",
-                              fontSize: "0.85rem",
-                              margin: 0,
-                              width: "auto"
-                            }}
-                          >
-                            🚀 Launch Attendance QR Screen
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: "0.85rem", color: "var(--success)", fontWeight: "500" }}>
-                            ✓ Attendance QR session is currently active for this class.
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", fontStyle: "italic", margin: 0 }}>
-                        This class is taught by {currentClassStatus.currentClass.faculty?.name || "another professor"}.
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ padding: "1.5rem 0", textAlign: "center" }}>
-                    <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
-                      {currentClassStatus.status === "LUNCH" || currentClassStatus.status === "BREAK" ? "☕" : "🏖️"}
-                    </div>
-                    <h4 style={{ color: "#fff", margin: "0 0 0.25rem 0" }}>
-                      {currentClassStatus.status === "LUNCH" ? "Lunch Break" :
-                       currentClassStatus.status === "BREAK" ? "Short Break" :
-                       currentClassStatus.status === "WEEKEND" ? "Weekend" :
-                       currentClassStatus.status === "BEFORE_COLLEGE" ? "Before College Hours" :
-                       currentClassStatus.status === "ENDED" ? "Classes Ended" : "Free Hour"}
-                    </h4>
-                    <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "0.85rem" }}>
-                      No active department lecture scheduled at this hour.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Teaching schedule overview today */}
-              <div className="dashboard-card next-class-card" style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "1.5rem" }}>
-                <span style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "1px", color: "var(--text-muted)", fontWeight: "700" }}>
-                  Your next lecture today
-                </span>
+              {/* Student Photo with premium frame */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
                 {(() => {
-                  if (!currentClassStatus?.todayTimeline) return null;
-                  const myUserId = Number(localStorage.getItem("userId"));
-                  const currentPeriod = currentClassStatus.periodNumber || 0;
-                  
-                  const day = simParams?.simulatedDay || new Date().toLocaleDateString("en-US", { weekday: "long" });
-                  const myUpcoming = timetableData.filter(
-                    e => e.dayOfWeek === day && e.period > currentPeriod && e.faculty?.id === myUserId
-                  ).sort((a, b) => a.period - b.period);
-
-                  if (myUpcoming.length > 0) {
-                    const nextLect = myUpcoming[0];
-                    return (
-                      <div style={{ marginTop: "1rem" }}>
-                        <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.3rem", color: "#fff" }}>
-                          {nextLect.subject}
-                        </h3>
-                        <p style={{ color: "var(--text-muted)", margin: "0 0 1rem 0", fontSize: "0.85rem" }}>
-                          Period {nextLect.period} | Department: <span style={{ color: "#fff" }}>{nextLect.department}</span>
-                        </p>
-                        <span style={{ background: "rgba(99, 102, 241, 0.1)", borderRadius: "6px", padding: "0.3rem 0.6rem", fontSize: "0.75rem", color: "var(--primary)", fontWeight: "600" }}>
-                          Scheduled
-                        </span>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div style={{ padding: "1.5rem 0", textAlign: "center" }}>
-                      <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>💤</div>
-                      <h4 style={{ color: "#fff", margin: "0 0 0.25rem 0" }}>No More Lectures Today</h4>
-                      <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "0.85rem" }}>
-                        You have no upcoming classes to teach today.
-                      </p>
-                    </div>
-                  );
+                  const regNum = selectedStudentProfile.student.registerNumber;
+                  const photoUrl = regNum ? `/students_photos/${regNum.toLowerCase()}.jpg` : null;
+                  return photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt={selectedStudentProfile.student.name}
+                      onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
+                      style={{
+                        width: 110, height: 110, borderRadius: "24px",
+                        objectFit: "cover", objectPosition: "top",
+                        border: "3px solid var(--primary)",
+                        boxShadow: "0 12px 28px rgba(99,102,241,0.3)",
+                        transition: "transform 0.3s ease"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+                      onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                    />
+                  ) : null;
                 })()}
+                <div style={{
+                  width: 110, height: 110, borderRadius: "24px",
+                  background: "linear-gradient(135deg, var(--primary), var(--secondary))",
+                  display: "none", alignItems: "center", justifyContent: "center",
+                  fontSize: "3rem", fontWeight: "800", color: "#fff", flexShrink: 0,
+                  border: "3px solid var(--primary)",
+                  boxShadow: "0 12px 28px rgba(99,102,241,0.3)"
+                }}>
+                  {selectedStudentProfile.student.name?.charAt(0) || "S"}
+                </div>
+                {/* Active Indicator Badge */}
+                <div style={{
+                  position: "absolute", bottom: "-6px", right: "-6px",
+                  background: selectedStudentProfile.student.active ? "var(--success)" : "var(--error)",
+                  color: "#fff", fontSize: "0.68rem", fontWeight: "800",
+                  padding: "4px 8px", borderRadius: "10px", textTransform: "uppercase",
+                  border: "2px solid #1e293b", letterSpacing: "0.5px"
+                }}>
+                  {selectedStudentProfile.student.active ? "Active" : "Inactive"}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <span style={{ fontSize: "0.75rem", background: "rgba(99, 102, 241, 0.2)", color: "var(--primary)", padding: "4px 10px", borderRadius: "20px", fontWeight: "700", width: "fit-content", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  {selectedStudentProfile.student.department || "M.Tech CSE"} Student
+                </span>
+                <h2 style={{ margin: 0, fontSize: "2rem", fontWeight: "800", color: "var(--text-main)", letterSpacing: "-0.5px" }}>
+                  {selectedStudentProfile.student.name}
+                </h2>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "0.9rem", color: "var(--text-muted)", flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: "700", color: "var(--primary)" }}>#{selectedStudentProfile.student.registerNumber || "N/A"}</span>
+                  <span>•</span>
+                  <span>Section {selectedStudentProfile.student.section || "A"}</span>
+                  <span>•</span>
+                  <span>Semester {selectedStudentProfile.student.semester || "8"}</span>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Weekly Department Schedule Grid */}
-          <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-              <h3 style={{ margin: 0, color: "#fff", fontSize: "1.2rem", fontWeight: "600" }}>
-                📅 Weekly Department Schedule ({localStorage.getItem("department") || "M.Tech CSE"})
-              </h3>
-              <span style={{ fontSize: "0.8rem", color: "var(--primary)", fontWeight: "600", border: "1px solid rgba(99, 102, 241, 0.3)", padding: "0.3rem 0.6rem", borderRadius: "6px", background: "rgba(99, 102, 241, 0.05)" }}>
-                🔵 Highlighted: Your Lectures
-              </span>
+            {/* Profile Grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
+              {/* Personal & Academic */}
+              <div className="glass-card" style={{ padding: "1.5rem", borderRadius: "20px", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <h4 style={{ margin: 0, color: "var(--text-main)", fontSize: "1.05rem", fontWeight: "700", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.75rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>👤</span> Personal & Academic Information
+                </h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.8rem", fontSize: "0.85rem" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                    <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📧 Email Address:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600", wordBreak: "break-all" }}>{selectedStudentProfile.student.email}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                    <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📞 Contact Phone:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.student.phone || "N/A"}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                    <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📅 Academic Batch:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.student.batch || "2023 - 2028"}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                    <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>🎂 Date of Birth:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.student.dateOfBirth ? selectedStudentProfile.student.dateOfBirth.split(" ")[0] : "N/A"}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                    <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>⚧️ Gender / Sex:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.student.gender || "N/A"}</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <span style={{ color: "var(--text-muted)" }}>🏠 Home Address:</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: "600", background: "rgba(255,255,255,0.02)", padding: "8px 12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.04)", lineHeight: "1.4" }}>{selectedStudentProfile.student.address || "N/A"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Parent Details */}
+              <div className="glass-card" style={{ padding: "1.5rem", borderRadius: "20px", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <h4 style={{ margin: 0, color: "var(--text-main)", fontSize: "1.05rem", fontWeight: "700", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.75rem", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>👪</span> Family & Emergency Details
+                </h4>
+                {selectedStudentProfile.profile ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.8rem", fontSize: "0.85rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>👴 Father Name:</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.profile.fatherName || "N/A"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📞 Father Phone:</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.profile.fatherPhone || "N/A"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>👵 Mother Name:</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.profile.motherName || "N/A"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📞 Mother Phone:</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: "600" }}>{selectedStudentProfile.profile.motherPhone || "N/A"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>📧 Guardian Email:</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: "600", wordBreak: "break-all" }}>{selectedStudentProfile.profile.guardianEmail || "N/A"}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255,255,255,0.02)", paddingBottom: "6px" }}>
+                      <span style={{ color: "var(--text-muted)", width: "130px", flexShrink: 0 }}>🩸 Blood Group:</span>
+                      <span style={{
+                        color: selectedStudentProfile.profile.bloodGroup ? "var(--error)" : "var(--text-main)",
+                        fontWeight: "800", background: selectedStudentProfile.profile.bloodGroup ? "rgba(239,68,68,0.1)" : "transparent",
+                        padding: selectedStudentProfile.profile.bloodGroup ? "2px 8px" : 0,
+                        borderRadius: "6px"
+                      }}>
+                        {selectedStudentProfile.profile.bloodGroup || "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexGrow: 1, padding: "2rem", color: "var(--text-muted)", fontStyle: "italic", background: "rgba(255,255,255,0.01)", borderRadius: "12px", border: "1px dashed var(--card-border)" }}>
+                    No family profile metadata stored.
+                  </div>
+                )}
+              </div>
             </div>
-            
-            <div style={{ overflowX: "auto" }}>
-              <table className="timetable-grid-table">
-                <thead>
-                  <tr>
-                    <th>Day</th>
-                    <th>P1<span className="time-sub">8:45-9:40</span></th>
-                    <th>P2<span className="time-sub">9:40-10:35</span></th>
-                    <th className="break-hdr">Break<span className="time-sub">10:35-10:50</span></th>
-                    <th>P3<span className="time-sub">10:50-11:45</span></th>
-                    <th>P4<span className="time-sub">11:45-12:40</span></th>
-                    <th className="break-hdr">Lunch<span className="time-sub">12:40-1:40</span></th>
-                    <th>P5<span className="time-sub">1:40-2:35</span></th>
-                    <th>P6<span className="time-sub">2:35-3:30</span></th>
-                    <th>P7<span className="time-sub">3:30-4:25</span></th>
-                    <th>P8<span className="time-sub">4:25-5:20</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => {
-                    const isToday = currentClassStatus?.status !== "WEEKEND" && currentClassStatus?.todayTimeline && currentClassStatus?.todayTimeline.length > 0 && 
-                      (simParams?.simulatedDay ? simParams.simulatedDay === day : new Date().toLocaleDateString("en-US", { weekday: "long" }) === day);
-                    
-                    return (
-                      <tr key={day} className={isToday ? "today-row" : ""}>
-                        <td className="day-name-cell">{day}</td>
-                        {[1, 2].map(p => renderFacultyGridCell(day, p))}
-                        <td className="grid-break-cell">Short Break</td>
-                        {[3, 4].map(p => renderFacultyGridCell(day, p))}
-                        <td className="grid-break-cell">Lunch Break</td>
-                        {[5, 6, 7, 8].map(p => renderFacultyGridCell(day, p))}
+
+
+            {/* Performance Stats */}
+            <div style={{ background: "rgba(99, 102, 241, 0.05)", border: "1px solid rgba(99, 102, 241, 0.15)", padding: "1.25rem", borderRadius: "16px", marginBottom: "2rem" }}>
+              <h4 style={{ margin: "0 0 1rem 0", color: "#fff", fontSize: "1rem" }}>📈 Academic ERP Statistics</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "1rem", textAlign: "center" }}>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "var(--success)" }}>
+                    {selectedStudentProfile.statistics.attendancePercentage ? `${selectedStudentProfile.statistics.attendancePercentage.toFixed(1)}%` : "0.0%"}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Attendance</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "#fff" }}>
+                    {selectedStudentProfile.statistics.totalClasses}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Total Classes</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "var(--primary)" }}>
+                    {selectedStudentProfile.statistics.present}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Present Count</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "var(--error)" }}>
+                    {selectedStudentProfile.statistics.absent}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Absent Count</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "#fbbf24" }}>
+                    {selectedStudentProfile.statistics.careerScore || 0}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Career score</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "#38bdf8" }}>
+                    {selectedStudentProfile.statistics.codingSolved || 0}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Coding Solved</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Attendance History Timeline */}
+            <div>
+              <h4 style={{ margin: "0 0 0.75rem 0", color: "#fff", fontSize: "1rem" }}>📅 Attendance Log Timeline</h4>
+              <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--card-border)" }}>
+                      <th style={{ padding: "0.5rem" }}>Date / Time</th>
+                      <th style={{ padding: "0.5rem" }}>Subject</th>
+                      <th style={{ padding: "0.5rem" }}>Method</th>
+                      <th style={{ padding: "0.5rem", textAlign: "right" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedStudentProfile.attendanceHistory && selectedStudentProfile.attendanceHistory.length > 0 ? (
+                      selectedStudentProfile.attendanceHistory.map((h, i) => (
+                        <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                          <td style={{ padding: "0.5rem", color: "var(--text-muted)" }}>{h.date} {h.time ? `@ ${h.time}` : ""}</td>
+                          <td style={{ padding: "0.5rem", fontWeight: "600" }}>{h.subject}</td>
+                          <td style={{ padding: "0.5rem" }}>
+                            <span style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: "4px" }}>
+                              {h.method}
+                            </span>
+                          </td>
+                          <td style={{ padding: "0.5rem", textAlign: "right", fontWeight: "700", color: h.status === "PRESENT" ? "var(--success)" : "var(--error)" }}>
+                            {h.status}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4" style={{ textAlign: "center", padding: "1rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                          No attendance sessions recorded yet.
+                        </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-
-          <style>{`
-            .timetable-grid-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 10px;
-              font-size: 0.85rem;
-              text-align: center;
-              border: 1px solid rgba(255, 255, 255, 0.05);
-            }
-            .timetable-grid-table th {
-              background: rgba(31, 41, 55, 0.6);
-              color: #f1f5f9;
-              font-weight: 600;
-              padding: 12px 8px;
-              border: 1px solid rgba(255, 255, 255, 0.08);
-              min-width: 100px;
-              font-size: 0.8rem;
-            }
-            .timetable-grid-table td {
-              border: 1px solid rgba(255, 255, 255, 0.06);
-              padding: 12px 8px;
-              height: 60px;
-              vertical-align: middle;
-            }
-            .time-sub {
-              display: block;
-              font-size: 0.65rem;
-              color: #94a3b8;
-              font-weight: normal;
-              margin-top: 4px;
-            }
-            .day-name-cell {
-              font-weight: 700;
-              color: #f1f5f9;
-              background: rgba(30, 41, 59, 0.4);
-              min-width: 90px;
-            }
-            .grid-break-cell {
-              background: rgba(31, 41, 55, 0.25);
-              color: #64748b;
-              font-size: 0.75rem;
-              font-style: italic;
-              max-width: 35px;
-              writing-mode: vertical-rl;
-              text-orientation: mixed;
-              letter-spacing: 2px;
-              font-weight: 600;
-              border-left: 1px dashed rgba(255, 255, 255, 0.1);
-              border-right: 1px dashed rgba(255, 255, 255, 0.1);
-            }
-            .break-hdr {
-              background: rgba(31, 41, 55, 0.35) !important;
-              min-width: 40px !important;
-              letter-spacing: 1px;
-            }
-            .grid-class-cell {
-              background: rgba(30, 41, 59, 0.1);
-              transition: all 0.2s;
-            }
-            .active-faculty-class-cell {
-              background: rgba(99, 102, 241, 0.15) !important;
-              border: 1.5px solid rgba(99, 102, 241, 0.4) !important;
-            }
-            .active-faculty-class-cell .cell-subject {
-              font-weight: 700;
-              color: #a5b4fc;
-            }
-            .other-faculty-class-cell {
-              opacity: 0.75;
-            }
-            .cell-subject-muted {
-              font-size: 0.8rem;
-              color: #64748b;
-            }
-            .cell-faculty-muted {
-              font-size: 0.65rem;
-              color: #475569;
-              margin-top: 2px;
-            }
-            .free-cell {
-              color: #475569;
-              background: rgba(15, 23, 42, 0.1);
-            }
-            .cell-subject {
-              font-weight: 600;
-              color: #fff;
-              font-size: 0.9rem;
-            }
-            .cell-dept {
-              font-size: 0.7rem;
-              color: #94a3b8;
-              margin-top: 4px;
-            }
-            .active-cell {
-              background: rgba(99, 102, 241, 0.25) !important;
-              border: 2px solid var(--primary) !important;
-              animation: activePulse 2s infinite alternate;
-            }
-            @keyframes activePulse {
-              0% { box-shadow: inset 0 0 10px rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.8) !important; }
-              100% { box-shadow: inset 0 0 20px rgba(99, 102, 241, 0.35); border-color: rgba(99, 102, 241, 1) !important; }
-            }
-            .today-row {
-              background: rgba(99, 102, 241, 0.02);
-            }
-            .today-row .day-name-cell {
-              border-left: 4px solid var(--primary) !important;
-            }
-          `}</style>
         </div>
       )}
 
-      {activeTab === "career" && (
-        <CareerDashboardFaculty />
-      )}
     </div>
   );
 }

@@ -27,6 +27,11 @@ public class TimetableController {
     @Autowired private FacultyExpertiseRepository facultyExpertiseRepository;
     @Autowired private FacultyAvailabilityRepository facultyAvailabilityRepository;
     @Autowired private ClassroomRepository classroomRepository;
+    @Autowired private CodingChallengeRepository codingChallengeRepository;
+    @Autowired private CodingSubmissionRepository codingSubmissionRepository;
+    @Autowired private AttendanceSessionRepository attendanceSessionRepository;
+    @Autowired private AttendanceRepository attendanceRepository;
+    @Autowired private com.eduflow.service.GroqService groqService;
 
     // ─── Period Time Definitions ───────────────────────────────────────────────
     private static class PeriodTime {
@@ -48,9 +53,7 @@ public class TimetableController {
             new PeriodTime(4, "Period 4", LocalTime.of(11,45), LocalTime.of(12,40), false),
             new PeriodTime(0, "Lunch Break", LocalTime.of(12,40), LocalTime.of(13,40), true),
             new PeriodTime(5, "Period 5", LocalTime.of(13,40), LocalTime.of(14,35), false),
-            new PeriodTime(6, "Period 6", LocalTime.of(14,35), LocalTime.of(15,30), false),
-            new PeriodTime(7, "Period 7", LocalTime.of(15,30), LocalTime.of(16,25), false),
-            new PeriodTime(8, "Period 8", LocalTime.of(16,25), LocalTime.of(17,20), false)
+            new PeriodTime(6, "Period 6", LocalTime.of(14,35), LocalTime.of(15,30), false)
     );
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -174,6 +177,9 @@ public class TimetableController {
         // Get all subjects for this dept
         List<SubjectMaster> subjects = subjectMasterRepository.findByDepartmentIgnoreCaseAndActiveTrue(normalizedDept);
         if (subjects.isEmpty()) return ResponseEntity.badRequest().body("No active subjects found for " + normalizedDept);
+        if (subjects.size() > 4) {
+            subjects = new ArrayList<>(subjects.subList(0, 4));
+        }
 
         // Build period pool based on weeklyHours
         List<String> periodPool = new ArrayList<>();
@@ -205,7 +211,7 @@ public class TimetableController {
             String prevSubject = null;
             int consecutiveSubjectCount = 0;
 
-            for (int p = 1; p <= 8; p++) {
+            for (int p = 1; p <= 6; p++) {
                 if (poolIdx >= periodPool.size()) { Collections.shuffle(periodPool, new Random()); poolIdx = 0; }
                 String subCode = periodPool.get(poolIdx++);
 
@@ -348,7 +354,7 @@ public class TimetableController {
             status = "BEFORE_COLLEGE";
             nextClass = findNextScheduledClass(dayEntries, 0);
             timeRemaining = ChronoUnit.MINUTES.between(time, LocalTime.of(8, 45));
-        } else if (!time.isBefore(LocalTime.of(17, 20))) {
+        } else if (!time.isBefore(LocalTime.of(15, 30))) {
             status = "ENDED";
         } else if (activePeriod != null) {
             timeRemaining = ChronoUnit.MINUTES.between(time, activePeriod.end);
@@ -474,5 +480,4 @@ public class TimetableController {
         }
 
         return ResponseEntity.ok(new TimetableSuggestionResponse(null, 0, null, null));
-    }
-}
+    }}

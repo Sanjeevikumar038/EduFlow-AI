@@ -66,28 +66,74 @@ function LeavePage() {
   };
 
   return (
-    <div className="animate-fade-in space-y-6 max-w-4xl mx-auto">
+    <div style={{
+      maxWidth: "900px",
+      margin: "0 auto",
+      display: "flex",
+      flexDirection: "column",
+      gap: "24px",
+      animation: "fadeIn 0.3s ease-out"
+    }}>
       {feedback.message && (
         <div style={{
-          background: feedback.type === "error" ? "rgba(239, 68, 68, 0.2)" : "rgba(16, 185, 129, 0.2)",
+          background: feedback.type === "error" ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
           border: `1px solid ${feedback.type === "error" ? "var(--error)" : "var(--success)"}`,
           color: feedback.type === "error" ? "var(--error)" : "var(--success)",
-          borderRadius: "10px", padding: "1rem", fontWeight: "500", animation: "fadeIn 0.3s ease"
+          borderRadius: "12px",
+          padding: "16px 24px",
+          fontWeight: "600",
+          fontSize: "0.88rem"
         }}>
           {feedback.message}
         </div>
       )}
 
-      <div className="glass-card p-6 rounded-2xl">
-        <h2 className="text-xl font-bold text-white mb-4">Apply for Leave / OD</h2>
-        <form onSubmit={handleLeaveSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="form-group">
-              <label className="text-slate-400 text-sm font-medium">Leave Type</label>
+      {/* Leave Application Card */}
+      <div className="glass-card" style={{
+        padding: "24px",
+        borderRadius: "16px",
+        border: "1px solid var(--card-border)",
+        background: "var(--bg-secondary)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px"
+      }}>
+        <h2 style={{
+          margin: 0,
+          fontSize: "1.25rem",
+          fontWeight: "800",
+          color: "var(--text-main)",
+          borderBottom: "1px solid var(--card-border)",
+          paddingBottom: "12px",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
+        }}>
+          <span>📋</span> Apply for Leave / OD
+        </h2>
+        
+        <form onSubmit={handleLeaveSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase" }}>
+                Leave Type
+              </label>
               <select 
                 value={leaveForm.type} 
                 onChange={(e) => handleLeaveFormChange("type", e.target.value)}
-                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-purple-500"
+                style={{
+                  width: "100%",
+                  background: "var(--input-bg)",
+                  border: "1px solid var(--input-border)",
+                  borderRadius: "10px",
+                  padding: "0.75rem 1rem",
+                  color: "var(--text-main)",
+                  outline: "none",
+                  fontSize: "0.9rem",
+                  transition: "border-color 0.2s"
+                }}
+                onFocus={(e) => e.target.style.borderColor = "var(--primary)"}
+                onBlur={(e) => e.target.style.borderColor = "var(--input-border)"}
               >
                 <option value="OD">On Duty (OD)</option>
                 <option value="MEDICAL">Medical Leave</option>
@@ -96,36 +142,80 @@ function LeavePage() {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="form-group">
-              <label className="text-slate-400 text-sm font-medium">From Date</label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase" }}>
+                From Date
+              </label>
               <input 
                 type="date" 
                 value={leaveForm.fromDate}
                 onChange={(e) => handleLeaveFormChange("fromDate", e.target.value)}
-                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-purple-500"
+                style={{
+                  width: "100%",
+                  background: "var(--input-bg)",
+                  border: "1px solid var(--input-border)",
+                  borderRadius: "10px",
+                  padding: "0.75rem 1rem",
+                  color: "var(--text-main)",
+                  outline: "none",
+                  fontSize: "0.9rem",
+                  transition: "border-color 0.2s"
+                }}
+                onFocus={(e) => e.target.style.borderColor = "var(--primary)"}
+                onBlur={(e) => e.target.style.borderColor = "var(--input-border)"}
                 required
               />
             </div>
-            <div className="form-group">
-              <label className="text-slate-400 text-sm font-medium">To Date</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase" }}>
+                To Date
+              </label>
               <input 
                 type="date" 
                 value={leaveForm.toDate}
                 onChange={(e) => handleLeaveFormChange("toDate", e.target.value)}
-                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-purple-500"
+                style={{
+                  width: "100%",
+                  background: "var(--input-bg)",
+                  border: "1px solid var(--input-border)",
+                  borderRadius: "10px",
+                  padding: "0.75rem 1rem",
+                  color: "var(--text-main)",
+                  outline: "none",
+                  fontSize: "0.9rem",
+                  transition: "border-color 0.2s"
+                }}
+                onFocus={(e) => e.target.style.borderColor = "var(--primary)"}
+                onBlur={(e) => e.target.style.borderColor = "var(--input-border)"}
                 required
               />
             </div>
           </div>
           
-          <div className="form-group">
-            <label className="text-slate-400 text-sm font-medium">Reason</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase" }}>
+              Reason
+            </label>
             <textarea 
               value={leaveForm.reason}
               onChange={(e) => handleLeaveFormChange("reason", e.target.value)}
               placeholder="State your reason briefly..."
-              className="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-purple-500 min-h-[100px]"
+              style={{
+                width: "100%",
+                background: "var(--input-bg)",
+                border: "1px solid var(--input-border)",
+                borderRadius: "10px",
+                padding: "0.75rem 1rem",
+                color: "var(--text-main)",
+                outline: "none",
+                fontSize: "0.9rem",
+                minHeight: "100px",
+                resize: "vertical",
+                transition: "border-color 0.2s"
+              }}
+              onFocus={(e) => e.target.style.borderColor = "var(--primary)"}
+              onBlur={(e) => e.target.style.borderColor = "var(--input-border)"}
               required
             />
           </div>
@@ -133,43 +223,122 @@ function LeavePage() {
           <button 
             type="submit" 
             disabled={leaveSubmitting}
-            className="w-full md:w-auto px-6 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+            style={{
+              padding: "0.75rem 2rem",
+              background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "10px",
+              fontWeight: "700",
+              fontSize: "0.9rem",
+              cursor: "pointer",
+              alignSelf: "flex-start",
+              transition: "opacity 0.2s",
+              opacity: leaveSubmitting ? 0.6 : 1
+            }}
           >
             {leaveSubmitting ? "Submitting..." : "Submit Request"}
           </button>
         </form>
       </div>
 
-      <div className="glass-card p-6 rounded-2xl">
-        <h2 className="text-xl font-bold text-white mb-4">My Requests History</h2>
+      {/* History Log Card */}
+      <div className="glass-card" style={{
+        padding: "24px",
+        borderRadius: "16px",
+        border: "1px solid var(--card-border)",
+        background: "var(--bg-secondary)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px"
+      }}>
+        <h2 style={{
+          margin: 0,
+          fontSize: "1.25rem",
+          fontWeight: "800",
+          color: "var(--text-main)",
+          borderBottom: "1px solid var(--card-border)",
+          paddingBottom: "12px",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
+        }}>
+          <span>⏳</span> Request History Log
+        </h2>
+
         {leaveLoading ? (
-          <p className="text-slate-400">Loading history...</p>
+          <div style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>
+            Loading request logs...
+          </div>
         ) : myLeaveRequests.length === 0 ? (
-          <p className="text-slate-400">No leave requests found.</p>
+          <div style={{
+            textAlign: "center",
+            padding: "32px",
+            color: "var(--text-muted)",
+            fontStyle: "italic",
+            border: "1px dashed var(--card-border)",
+            borderRadius: "12px"
+          }}>
+            No leave / OD requests recorded yet.
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+          <div style={{ overflowX: "auto" }} className="custom-scrollbar">
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
               <thead>
-                <tr className="border-b border-white/10 text-slate-400 text-sm">
-                  <th className="pb-3 pr-4 font-medium">Type</th>
-                  <th className="pb-3 pr-4 font-medium">Duration</th>
-                  <th className="pb-3 pr-4 font-medium">Reason</th>
-                  <th className="pb-3 font-medium">Status</th>
+                <tr style={{ borderBottom: "1px solid var(--card-border)", color: "var(--text-muted)" }}>
+                  <th style={{ padding: "12px 8px", fontWeight: "700" }}>Type</th>
+                  <th style={{ padding: "12px 8px", fontWeight: "700" }}>Duration</th>
+                  <th style={{ padding: "12px 8px", fontWeight: "700" }}>Reason</th>
+                  <th style={{ padding: "12px 8px", fontWeight: "700" }}>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
-                {myLeaveRequests.map(req => (
-                  <tr key={req.id} className="text-slate-300">
-                    <td className="py-4 pr-4"><span className="bg-slate-800 px-2 py-1 rounded text-xs font-semibold tracking-wide">{req.type}</span></td>
-                    <td className="py-4 pr-4 text-sm">{req.fromDate} to {req.toDate}</td>
-                    <td className="py-4 pr-4 text-sm max-w-xs truncate" title={req.reason}>{req.reason}</td>
-                    <td className="py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide ${req.status === 'PENDING' ? 'bg-amber-500/20 text-amber-400' : req.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                        {req.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+              <tbody>
+                {myLeaveRequests.map(req => {
+                  let badgeBg = "rgba(245, 158, 11, 0.12)";
+                  let badgeColor = "#fbbf24";
+                  if (req.status === 'APPROVED') {
+                    badgeBg = "rgba(16, 185, 129, 0.12)";
+                    badgeColor = "#34d399";
+                  } else if (req.status === 'REJECTED') {
+                    badgeBg = "rgba(239, 68, 68, 0.12)";
+                    badgeColor = "#f87171";
+                  }
+
+                  return (
+                    <tr key={req.id} style={{ borderBottom: "1px solid var(--divider)", color: "var(--text-main)" }}>
+                      <td style={{ padding: "16px 8px" }}>
+                        <span style={{
+                          background: "var(--nav-hover-bg)",
+                          border: "1px solid var(--card-border)",
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          fontSize: "0.72rem",
+                          fontWeight: "800"
+                        }}>
+                          {req.type}
+                        </span>
+                      </td>
+                      <td style={{ padding: "16px 8px", fontSize: "0.8rem" }}>
+                        {req.fromDate} to {req.toDate}
+                      </td>
+                      <td style={{ padding: "16px 8px", fontSize: "0.8rem", maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={req.reason}>
+                        {req.reason}
+                      </td>
+                      <td style={{ padding: "16px 8px" }}>
+                        <span style={{
+                          padding: "4px 10px",
+                          borderRadius: "20px",
+                          fontSize: "0.72rem",
+                          fontWeight: "800",
+                          background: badgeBg,
+                          color: badgeColor
+                        }}>
+                          {req.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

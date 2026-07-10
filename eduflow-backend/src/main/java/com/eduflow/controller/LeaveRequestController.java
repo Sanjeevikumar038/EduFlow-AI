@@ -95,6 +95,7 @@ public class LeaveRequestController {
         if (userOpt.isEmpty()) return ResponseEntity.badRequest().body("User not found!");
         User faculty = userOpt.get();
         if (faculty.getRole() != Role.FACULTY) return ResponseEntity.status(403).body("Only faculty can view department leave requests!");
+        if (!faculty.isClassAdvisor()) return ResponseEntity.status(403).body("Only Class Advisors can view department leave requests!");
 
         String dept = faculty.getDepartment();
         if (dept == null || dept.isBlank()) return ResponseEntity.ok(List.of());
@@ -130,6 +131,9 @@ public class LeaveRequestController {
         User faculty = userOpt.get();
         if (faculty.getRole() != Role.FACULTY && faculty.getRole() != Role.ADMIN) {
             return ResponseEntity.status(403).body("Only faculty or admin can approve leave requests!");
+        }
+        if (faculty.getRole() == Role.FACULTY && !faculty.isClassAdvisor()) {
+            return ResponseEntity.status(403).body("Only Class Advisors can approve leave requests!");
         }
 
         Optional<LeaveRequest> lrOpt = leaveRequestRepository.findById(id);
@@ -171,6 +175,9 @@ public class LeaveRequestController {
         User faculty = userOpt.get();
         if (faculty.getRole() != Role.FACULTY && faculty.getRole() != Role.ADMIN) {
             return ResponseEntity.status(403).body("Only faculty or admin can reject leave requests!");
+        }
+        if (faculty.getRole() == Role.FACULTY && !faculty.isClassAdvisor()) {
+            return ResponseEntity.status(403).body("Only Class Advisors can reject leave requests!");
         }
 
         Optional<LeaveRequest> lrOpt = leaveRequestRepository.findById(id);

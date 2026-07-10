@@ -16,5 +16,13 @@ public class CodingProgressDto {
     private Integer mediumSolved;
     private Integer hardSolved;
     private Integer totalSolved;
+    
+    private Integer totalAttempted;
+    private Integer bestScore;
+    private Double averageScore;
+    private Double successRate;
+    private Integer currentStreak;
+    private Integer longestStreak;
+
     private LocalDateTime lastUpdated;
 }

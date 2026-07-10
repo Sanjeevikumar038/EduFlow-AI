@@ -34,7 +34,7 @@ function PortalLogin() {
     setLoading(true);
     try {
       const response = await login({ email, password });
-      const { token, role, name, registerNumber, department } = response.data;
+      const { token, role, name, registerNumber, department, classAdvisor } = response.data;
 
       if (role !== activeTab) {
         showFeedback(`Invalid credentials for ${activeTab.toLowerCase()} portal.`);
@@ -55,10 +55,11 @@ function PortalLogin() {
       if (department) {
         localStorage.setItem("department", department);
       }
+      localStorage.setItem("classAdvisor", classAdvisor ? "true" : "false");
 
       showFeedback("Login Successful! Redirecting...", false);
       setTimeout(() => {
-        if (role === "STUDENT") navigate("/student");
+        if (role === "STUDENT") navigate("/student/dashboard");
         else if (role === "FACULTY") navigate("/faculty");
       }, 1000);
     } catch (error) {
@@ -119,7 +120,7 @@ function PortalLogin() {
             border: "none",
             borderRadius: "8px",
             background: activeTab === "STUDENT" ? "var(--primary)" : "transparent",
-            color: "#fff",
+            color: activeTab === "STUDENT" ? "#fff" : "var(--text-muted)",
             fontFamily: "var(--font-heading)",
             fontWeight: "600",
             cursor: "pointer",
@@ -137,7 +138,7 @@ function PortalLogin() {
             border: "none",
             borderRadius: "8px",
             background: activeTab === "FACULTY" ? "var(--primary)" : "transparent",
-            color: "#fff",
+            color: activeTab === "FACULTY" ? "#fff" : "var(--text-muted)",
             fontFamily: "var(--font-heading)",
             fontWeight: "600",
             cursor: "pointer",
@@ -179,14 +180,6 @@ function PortalLogin() {
       </form>
 
       <div className="auth-footer" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        {activeTab === "STUDENT" && (
-          <div>
-            New Student?{" "}
-            <Link className="auth-link" to="/register">
-              Sign up here
-            </Link>
-          </div>
-        )}
         <div>
           <Link className="auth-link" to="/login" style={{ fontSize: "0.85rem", opacity: 0.8 }}>
             ← Access Admin Portal

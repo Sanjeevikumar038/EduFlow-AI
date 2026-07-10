@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getCareerDashboard } from "../../services/careerService";
+import { Link } from "react-router-dom";
 
 function CareerCard() {
   const [data, setData] = useState(null);
@@ -9,42 +10,99 @@ function CareerCard() {
     const token = localStorage.getItem("token");
     if (!token) return;
     getCareerDashboard(token)
-      .then(res => {
-        setData(res.data);
-        setLoading(false);
-      })
+      .then(res => { setData(res.data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="glass-card p-5 rounded-2xl animate-pulse h-[160px]"></div>;
+  if (loading) {
+    return (
+      <div className="rounded-2xl animate-pulse" style={{ height: "160px", background: "rgba(30,41,59,0.4)", border: "1px solid rgba(255,255,255,0.05)" }} />
+    );
+  }
 
-  const score = data?.overallCareerScore || 0; // Already 0-100 (sum of 4 scores each 0-25)
+  const score      = data?.overallCareerScore ?? 0;
+  const status     = data?.status ?? "Needs Improvement";
+  const attendance = data?.attendanceScore ?? 0;
+  const resume     = data?.resumeScore ?? 0;
+  const coding     = data?.codingScore ?? 0;
+  const interview  = data?.interviewScore ?? 0;
+
+  const components = [
+    { label: "Attend", val: attendance, color: "#a78bfa" },
+    { label: "Resume", val: resume,     color: "#60a5fa" },
+    { label: "Coding", val: coding,     color: "#34d399" },
+    { label: "Intrvw", val: interview,  color: "#fbbf24" },
+  ];
 
   return (
-    <div className="glass-card p-5 rounded-2xl relative overflow-hidden group hover:shadow-[0_8px_30px_rgba(249,115,22,0.15)] transition-all duration-300 border border-white/5 hover:border-orange-500/30">
-      <div className="absolute -right-4 -top-4 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-all"></div>
-
-      <div className="flex items-start gap-3 mb-3 relative z-10">
-        <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg border border-amber-500/30">⭐</div>
+    <Link 
+      to="/student/career"
+      className="premium-card block"
+      style={{ minHeight: "160px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
+    >
+      {/* Top Row: Info + Icon */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h3 className="text-sm font-semibold text-slate-300">Career Readiness</h3>
-          <p className="text-2xl font-bold text-white mt-0.5">{score.toFixed(1)}%</p>
+          <span style={{ fontSize: "0.65rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>
+            Career Readiness
+          </span>
+          <h3 style={{ fontSize: "2.25rem", fontWeight: "800", color: "var(--text-main)", lineHeight: "1.1", marginTop: "0.25rem" }}>
+            {score}/100
+          </h3>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem", display: "inline-block" }}>
+            {status}
+          </span>
+        </div>
+
+        {/* Amber Icon Tile */}
+        <div className="icon-tile icon-tile-amber">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
         </div>
       </div>
 
-      <p className="text-xs text-slate-400 mb-3 relative z-10">
-        {score === 0 ? "Complete Resume, Coding, and Interview modules to generate your Career Readiness Score." : "Goal: 85%"}
-      </p>
-
-      {/* Progress bar */}
-      <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden relative z-10">
-        <div
-          className="bg-gradient-to-r from-orange-400 to-amber-500 h-full rounded-full transition-all duration-1000 ease-out"
-          style={{ width: `${score}%` }}
-        />
+      {/* Middle: Progress Bar */}
+      <div style={{ marginTop: "0.75rem", marginBottom: "0.75rem" }}>
+        <div style={{ height: "6px", borderRadius: "999px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+          <div 
+            style={{ 
+              height: "100%", 
+              width: `${score}%`, 
+              borderRadius: "999px", 
+              background: "#fbbf24", /* Amber progress bar */
+              transition: "width 1.2s ease-out" 
+            }} 
+          />
+        </div>
       </div>
-    </div>
+
+      {/* Bottom: 4 Breakdown Counters */}
+      <div style={{ display: "flex", gap: "0.25rem" }}>
+        {components.map((item, idx) => (
+          <div 
+            key={idx} 
+            style={{ 
+              flex: 1, 
+              textAlign: "center", 
+              padding: "0.25rem", 
+              borderRadius: "8px", 
+              background: "var(--box-bg)", 
+              border: "1px solid var(--box-border)" 
+            }}
+          >
+            <p style={{ fontSize: "0.875rem", fontWeight: "700", color: item.color, margin: 0, lineHeight: "1" }}>
+              {item.val}
+            </p>
+            <p style={{ fontSize: "0.55rem", color: "var(--text-muted)", margin: "0.15rem 0 0 0", textTransform: "uppercase", letterSpacing: "0.3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {item.label}
+            </p>
+          </div>
+        ))}
+      </div>
+    </Link>
   );
 }
 
 export default CareerCard;
+

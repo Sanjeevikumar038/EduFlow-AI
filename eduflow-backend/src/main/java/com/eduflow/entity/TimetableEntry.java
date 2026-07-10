@@ -39,4 +39,6 @@ public class TimetableEntry {
     private Integer semester;
 
     private String academicYear;
+
+    private String activityName;
 }

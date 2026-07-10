@@ -18,4 +18,5 @@ public class AuthResponse {
     private String name;
     private String registerNumber;
     private String department;
+    private boolean classAdvisor;
 }

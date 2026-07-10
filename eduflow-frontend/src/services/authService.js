@@ -59,3 +59,31 @@ export const deleteFaculty = (id, token) => {
     }
   });
 };
+
+
+
+export const getStudentsPaged = (params, token) => {
+  return axios.get(`${API_BASE}/api/students`, {
+    params,
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+export const getStudentProfile = (id, token) => {
+  return axios.get(`${API_BASE}/api/students/${id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+export const searchStudents = (query, token) => {
+  return axios.get(`${API_BASE}/api/students/search`, {
+    params: { query },
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};

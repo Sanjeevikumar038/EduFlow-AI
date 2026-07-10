@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_BASE from '../../services/api';
 
 const NotificationBell = () => {
     const [notifications, setNotifications] = useState([]);
@@ -13,7 +14,7 @@ const NotificationBell = () => {
 
     const fetchNotifications = async () => {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:8080/api/notifications/my', {
+        const res = await fetch(`${API_BASE}/api/notifications/my`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -23,7 +24,7 @@ const NotificationBell = () => {
 
     const markAsRead = async (id) => {
         const token = localStorage.getItem('token');
-        await fetch(`http://localhost:8080/api/notifications/${id}/read`, {
+        await fetch(`${API_BASE}/api/notifications/${id}/read`, {
             method: 'PUT',
             headers: { 'Authorization': `Bearer ${token}` }
         });

@@ -15,6 +15,16 @@ import ResumeManagement from "./components/career/ResumeManagement";
 import CodingDashboard from "./components/career/CodingDashboard";
 import InterviewDashboard from "./components/career/InterviewDashboard";
 import CareerDashboard from "./components/career/CareerDashboard";
+import CodingWorkspacePage from "./pages/student/CodingWorkspacePage";
+
+// Route guard — redirects to login if no token found in localStorage
+function PrivateRoute({ children, allowedRole }) {
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
+  if (!token) return <Navigate to="/portal" replace />;
+  if (allowedRole && role !== allowedRole) return <Navigate to="/portal" replace />;
+  return children;
+}
 
 function App() {
   return (
@@ -23,7 +33,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/portal" element={<PortalLogin />} />
-        <Route path="/student" element={<StudentPortalLayout />}>
+        <Route path="/student/coding-workspace" element={<PrivateRoute allowedRole="STUDENT"><CodingWorkspacePage /></PrivateRoute>} />
+        <Route path="/student" element={<PrivateRoute allowedRole="STUDENT"><StudentPortalLayout /></PrivateRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<StudentDashboardHome />} />
           <Route path="attendance" element={<AttendancePage />} />
@@ -35,8 +46,8 @@ function App() {
           <Route path="leave" element={<LeavePage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
-        <Route path="/faculty" element={<FacultyDashboard />} />
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/faculty" element={<PrivateRoute allowedRole="FACULTY"><FacultyDashboard /></PrivateRoute>} />
+        <Route path="/admin" element={<PrivateRoute allowedRole="ADMIN"><AdminDashboard /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

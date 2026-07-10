@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import API_BASE from '../../services/api';
 
 const ResumeManagement = () => {
     const [resumes, setResumes] = useState([]);
@@ -13,6 +14,38 @@ const ResumeManagement = () => {
     const [matchingJobId, setMatchingJobId] = useState(null);
     const [matchResult, setMatchResult] = useState(null);
 
+    // Drag and Drop State & Refs
+    const [dragActive, setDragActive] = useState(false);
+    const fileInputRef = useRef(null);
+
+    const handleDrag = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === "dragenter" || e.type === "dragover") {
+            setDragActive(true);
+        } else if (e.type === "dragleave") {
+            setDragActive(false);
+        }
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            const droppedFile = e.dataTransfer.files[0];
+            if (droppedFile.type === "application/pdf" || droppedFile.name.toLowerCase().endsWith(".pdf")) {
+                setFile(droppedFile);
+            } else {
+                alert("Please upload a PDF file only.");
+            }
+        }
+    };
+
+    const onButtonClick = () => {
+        fileInputRef.current.click();
+    };
+
     useEffect(() => {
         fetchResumes();
     }, []);
@@ -25,7 +58,7 @@ const ResumeManagement = () => {
 
     const fetchResumes = async () => {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:8080/api/resume/my', {
+        const res = await fetch(`${API_BASE}/api/resume/my`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -35,7 +68,7 @@ const ResumeManagement = () => {
 
     const fetchJobs = async () => {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:8080/api/resume/jobs', {
+        const res = await fetch(`${API_BASE}/api/resume/jobs`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -47,26 +80,35 @@ const ResumeManagement = () => {
         e.preventDefault();
         if (!file) return;
         setLoading(true);
+        console.log("Uploading file:", file.name, "to", `${API_BASE}/api/resume/upload`);
         const token = localStorage.getItem('token');
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch('http://localhost:8080/api/resume/upload', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData
-        });
-        if (res.ok) {
-            setFile(null);
-            fetchResumes();
-        } else {
-            alert("Failed to analyze resume. Please check the backend logs.");
+        try {
+            const res = await fetch(`${API_BASE}/api/resume/upload`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            console.log("Upload response status:", res.status);
+            if (res.ok) {
+                setFile(null);
+                fetchResumes();
+            } else {
+                const text = await res.text();
+                console.error("Upload error body:", text);
+                alert(`Failed to analyze resume. Server returned ${res.status}: ${text || "Unknown Error"}`);
+            }
+        } catch (err) {
+            console.error("Upload fetch error:", err);
+            alert(`Network error uploading resume: ${err.message}`);
         }
         setLoading(false);
     };
 
     const handleDelete = async (id) => {
         const token = localStorage.getItem('token');
-        await fetch(`http://localhost:8080/api/resume/${id}`, {
+        await fetch(`${API_BASE}/api/resume/${id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -75,7 +117,7 @@ const ResumeManagement = () => {
 
     const handleDownload = async (id, fileName) => {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:8080/api/resume/download/${id}`, {
+        const res = await fetch(`${API_BASE}/api/resume/download/${id}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -92,7 +134,7 @@ const ResumeManagement = () => {
         setMatchingJobId(jobId);
         setMatchResult(null);
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:8080/api/resume/match/${jobId}`, {
+        const res = await fetch(`${API_BASE}/api/resume/match/${jobId}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -106,7 +148,8 @@ const ResumeManagement = () => {
 
     const parseJSON = (str) => {
         try {
-            return JSON.parse(str);
+            const parsed = JSON.parse(str);
+            return Array.isArray(parsed) ? parsed : [];
         } catch {
             return [];
         }
@@ -122,7 +165,12 @@ const ResumeManagement = () => {
     let improvementSuggestions = [];
 
     if (latestResume) {
-        try { atsBreakdown = JSON.parse(latestResume.atsBreakdown || '{}'); } catch {}
+        try { 
+            const parsed = JSON.parse(latestResume.atsBreakdown || '{}'); 
+            atsBreakdown = (parsed && typeof parsed === 'object') ? parsed : {};
+        } catch {
+            atsBreakdown = {};
+        }
         strengths = parseJSON(latestResume.strengths);
         weaknesses = parseJSON(latestResume.weaknesses);
         skillsFound = parseJSON(latestResume.skillsFound);
@@ -130,23 +178,54 @@ const ResumeManagement = () => {
         improvementSuggestions = parseJSON(latestResume.improvementSuggestions);
     }
 
-
-
     return (
-        <div className="space-y-6 animate-fade-in">
-            {/* Header with Tabs */}
-            <div className="glass-card p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h2 className="text-2xl font-bold text-white">Career Profile</h2>
-                <div className="flex bg-white/5 p-1 rounded-xl">
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", animation: "fadeIn 0.3s ease-out" }}>
+            
+            {/* Header / Navigation card */}
+            <div className="glass-card" style={{
+                padding: "20px 24px",
+                borderRadius: "16px",
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "16px",
+                border: "1px solid var(--card-border)"
+            }}>
+                <h2 style={{ margin: 0, fontSize: "1.25rem", fontWeight: "800", color: "var(--text-main)" }}>
+                    📄 Resume & ATS Hub
+                </h2>
+                <div style={{ display: "flex", background: "var(--nav-hover-bg)", padding: "4px", borderRadius: "10px", border: "1px solid var(--card-border)" }}>
                     <button 
                         onClick={() => setActiveTab('analysis')}
-                        className={`px-6 py-2 rounded-lg font-medium transition-colors ${activeTab === 'analysis' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                        style={{
+                            padding: "6px 16px",
+                            borderRadius: "8px",
+                            border: "none",
+                            background: activeTab === 'analysis' ? 'var(--primary)' : 'transparent',
+                            color: activeTab === 'analysis' ? '#fff' : 'var(--text-muted)',
+                            fontWeight: "600",
+                            fontSize: "0.85rem",
+                            cursor: "pointer",
+                            transition: "all 0.2s"
+                        }}
                     >
-                        Resume Analysis
+                        ATS Analysis
                     </button>
                     <button 
                         onClick={() => setActiveTab('matcher')}
-                        className={`px-6 py-2 rounded-lg font-medium transition-colors ${activeTab === 'matcher' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                        style={{
+                            padding: "6px 16px",
+                            borderRadius: "8px",
+                            border: "none",
+                            background: activeTab === 'matcher' ? 'var(--primary)' : 'transparent',
+                            color: activeTab === 'matcher' ? '#fff' : 'var(--text-muted)',
+                            fontWeight: "600",
+                            fontSize: "0.85rem",
+                            cursor: "pointer",
+                            transition: "all 0.2s"
+                        }}
                     >
                         Job Matcher
                     </button>
@@ -155,122 +234,376 @@ const ResumeManagement = () => {
 
             {activeTab === 'analysis' && (
                 <>
-                    <div className="glass-card p-6 rounded-2xl">
-                        <h3 className="text-xl font-semibold mb-4 text-white">Upload New Resume</h3>
-                        <form onSubmit={handleUpload} className="flex gap-4 items-center">
+                    {/* Upload Card */}
+                    <div className="glass-card" style={{
+                        padding: "24px",
+                        borderRadius: "16px",
+                        border: "1px solid var(--card-border)",
+                        background: "var(--bg-secondary)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "16px"
+                    }}>
+                        <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "700", color: "var(--text-main)" }}>
+                            📤 Upload Resume for Parsing
+                        </h3>
+                        <form 
+                            onSubmit={handleUpload} 
+                            onDragEnter={handleDrag}
+                            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+                        >
                             <input 
+                                ref={fileInputRef}
                                 type="file" 
                                 accept=".pdf"
                                 onChange={(e) => setFile(e.target.files[0])}
-                                className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-500/20 file:text-blue-300 hover:file:bg-blue-500/30 text-slate-300"
+                                style={{ display: "none" }}
                             />
-                            <button 
-                                type="submit" 
-                                disabled={!file || loading}
-                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-full transition-all"
+                            
+                            <div 
+                                onDragEnter={handleDrag}
+                                onDragOver={handleDrag}
+                                onDragLeave={handleDrag}
+                                onDrop={handleDrop}
+                                onClick={onButtonClick}
+                                style={{
+                                    border: `2px dashed ${dragActive ? 'var(--primary)' : 'var(--card-border)'}`,
+                                    borderRadius: "12px",
+                                    padding: "32px 20px",
+                                    textAlign: "center",
+                                    background: dragActive ? 'rgba(99, 102, 241, 0.05)' : 'rgba(255, 255, 255, 0.01)',
+                                    cursor: "pointer",
+                                    transition: "all 0.2s ease-in-out",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "12px",
+                                    minHeight: "150px"
+                                }}
                             >
-                                {loading ? 'Analyzing with AI...' : 'Upload & Analyze'}
-                            </button>
+                                {!file ? (
+                                    <>
+                                        <div style={{
+                                            width: "48px",
+                                            height: "48px",
+                                            borderRadius: "50%",
+                                            background: "rgba(99, 102, 241, 0.1)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            fontSize: "1.5rem",
+                                            color: "var(--primary)"
+                                        }}>
+                                            📄
+                                        </div>
+                                        <div>
+                                            <p style={{ margin: "0 0 4px 0", fontSize: "0.95rem", fontWeight: "700", color: "var(--text-main)" }}>
+                                                Drag & drop your PDF resume here
+                                            </p>
+                                            <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                                                or <span style={{ color: "var(--primary)", textDecoration: "underline", fontWeight: "600" }}>browse files</span> from your device
+                                            </p>
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                                            Only PDF files are supported
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div style={{
+                                            width: "48px",
+                                            height: "48px",
+                                            borderRadius: "50%",
+                                            background: "rgba(16, 185, 129, 0.1)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            fontSize: "1.5rem",
+                                            color: "var(--success)"
+                                        }}>
+                                            ✅
+                                        </div>
+                                        <div>
+                                            <p style={{ margin: "0 0 4px 0", fontSize: "0.95rem", fontWeight: "700", color: "var(--text-main)", wordBreak: "break-all" }}>
+                                                {file.name}
+                                            </p>
+                                            <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                                                {(file.size / 1024).toFixed(1)} KB • Ready to analyze
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setFile(null);
+                                            }}
+                                            style={{
+                                                background: "rgba(239, 68, 68, 0.1)",
+                                                border: "none",
+                                                color: "var(--error)",
+                                                fontSize: "0.75rem",
+                                                fontWeight: "600",
+                                                cursor: "pointer",
+                                                padding: "6px 12px",
+                                                borderRadius: "6px",
+                                                transition: "background 0.2s"
+                                            }}
+                                        >
+                                            Remove file
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+
+                            {file && (
+                                <button 
+                                    type="submit" 
+                                    disabled={loading}
+                                    style={{
+                                        width: "100%",
+                                        padding: "0.75rem",
+                                        background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
+                                        color: "#fff",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        fontWeight: "700",
+                                        fontSize: "0.9rem",
+                                        cursor: "pointer",
+                                        transition: "opacity 0.2s",
+                                        opacity: loading ? 0.6 : 1,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "8px"
+                                    }}
+                                >
+                                    {loading ? (
+                                        <>
+                                            <span style={{ 
+                                                width: "16px", 
+                                                height: "16px", 
+                                                border: "2px solid #fff", 
+                                                borderRightColor: "transparent", 
+                                                borderRadius: "50%", 
+                                                display: "inline-block", 
+                                                animation: "spin 0.75s linear infinite" 
+                                            }}></span>
+                                            Analyzing with AI...
+                                        </>
+                                    ) : (
+                                        <>📤 Upload & Analyze Resume</>
+                                    )}
+                                </button>
+                            )}
                         </form>
                     </div>
 
-                    {latestResume && (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2 space-y-6">
-                                <div className="glass-card p-6 rounded-2xl">
-                                    <div className="flex justify-between items-center mb-6">
+                    {latestResume ? (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px", alignItems: "start" }}>
+                            
+                            {/* Left Column (Score Breakdown & Strengths) */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "24px", gridColumn: "span 2" }}>
+                                
+                                {/* ATS Score Card */}
+                                <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--card-border)" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid var(--card-border)", paddingBottom: "16px", marginBottom: "20px" }}>
                                         <div>
-                                            <h3 className="text-2xl font-bold text-white">ATS Analysis</h3>
-                                            <p className="text-slate-400 text-sm">Powered by Groq AI</p>
+                                            <h3 style={{ margin: 0, fontSize: "1.3rem", fontWeight: "800", color: "var(--text-main)" }}>ATS Score Overview</h3>
+                                            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600", textTransform: "uppercase" }}>Powered by Groq AI</span>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-4xl font-black text-blue-400">{latestResume.atsScore}<span className="text-xl text-slate-500">/100</span></div>
-                                            <div className="text-sm text-slate-400">Overall ATS Score</div>
+                                        <div style={{ textAlign: "right" }}>
+                                            <div style={{ fontSize: "2.2rem", fontWeight: "900", color: "var(--primary)", lineHeight: "1" }}>
+                                                {latestResume.atsScore}<span style={{ fontSize: "1rem", color: "var(--text-muted)" }}>/100</span>
+                                            </div>
+                                            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>Overall Assessment</span>
                                         </div>
                                     </div>
-                                    
-                                    <p className="text-slate-300 mb-6 italic">"{latestResume.summary}"</p>
 
-                                    <div className="bg-black/20 p-6 rounded-2xl mb-8 font-mono text-slate-300 border border-white/5">
-                                        <pre className="whitespace-pre-wrap leading-[2.5]">
-                                            {[
-                                                {label: 'Formatting', val: atsBreakdown.Formatting || 0},
-                                                {label: 'Grammar', val: atsBreakdown.Grammar || 0},
-                                                {label: 'Projects', val: atsBreakdown.Projects || 0},
-                                                {label: 'Skills', val: atsBreakdown.Skills || 0},
-                                                {label: 'Impact', val: atsBreakdown.Achievements || 0},
-                                                {label: 'Keywords', val: atsBreakdown.Keywords || 0},
-                                            ].map(score => {
-                                                const filledBlocks = Math.round(score.val / 10);
-                                                const emptyBlocks = 10 - filledBlocks;
-                                                const bar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
-                                                return `${score.label.padEnd(20)} ${bar} ${score.val}%`;
-                                            }).join('\n\n')}
-                                        </pre>
-                                    </div>
+                                    {latestResume.summary && (
+                                        <p style={{ margin: "0 0 24px 0", fontSize: "0.9rem", fontStyle: "italic", color: "var(--text-main)", background: "var(--bg-primary)", padding: "16px", borderRadius: "10px", lineHeight: "1.5" }}>
+                                            "{latestResume.summary}"
+                                        </p>
+                                    )}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <h4 className="text-emerald-400 font-medium mb-3 flex items-center gap-2">✓ Strengths</h4>
-                                            <ul className="space-y-2 text-slate-300 text-sm">
-                                                {strengths.map((s, i) => <li key={i} className="bg-emerald-500/10 px-3 py-2 rounded-lg">{s}</li>)}
-                                            </ul>
-                                        </div>
-                                        <div>
-                                            <h4 className="text-red-400 font-medium mb-3 flex items-center gap-2">✗ Weaknesses</h4>
-                                            <ul className="space-y-2 text-slate-300 text-sm">
-                                                {weaknesses.map((s, i) => <li key={i} className="bg-red-500/10 px-3 py-2 rounded-lg">{s}</li>)}
-                                            </ul>
-                                        </div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "20px" }}>
+                                        {[
+                                            {label: 'Formatting & Layout', val: atsBreakdown.Formatting || 0},
+                                            {label: 'Grammar & Tone', val: atsBreakdown.Grammar || 0},
+                                            {label: 'Projects & Experience', val: atsBreakdown.Projects || 0},
+                                            {label: 'Skills Match Rate', val: atsBreakdown.Skills || 0},
+                                            {label: 'Achievements & Impact', val: atsBreakdown.Achievements || 0},
+                                            {label: 'Keywords Coverage', val: atsBreakdown.Keywords || 0},
+                                        ].map((score, idx) => {
+                                            const val = Math.round(score.val);
+                                            let barColor = "var(--success)";
+                                            if (val < 60) {
+                                                barColor = "var(--error)";
+                                            } else if (val < 80) {
+                                                barColor = "var(--warning)";
+                                            }
+                                            
+                                            return (
+                                                <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.82rem", fontWeight: "600" }}>
+                                                        <span style={{ color: "var(--text-main)" }}>{score.label}</span>
+                                                        <span style={{ color: barColor, fontWeight: "700" }}>{val}%</span>
+                                                    </div>
+                                                    <div style={{ height: "6px", width: "100%", background: "var(--divider)", borderRadius: "999px", overflow: "hidden" }}>
+                                                        <div style={{
+                                                            height: "100%",
+                                                            width: `${val}%`,
+                                                            background: barColor,
+                                                            borderRadius: "999px",
+                                                            transition: "width 1s ease-out"
+                                                        }} />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
-                                <div className="glass-card p-6 rounded-2xl">
-                                    <h3 className="text-xl font-semibold mb-4 text-white">AI Suggestions</h3>
-                                    <div className="space-y-3">
+                                {/* Strengths and Weaknesses Card */}
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "24px" }}>
+                                    
+                                    <div className="glass-card" style={{ padding: "20px", borderRadius: "16px", border: "1px solid var(--card-border)" }}>
+                                        <h4 style={{ margin: "0 0 12px 0", color: "var(--success)", fontSize: "0.9rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
+                                            ✓ Strengths
+                                        </h4>
+                                        <ul style={{ display: "flex", flexDirection: "column", gap: "8px", padding: 0, margin: 0, listStyle: "none" }}>
+                                            {strengths.map((s, i) => (
+                                                <li key={i} style={{ background: "rgba(16, 185, 129, 0.06)", border: "1px solid rgba(16, 185, 129, 0.15)", padding: "10px 12px", borderRadius: "8px", fontSize: "0.8rem", color: "var(--text-main)", lineHeight: "1.4" }}>
+                                                    {s}
+                                                </li>
+                                            ))}
+                                            {strengths.length === 0 && <li style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontStyle: "italic" }}>No specific strengths indexed.</li>}
+                                        </ul>
+                                    </div>
+
+                                    <div className="glass-card" style={{ padding: "20px", borderRadius: "16px", border: "1px solid var(--card-border)" }}>
+                                        <h4 style={{ margin: "0 0 12px 0", color: "var(--error)", fontSize: "0.9rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
+                                            ✗ Weaknesses
+                                        </h4>
+                                        <ul style={{ display: "flex", flexDirection: "column", gap: "8px", padding: 0, margin: 0, listStyle: "none" }}>
+                                            {weaknesses.map((s, i) => (
+                                                <li key={i} style={{ background: "rgba(239, 68, 68, 0.06)", border: "1px solid rgba(239, 68, 68, 0.15)", padding: "10px 12px", borderRadius: "8px", fontSize: "0.8rem", color: "var(--text-main)", lineHeight: "1.4" }}>
+                                                    {s}
+                                                </li>
+                                            ))}
+                                            {weaknesses.length === 0 && <li style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontStyle: "italic" }}>No specific gaps identified.</li>}
+                                        </ul>
+                                    </div>
+
+                                </div>
+
+                                {/* Improvement Suggestions */}
+                                <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--card-border)" }}>
+                                    <h3 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: "700", color: "var(--text-main)" }}>
+                                        💡 AI Feedback & Action Items
+                                    </h3>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                                         {improvementSuggestions.map((s, i) => (
-                                            <div key={i} className="flex gap-3 items-start bg-blue-500/10 p-4 rounded-xl border border-blue-500/20">
-                                                <span className="text-blue-400">💡</span>
-                                                <p className="text-slate-200 text-sm">{s}</p>
+                                            <div key={i} style={{
+                                                display: "flex",
+                                                gap: "12px",
+                                                alignItems: "flex-start",
+                                                background: "rgba(99, 102, 241, 0.05)",
+                                                border: "1px solid rgba(99, 102, 241, 0.15)",
+                                                padding: "16px",
+                                                borderRadius: "12px"
+                                            }}>
+                                                <span style={{ fontSize: "1rem" }}>💡</span>
+                                                <p style={{ margin: 0, color: "var(--text-main)", fontSize: "0.82rem", lineHeight: "1.5" }}>{s}</p>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
+
                             </div>
 
-                            <div className="space-y-6">
-                                <div className="glass-card p-6 rounded-2xl">
-                                    <h3 className="text-lg font-semibold mb-4 text-white">Skills Detected</h3>
-                                    <div className="flex flex-wrap gap-2">
+                            {/* Right Column (Skills & History) */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                                
+                                {/* Skills Found */}
+                                <div className="glass-card" style={{ padding: "20px", borderRadius: "16px", border: "1px solid var(--card-border)" }}>
+                                    <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: "700", color: "var(--text-main)" }}>
+                                        Skills Detected
+                                    </h3>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                                         {skillsFound.map((s, i) => (
-                                            <span key={i} className="px-3 py-1 bg-white/10 text-slate-300 text-sm rounded-full border border-white/5">{s}</span>
+                                            <span key={i} style={{
+                                                padding: "4px 10px",
+                                                background: "var(--nav-hover-bg)",
+                                                color: "var(--text-main)",
+                                                fontSize: "0.75rem",
+                                                borderRadius: "20px",
+                                                border: "1px solid var(--card-border)",
+                                                fontWeight: "600"
+                                            }}>{s}</span>
                                         ))}
+                                        {skillsFound.length === 0 && <span style={{ fontStyle: "italic", fontSize: "0.8rem", color: "var(--text-muted)" }}>None parsed.</span>}
                                     </div>
                                 </div>
 
-                                <div className="glass-card p-6 rounded-2xl">
-                                    <h3 className="text-lg font-semibold mb-4 text-white">Recommended Skills</h3>
-                                    <div className="flex flex-wrap gap-2">
+                                {/* Recommended Skills */}
+                                <div className="glass-card" style={{ padding: "20px", borderRadius: "16px", border: "1px solid var(--card-border)" }}>
+                                    <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: "700", color: "var(--text-main)" }}>
+                                        Recommended Skills
+                                    </h3>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                                         {recommendedSkills.map((s, i) => (
-                                            <span key={i} className="px-3 py-1 bg-amber-500/10 text-amber-300 text-sm rounded-full border border-amber-500/20">{s}</span>
+                                            <span key={i} style={{
+                                                padding: "4px 10px",
+                                                background: "rgba(245, 158, 11, 0.08)",
+                                                color: "var(--warning)",
+                                                fontSize: "0.75rem",
+                                                borderRadius: "20px",
+                                                border: "1px solid rgba(245, 158, 11, 0.2)",
+                                                fontWeight: "600"
+                                            }}>{s}</span>
                                         ))}
+                                        {recommendedSkills.length === 0 && <span style={{ fontStyle: "italic", fontSize: "0.8rem", color: "var(--text-muted)" }}>None recommended.</span>}
                                     </div>
                                 </div>
 
-                                <div className="glass-card p-6 rounded-2xl">
-                                    <h3 className="text-lg font-semibold mb-4 text-white">Resume History</h3>
-                                    <div className="space-y-3 overflow-y-auto max-h-64 pr-2">
+                                {/* History Logs */}
+                                <div className="glass-card" style={{ padding: "20px", borderRadius: "16px", border: "1px solid var(--card-border)" }}>
+                                    <h3 style={{ margin: "0 0 12px 0", fontSize: "0.95rem", fontWeight: "700", color: "var(--text-main)" }}>
+                                        Resume History
+                                    </h3>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "250px", overflowY: "auto" }} className="custom-scrollbar">
                                         {resumes.map(r => (
-                                            <div key={r.id} className="flex justify-between items-center p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
-                                                <div>
-                                                    <p className="text-slate-200 font-medium text-sm truncate w-32" title={r.fileName}>{r.fileName}</p>
-                                                    <p className="text-slate-400 text-xs">{new Date(r.uploadedDate).toLocaleDateString()}</p>
+                                            <div key={r.id} style={{
+                                                display: "flex",
+                                                justifyContent: "space-between",
+                                                alignItems: "center",
+                                                padding: "10px 12px",
+                                                background: "var(--nav-hover-bg)",
+                                                borderRadius: "10px",
+                                                border: "1px solid var(--card-border)"
+                                            }}>
+                                                <div style={{ overflow: "hidden" }}>
+                                                    <p style={{ margin: 0, fontWeight: "600", fontSize: "0.8rem", color: "var(--text-main)", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.fileName}>
+                                                        {r.fileName}
+                                                    </p>
+                                                    <span style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
+                                                        {new Date(r.uploadedDate).toLocaleDateString()}
+                                                    </span>
                                                 </div>
-                                                <div className="flex gap-1">
-                                                    <button onClick={() => handleDownload(r.id, r.fileName)} className="p-2 bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/40">
+                                                <div style={{ display: "flex", gap: "6px" }}>
+                                                    <button 
+                                                        onClick={() => handleDownload(r.id, r.fileName)} 
+                                                        style={{ background: "rgba(99, 102, 241, 0.12)", color: "var(--primary)", border: "none", borderRadius: "6px", width: "26px", height: "26px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                                        title="Download"
+                                                    >
                                                         ↓
                                                     </button>
-                                                    <button onClick={() => handleDelete(r.id)} className="p-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/40">
+                                                    <button 
+                                                        onClick={() => handleDelete(r.id)} 
+                                                        style={{ background: "rgba(239, 68, 68, 0.12)", color: "var(--error)", border: "none", borderRadius: "6px", width: "26px", height: "26px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                                        title="Delete"
+                                                    >
                                                         ×
                                                     </button>
                                                 </div>
@@ -278,102 +611,152 @@ const ResumeManagement = () => {
                                         ))}
                                     </div>
                                 </div>
+
                             </div>
+
+                        </div>
+                    ) : (
+                        <div className="glass-card" style={{
+                            textAlign: "center",
+                            padding: "48px 24px",
+                            borderRadius: "16px",
+                            border: "1px dashed var(--card-border)",
+                            color: "var(--text-muted)"
+                        }}>
+                            📤 No resumes analyzed yet. Upload your first PDF resume above to run ATS scoring!
                         </div>
                     )}
                 </>
             )}
 
             {activeTab === 'matcher' && (
-                <div className="space-y-6">
-                    <div className="glass-card p-6 rounded-2xl">
-                        <h3 className="text-xl font-bold text-white mb-4">Available Job Roles</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                    
+                    {/* Available Job Roles Card */}
+                    <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--card-border)" }}>
+                        <h3 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: "700", color: "var(--text-main)" }}>
+                            💼 Available Placement Job Openings
+                        </h3>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
                             {jobs.map(job => (
-                                <div key={job.id} className="bg-white/5 border border-white/10 p-5 rounded-xl flex flex-col justify-between">
+                                <div key={job.id} style={{
+                                    background: "var(--nav-hover-bg)",
+                                    border: "1px solid var(--card-border)",
+                                    padding: "20px",
+                                    borderRadius: "12px",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "space-between",
+                                    gap: "12px"
+                                }}>
                                     <div>
-                                        <h4 className="text-lg font-bold text-emerald-400">{job.title}</h4>
-                                        <p className="text-slate-400 text-sm mb-4">{job.companyName}</p>
-                                        <p className="text-slate-300 text-sm line-clamp-3 mb-6">{job.descriptionText}</p>
+                                        <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: "700", color: "var(--success)" }}>{job.title}</h4>
+                                        <p style={{ margin: "2px 0 8px 0", fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: "600" }}>{job.companyName}</p>
+                                        <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-main)", lineHeight: "1.4", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                                            {job.descriptionText}
+                                        </p>
                                     </div>
                                     <button 
                                         onClick={() => handleMatchJob(job.id)}
                                         disabled={matchingJobId === job.id}
-                                        className="w-full py-2 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 rounded-lg font-medium transition-colors border border-emerald-500/30"
+                                        style={{
+                                            width: "100%",
+                                            padding: "8px",
+                                            background: "rgba(16, 185, 129, 0.12)",
+                                            border: "1px solid rgba(16, 185, 129, 0.25)",
+                                            color: "#34d399",
+                                            borderRadius: "8px",
+                                            fontWeight: "700",
+                                            fontSize: "0.8rem",
+                                            cursor: "pointer",
+                                            transition: "all 0.2s"
+                                        }}
                                     >
                                         {matchingJobId === job.id ? 'Analyzing match...' : 'Match My Resume'}
                                     </button>
                                 </div>
                             ))}
                             {jobs.length === 0 && (
-                                <p className="text-slate-400 col-span-3 text-center py-8">No jobs available right now.</p>
+                                <p style={{ textAlign: "center", gridColumn: "span 3", color: "var(--text-muted)", padding: "24px" }}>
+                                    No placement drives open right now.
+                                </p>
                             )}
                         </div>
                     </div>
 
+                    {/* Match Result Overlay/Card */}
                     {matchResult && (
-                        <div className="glass-card p-8 rounded-2xl border border-emerald-500/30 animate-fade-in relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                        <div className="glass-card" style={{
+                            padding: "24px",
+                            borderRadius: "16px",
+                            border: "1px solid rgba(16, 185, 129, 0.3)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "24px",
+                            animation: "fadeIn 0.3s ease-out"
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: "800", color: "var(--text-main)" }}>🎯 Resume Match Report</h3>
                             
-                            <h3 className="text-2xl font-bold text-white mb-8 relative z-10">Match Result</h3>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
-                                <div className="col-span-1 flex flex-col items-center justify-center bg-white/5 p-6 rounded-2xl border border-white/5">
-                                    <div className="relative w-32 h-32 flex items-center justify-center">
-                                        <svg className="absolute w-full h-full transform -rotate-90">
-                                            <circle cx="64" cy="64" r="56" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="12" />
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "24px", alignItems: "center" }}>
+                                
+                                {/* Radial Score Meter */}
+                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "var(--bg-primary)", padding: "20px", borderRadius: "16px", border: "1px solid var(--card-border)" }}>
+                                    <div style={{ position: "relative", width: "120px", height: "120px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                        <svg style={{ position: "absolute", width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
+                                            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--card-border)" strokeWidth="8" />
                                             <circle 
-                                                cx="64" cy="64" r="56" 
+                                                cx="60" cy="60" r="50" 
                                                 fill="none" 
-                                                stroke={matchResult.matchScore >= 80 ? '#10b981' : matchResult.matchScore >= 50 ? '#f59e0b' : '#ef4444'} 
-                                                strokeWidth="12" 
-                                                strokeDasharray={2 * Math.PI * 56} 
-                                                strokeDashoffset={2 * Math.PI * 56 - (matchResult.matchScore / 100) * (2 * Math.PI * 56)} 
-                                                strokeLinecap="round" 
-                                                className="transition-all duration-1000 ease-out" 
+                                                stroke={matchResult.matchScore >= 80 ? 'var(--success)' : matchResult.matchScore >= 50 ? 'var(--warning)' : 'var(--error)'} 
+                                                strokeWidth="8" 
+                                                strokeDasharray={2 * Math.PI * 50} 
+                                                strokeDashoffset={2 * Math.PI * 50 - (matchResult.matchScore / 100) * (2 * Math.PI * 50)} 
+                                                strokeLinecap="round"
                                             />
                                         </svg>
-                                        <div className="text-center z-10">
-                                            <div className="text-3xl font-black text-white">{matchResult.matchScore}%</div>
+                                        <div style={{ zIndex: 10 }}>
+                                            <span style={{ fontSize: "1.85rem", fontWeight: "900", color: "var(--text-main)" }}>{matchResult.matchScore}%</span>
                                         </div>
                                     </div>
-                                    <div className="mt-4 text-center text-slate-400 font-medium">Match Score</div>
+                                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "700", marginTop: "12px", textTransform: "uppercase" }}>Matching Matrix Rate</span>
                                 </div>
 
-                                <div className="col-span-2 space-y-6">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                {/* Skills Alignment Grid */}
+                                <div style={{ display: "flex", flexDirection: "column", gap: "16px", gridColumn: "span 2" }}>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                                         <div>
-                                            <h4 className="text-emerald-400 font-medium mb-3 flex items-center gap-2">✓ Matched Skills</h4>
-                                            <div className="flex flex-wrap gap-2">
+                                            <h4 style={{ margin: "0 0 8px 0", color: "var(--success)", fontSize: "0.85rem", fontWeight: "700" }}>✓ Matched Skills</h4>
+                                            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                                                 {matchResult.matchedSkills.map((s, i) => (
-                                                    <span key={i} className="px-3 py-1 bg-emerald-500/10 text-emerald-300 text-sm rounded-full border border-emerald-500/20">{s}</span>
+                                                    <span key={i} style={{ padding: "4px 8px", background: "rgba(16, 185, 129, 0.08)", color: "#34d399", fontSize: "0.72rem", borderRadius: "20px", border: "1px solid rgba(16, 185, 129, 0.2)", fontWeight: "600" }}>{s}</span>
                                                 ))}
-                                                {matchResult.matchedSkills.length === 0 && <span className="text-slate-500 italic text-sm">None detected</span>}
+                                                {matchResult.matchedSkills.length === 0 && <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontSize: "0.8rem" }}>None found</span>}
                                             </div>
                                         </div>
                                         <div>
-                                            <h4 className="text-red-400 font-medium mb-3 flex items-center gap-2">✗ Missing Skills</h4>
-                                            <div className="flex flex-wrap gap-2">
+                                            <h4 style={{ margin: "0 0 8px 0", color: "var(--error)", fontSize: "0.85rem", fontWeight: "700" }}>✗ Missing Skills</h4>
+                                            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                                                 {matchResult.missingSkills.map((s, i) => (
-                                                    <span key={i} className="px-3 py-1 bg-red-500/10 text-red-300 text-sm rounded-full border border-red-500/20">{s}</span>
+                                                    <span key={i} style={{ padding: "4px 8px", background: "rgba(239, 68, 68, 0.08)", color: "#f87171", fontSize: "0.72rem", borderRadius: "20px", border: "1px solid rgba(239, 68, 68, 0.2)", fontWeight: "600" }}>{s}</span>
                                                 ))}
-                                                {matchResult.missingSkills.length === 0 && <span className="text-slate-500 italic text-sm">None missing</span>}
+                                                {matchResult.missingSkills.length === 0 && <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontSize: "0.8rem" }}>None missing</span>}
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <div className="pt-4 border-t border-white/10">
-                                        <h4 className="text-amber-400 font-medium mb-3 flex items-center gap-2">💡 AI Suggestions to Improve Match</h4>
-                                        <ul className="space-y-2">
+                                    <div style={{ paddingTop: "16px", borderTop: "1px solid var(--card-border)" }}>
+                                        <h4 style={{ margin: "0 0 8px 0", color: "var(--warning)", fontSize: "0.85rem", fontWeight: "700" }}>💡 Skill Gaps & Alignment Suggestions</h4>
+                                        <ul style={{ display: "flex", flexDirection: "column", gap: "6px", padding: 0, margin: 0, listStyle: "none" }}>
                                             {matchResult.suggestions.map((s, i) => (
-                                                <li key={i} className="flex items-start gap-3 p-3 bg-white/5 rounded-xl text-slate-300 text-sm border border-white/5">
-                                                    <span className="text-amber-500 shrink-0">⚡</span>
+                                                <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "8px", padding: "10px 12px", background: "var(--bg-primary)", border: "1px solid var(--card-border)", borderRadius: "8px", fontSize: "0.8rem", color: "var(--text-main)", lineHeight: "1.4" }}>
+                                                    <span style={{ color: "var(--warning)" }}>⚡</span>
                                                     <span>{s}</span>
                                                 </li>
                                             ))}
                                         </ul>
                                     </div>
                                 </div>
+
                             </div>
                         </div>
                     )}

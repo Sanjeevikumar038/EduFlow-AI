@@ -3,14 +3,16 @@ import { getActiveSession, markAttendance, getStudentAnalytics } from "../servic
 import { useNavigate } from "react-router-dom";
 import { Html5Qrcode } from "html5-qrcode";
 import AnalyticsCard from "../components/AnalyticsCard";
-import { getStudentTimetable, getCurrentClassStatus } from "../services/timetableService";
+import { getStudentTimetable, getCurrentClassStatus, getActiveFreeActivityChallenge, submitFreeActivitySolution, runFreeActivitySolution, getCodingHistory } from "../services/timetableService";
 import SimulationControl from "../components/SimulationControl";
+import StudentDashboardHome from "./student/StudentDashboardHome";
 import { submitLeaveRequest, getMyLeaveRequests } from "../services/leaveService";
 import ResumeManagement from "../components/career/ResumeManagement";
 import CodingDashboard from "../components/career/CodingDashboard";
 import InterviewDashboard from "../components/career/InterviewDashboard";
 import CareerDashboard from "../components/career/CareerDashboard";
 import NotificationBell from "../components/career/NotificationBell";
+import API_BASE from "../services/api";
 
 function AttendanceTrendChart({ trendData }) {
   if (!trendData || trendData.length === 0) {
@@ -31,8 +33,8 @@ function AttendanceTrendChart({ trendData }) {
   const ySpan = height - paddingY * 2;
 
   const coordinates = trendData.map((d, i) => {
-    const x = pointsCount > 1 
-      ? paddingX + (i / (pointsCount - 1)) * xSpan 
+    const x = pointsCount > 1
+      ? paddingX + (i / (pointsCount - 1)) * xSpan
       : width / 2;
     const y = height - paddingY - (d.percentage / 100) * ySpan;
     return { x, y, date: d.date, pct: d.percentage };
@@ -53,7 +55,7 @@ function AttendanceTrendChart({ trendData }) {
 
   return (
     <div style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem", width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.2)" }}>
-      <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff", fontSize: "1.2rem", fontFamily: "var(--font-heading)", fontWeight: "600", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
+      <h3 style={{ margin: "0 0 1.5rem 0", color: "var(--text-main)", fontSize: "1.2rem", fontFamily: "var(--font-heading)", fontWeight: "600", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
         📈 Attendance Trend
       </h3>
       <div style={{ position: "relative", width: "100%", flexGrow: 1 }}>
@@ -64,17 +66,17 @@ function AttendanceTrendChart({ trendData }) {
               <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.0" />
             </linearGradient>
           </defs>
-          
+
           <line x1={paddingX} y1={paddingY} x2={width - paddingX} y2={paddingY} stroke="rgba(255,255,255,0.06)" strokeDasharray="3,3" />
           <line x1={paddingX} y1={paddingY + ySpan / 2} x2={width - paddingX} y2={paddingY + ySpan / 2} stroke="rgba(255,255,255,0.06)" strokeDasharray="3,3" />
           <line x1={paddingX} y1={height - paddingY} x2={width - paddingX} y2={height - paddingY} stroke="rgba(255,255,255,0.1)" />
-          
+
           <text x={paddingX - 10} y={paddingY + 4} fill="var(--text-muted)" fontSize="9" textAnchor="end" fontWeight="500">100%</text>
           <text x={paddingX - 10} y={paddingY + ySpan / 2 + 4} fill="var(--text-muted)" fontSize="9" textAnchor="end" fontWeight="500">50%</text>
           <text x={paddingX - 10} y={height - paddingY + 4} fill="var(--text-muted)" fontSize="9" textAnchor="end" fontWeight="500">0%</text>
 
           {fillPath && <path d={fillPath} fill="url(#sparkline-grad)" />}
-          
+
           {linePath && (
             <path
               d={linePath}
@@ -135,12 +137,68 @@ function StudentDashboard() {
   const [simParams, setSimParams] = useState(null);
   const [timetableLoading, setTimetableLoading] = useState(false);
 
+  // Free Activity & Coding Challenge states
+  const [freeActivityChallenge, setFreeActivityChallenge] = useState(null);
+  const [studentCode, setStudentCode] = useState("");
+  const [studentLanguage, setStudentLanguage] = useState("python");
+  const [submissionStatus, setSubmissionStatus] = useState("NONE"); // NONE, SUBMITTING, PASSED, FAILED
+  const [submissionLogs, setSubmissionLogs] = useState("");
+  const [aiReviewFeedback, setAiReviewFeedback] = useState("");
+  const [challengeAttendanceStatus, setChallengeAttendanceStatus] = useState("PENDING");
+  const [challengeLoading, setChallengeLoading] = useState(false);
+  const [codingHistory, setCodingHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const fetchCodingHistory = async () => {
+    if (!token) return;
+    setHistoryLoading(true);
+    try {
+      const res = await getCodingHistory(token);
+      setCodingHistory(res.data || []);
+    } catch (err) {
+      console.error("Error fetching coding history:", err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   // Leave Request States
   const [myLeaveRequests, setMyLeaveRequests] = useState([]);
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [leaveSubmitting, setLeaveSubmitting] = useState(false);
   const [leaveForm, setLeaveForm] = useState({ type: "OD", fromDate: "", toDate: "", reason: "" });
   const [leaveFormError, setLeaveFormError] = useState("");
+
+  // Calculate unique subjects for reference panel
+  const subjectMappingInfo = {
+    "AGAI": { code: "AGAI", name: "Agentic AI", staff: "Mrs. Divya" },
+    "SE": { code: "SE", name: "Software Engineering", staff: "Mr. Vimit Varghesse" },
+    "DTF": { code: "DTF", name: "Design Thinking Fundamentals", staff: "Mr. Sreeraj" },
+    "DCN": { code: "DCN", name: "Data Communication Networks", staff: "Mr. Pradeep" },
+  };
+
+  const uniqueSubjects = [];
+  const seen = new Set();
+  if (timetableData && Array.isArray(timetableData)) {
+    timetableData.forEach(entry => {
+      if (entry.subject && !seen.has(entry.subject)) {
+        seen.add(entry.subject);
+        const codeUpper = entry.subject.toUpperCase().trim();
+        const details = subjectMappingInfo[codeUpper] || {
+          code: entry.subject,
+          name: entry.subject === "OS" ? "Operating Systems" :
+            entry.subject === "DSA" ? "Data Structures & Algorithms" :
+              entry.subject === "DBMS" ? "Database Management Systems" :
+                entry.subject === "COA" ? "Computer Organization & Architecture" :
+                  entry.subject === "OOPs" ? "Object Oriented Programming" :
+                    entry.subject === "WebTech" ? "Web Technology" : entry.subject,
+          staff: entry.faculty?.name || "Unassigned"
+        };
+        uniqueSubjects.push(details);
+      }
+    });
+    uniqueSubjects.sort((a, b) => a.code.localeCompare(b.code));
+  }
 
   // Career Dashboard States
   const [careerData, setCareerData] = useState(null);
@@ -177,7 +235,7 @@ function StudentDashboard() {
   const fetchCareerData = async () => {
     if (!token) return;
     try {
-      const res = await fetch('http://localhost:8080/api/career/dashboard', {
+      const res = await fetch(`${API_BASE}/api/career/dashboard`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -208,6 +266,58 @@ function StudentDashboard() {
     }
   }, [token, simParams]);
 
+  useEffect(() => {
+    const isFreeActivity = currentClassStatus &&
+      currentClassStatus.status === "CLASS" &&
+      currentClassStatus.currentClass &&
+      currentClassStatus.currentClass.subject === "FREE_ACTIVITY";
+      
+    const isCodingPractice = isFreeActivity &&
+      currentClassStatus.currentClass.activityName === "Coding Practice";
+
+    if (isCodingPractice && !freeActivityChallenge && !challengeLoading && token) {
+      const getSimulatedDate = (weekdayName) => {
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const targetIndex = daysOfWeek.indexOf(weekdayName);
+        if (targetIndex === -1) return new Date().toISOString().split("T")[0];
+        const today = new Date();
+        const todayIndex = today.getDay();
+        const diff = targetIndex - todayIndex;
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + diff);
+        return targetDate.toISOString().split("T")[0];
+      };
+
+      const day = simParams?.simulatedDay || new Date().toLocaleDateString("en-US", { weekday: "long" });
+      const date = getSimulatedDate(day);
+      const dept = localStorage.getItem("department") || "M.Tech CSE";
+      
+      const fetchChallenge = async () => {
+        setChallengeLoading(true);
+        try {
+          const res = await getActiveFreeActivityChallenge(date, dept, token);
+          setFreeActivityChallenge(res.data);
+          if (res.data) {
+            setStudentCode(res.data.boilerplatePython || "");
+            setStudentLanguage("python");
+          }
+        } catch (err) {
+          console.error("Error fetching free activity challenge:", err);
+        } finally {
+          setChallengeLoading(false);
+        }
+      };
+      
+      fetchChallenge();
+    } else if (!isCodingPractice) {
+      setFreeActivityChallenge(null);
+      setStudentCode("");
+      setSubmissionStatus("NONE");
+      setSubmissionLogs("");
+      setAiReviewFeedback("");
+    }
+  }, [currentClassStatus, simParams, token]);
+
   // Attendance States
   const [activeSession, setActiveSession] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -237,6 +347,7 @@ function StudentDashboard() {
 
   useEffect(() => {
     if (activeTab === "leave") fetchMyLeaveRequests();
+    if (activeTab === "coding-history") fetchCodingHistory();
   }, [activeTab, token]);
 
   const handleLeaveFormChange = (field, value) => {
@@ -412,7 +523,7 @@ function StudentDashboard() {
         showFeedback("Scanned QR code is for a different class session!", "error");
         return;
       }
-      
+
       const otp = parts[3];
       submitAttendance(otp);
     } else {
@@ -447,6 +558,110 @@ function StudentDashboard() {
       showFeedback(error.response?.data || "Failed to mark attendance.", "error");
     } finally {
       setMarkingLoading(false);
+    }
+  };
+
+  const handleRunChallenge = async () => {
+    if (!freeActivityChallenge) return;
+    setSubmissionStatus("SUBMITTING");
+    setSubmissionLogs("Compiling and executing code in run mode...");
+    try {
+      const payload = {
+        code: studentCode,
+        language: studentLanguage,
+        questionBankId: freeActivityChallenge.id
+      };
+      const res = await runFreeActivitySolution(payload, token);
+      const tcResults = res.data;
+      let logs = "Compilation/Execution results (Run Mode):\n";
+      let allPassed = true;
+      tcResults.forEach((tc, idx) => {
+        const passed = tc.passed;
+        if (!passed) allPassed = false;
+        logs += `Test case ${idx + 1}: Input [${tc.input}] -> Expected [${tc.expected}], Actual [${tc.output || "No output"}] (${passed ? "PASSED" : "FAILED"})\n`;
+        if (tc.error) {
+          logs += `Error details: ${tc.error}\n`;
+        }
+      });
+      setSubmissionStatus("NONE");
+      setSubmissionLogs(logs);
+      showFeedback(allPassed ? "All test cases passed (Run)!" : "Some test cases failed (Run).", allPassed ? "success" : "warning");
+    } catch (err) {
+      setSubmissionStatus("NONE");
+      setSubmissionLogs(err.response?.data || "Execution error: compilation failed.");
+      showFeedback("Failed to run code.", "error");
+    }
+  };
+
+  const handleSubmitChallenge = async () => {
+    if (!freeActivityChallenge) return;
+    setSubmissionStatus("SUBMITTING");
+    setSubmissionLogs("Compiling and executing test cases...");
+    setAiReviewFeedback("");
+
+    try {
+      const getSimulatedDate = (weekdayName) => {
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const targetIndex = daysOfWeek.indexOf(weekdayName);
+        if (targetIndex === -1) return new Date().toISOString().split("T")[0];
+        const today = new Date();
+        const todayIndex = today.getDay();
+        const diff = targetIndex - todayIndex;
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + diff);
+        return targetDate.toISOString().split("T")[0];
+      };
+
+      const day = simParams?.simulatedDay || new Date().toLocaleDateString("en-US", { weekday: "long" });
+      const date = getSimulatedDate(day);
+      const dept = localStorage.getItem("department") || "M.Tech CSE";
+      
+      const payload = {
+        date: date,
+        code: studentCode,
+        language: studentLanguage,
+        department: dept,
+        simulatedDay: simParams?.simulatedDay || "",
+        simulatedTime: simParams?.simulatedTime || ""
+      };
+
+      const res = await submitFreeActivitySolution(payload, token);
+      const data = res.data;
+
+      let tcResults = [];
+      try {
+        tcResults = JSON.parse(data.testCaseResultsJson);
+      } catch (e) {}
+
+      let logs = "Compilation successful.\n";
+      tcResults.forEach((tc, idx) => {
+        logs += `Test case ${idx + 1}: Input [${tc.input}] -> Expected [${tc.expected}], Actual [${tc.output}] (${tc.passed ? "PASSED" : "FAILED"})\n`;
+        if (tc.error) {
+          logs += `Error details: ${tc.error}\n`;
+        }
+      });
+
+      if (data.allPassed) {
+        setSubmissionStatus("PASSED");
+        logs += "\nAll test cases passed! Attendance automatically marked PRESENT.";
+        setChallengeAttendanceStatus("PRESENT");
+        showFeedback("Challenge Solved! Attendance marked PRESENT.");
+      } else {
+        setSubmissionStatus("FAILED");
+        logs += "\nSome test cases failed. Attendance status: PENDING faculty review.";
+        setChallengeAttendanceStatus("PENDING");
+        showFeedback("Some test cases failed. Attendance is pending review.", "error");
+      }
+
+      setSubmissionLogs(logs);
+      setAiReviewFeedback(data.aiFeedback);
+      
+      // Refresh history
+      fetchCodingHistory();
+    } catch (err) {
+      setSubmissionStatus("FAILED");
+      setSubmissionLogs(err.response?.data || "Compilation failed: command line execution error.");
+      showFeedback(err.response?.data || "Failed to submit code.", "error");
     }
   };
 
@@ -517,20 +732,35 @@ function StudentDashboard() {
 
   const renderGridCell = (day, period) => {
     const entry = timetableData.find(e => e.dayOfWeek === day && e.period === period);
-    const isActiveCell = currentClassStatus && 
-      currentClassStatus.status === "CLASS" && 
-      currentClassStatus.periodNumber === period && 
-      (simParams?.simulatedDay 
-        ? simParams.simulatedDay === day 
+    const isActiveCell = currentClassStatus &&
+      currentClassStatus.status === "CLASS" &&
+      currentClassStatus.periodNumber === period &&
+      (simParams?.simulatedDay
+        ? simParams.simulatedDay === day
         : new Date().toLocaleDateString("en-US", { weekday: "long" }) === day);
 
     const hasClass = entry && entry.subject && entry.subject.trim() !== "";
-    const subject = hasClass ? entry.subject : "Free Hour";
-    const faculty = hasClass && entry.faculty ? entry.faculty.name : "";
+    const isFreeActivity = entry && entry.subject === "FREE_ACTIVITY";
+    
+    let subject = "Free Hour";
+    let faculty = "";
+    if (isFreeActivity) {
+      subject = entry.activityName ? `Free Activity Period (${entry.activityName})` : "Free Activity Period";
+    } else if (hasClass) {
+      subject = entry.subject;
+      faculty = entry.faculty ? entry.faculty.name : "";
+    }
+
+    let cellBg = "rgba(30, 41, 59, 0.1)";
+    let borderStyle = "1px solid rgba(255, 255, 255, 0.06)";
+    if (isFreeActivity) {
+      cellBg = "rgba(16, 185, 129, 0.08)";
+      borderStyle = "1px dashed rgba(16, 185, 129, 0.3)";
+    }
 
     return (
-      <td key={period} className={`grid-class-cell ${isActiveCell ? "active-cell" : ""} ${!hasClass ? "free-cell" : ""}`}>
-        <div className="cell-subject">{subject}</div>
+      <td key={period} className={`grid-class-cell ${isActiveCell ? "active-cell" : ""} ${(!hasClass && !isFreeActivity) ? "free-cell" : ""}`} style={{ background: cellBg, border: borderStyle }}>
+        <div className="cell-subject" style={{ color: isFreeActivity ? "var(--success)" : undefined, fontWeight: isFreeActivity ? "600" : undefined }}>{subject}</div>
         {faculty && <div className="cell-faculty">{faculty}</div>}
       </td>
     );
@@ -636,6 +866,22 @@ function StudentDashboard() {
           📋 Leave / OD
         </button>
         <button
+          onClick={() => setActiveTab("coding-history")}
+          style={{
+            background: activeTab === "coding-history" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
+            color: "#fff",
+            border: activeTab === "coding-history" ? "none" : "1px solid var(--card-border)",
+            borderRadius: "8px",
+            padding: "0.75rem 1.5rem",
+            fontFamily: "var(--font-heading)",
+            fontWeight: "600",
+            cursor: "pointer",
+            transition: "all 0.3s ease"
+          }}
+        >
+          📜 Coding History
+        </button>
+        <button
           onClick={() => setActiveTab("resume")}
           style={{
             background: activeTab === "resume" ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)" : "rgba(31, 41, 55, 0.4)",
@@ -702,141 +948,13 @@ function StudentDashboard() {
       </div>
 
       {activeTab === "overview" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem", width: "100%" }}>
-          {/* Reusable Analytics Score Cards Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem", width: "100%" }}>
-            <AnalyticsCard
-              title="Attendance"
-              score={studentAnalytics?.overallAttendancePercentage ?? 0}
-              status={studentAnalytics?.attendanceStatus ?? "Needs Improvement"}
-              icon="📅"
-              subText={`${studentAnalytics?.presentClasses ?? 0} of ${(studentAnalytics?.presentClasses ?? 0) + (studentAnalytics?.absentClasses ?? 0)} classes`}
-              onClick={() => setActiveTab("attendance")}
-            />
-            <AnalyticsCard
-              title="Resume Score"
-              score={careerData ? (careerData.resumeScore * 4) : 0}
-              status={careerData?.resumeScore >= 20 ? "Excellent" : careerData?.resumeScore >= 15 ? "Good" : "Needs Imp."}
-              icon="📄"
-              subText={careerData?.resumeScore >= 15 ? "Strong profile" : "Optimization advised"}
-              onClick={() => setActiveTab("resume")}
-            />
-            <AnalyticsCard
-              title="Interview Score"
-              score={careerData ? (careerData.interviewScore * 4) : 0}
-              status={careerData?.interviewScore >= 20 ? "Excellent" : careerData?.interviewScore >= 15 ? "Good" : "Needs Imp."}
-              icon="💬"
-              subText={`${careerData?.totalMockSessions ?? 0} mock sessions completed`}
-              onClick={() => setActiveTab("interview")}
-            />
-            <AnalyticsCard
-              title="Coding Score"
-              score={careerData ? (careerData.codingScore * 4) : 0}
-              status={careerData?.codingScore >= 20 ? "Excellent" : careerData?.codingScore >= 15 ? "Good" : "Needs Imp."}
-              icon="💻"
-              subText={`${careerData?.totalCodingSolved ?? 0} assessments solved`}
-              onClick={() => setActiveTab("coding")}
-            />
-            <AnalyticsCard
-              title="Career Readiness"
-              score={careerData?.overallCareerScore ?? 0}
-              status={careerData?.status ?? "Needs Imp."}
-              icon="🏆"
-              subText="Overall Readiness Score"
-              onClick={() => setActiveTab("career")}
-            />
-          </div>
-
-          {/* Low Attendance Alert Banner */}
-          {studentAnalytics?.lowAttendanceWarning && (
-            <div style={{
-              background: studentAnalytics.alertLevel === "CRITICAL" ? "rgba(239, 68, 68, 0.12)" : "rgba(245, 158, 11, 0.12)",
-              border: `1px solid ${studentAnalytics.alertLevel === "CRITICAL" ? "rgba(239, 68, 68, 0.4)" : "rgba(245, 158, 11, 0.4)"}`,
-              borderRadius: "14px", padding: "1.25rem 1.5rem", animation: "fadeIn 0.4s ease",
-              display: "flex", alignItems: "center", gap: "1rem"
-            }}>
-              <span style={{ fontSize: "1.8rem" }}>{studentAnalytics.alertLevel === "CRITICAL" ? "⛔" : "⚠️"}</span>
-              <div>
-                <div style={{ fontWeight: "700", fontSize: "1rem", color: studentAnalytics.alertLevel === "CRITICAL" ? "var(--error)" : "var(--warning)", marginBottom: "0.2rem" }}>
-                  {studentAnalytics.alertLevel} Attendance Alert
-                </div>
-                <div style={{ color: "var(--text-main)", fontSize: "0.88rem" }}>{studentAnalytics.alertMessage}</div>
-              </div>
-            </div>
-          )}
-
-          {/* Detailed Attendance Section */}
-          <div style={{ display: "flex", gap: "2rem", flexDirection: "row", flexWrap: "wrap", width: "100%" }}>
-            
-            {/* Left Column: Subject-wise breakdown & stats */}
-            <div style={{ flex: "1 1 450px", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-              <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem", height: "100%" }}>
-                <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff", fontSize: "1.2rem", fontFamily: "var(--font-heading)", fontWeight: "600", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
-                  📚 Subject-wise Attendance
-                </h3>
-
-                {analyticsLoading ? (
-                  <div style={{ padding: "3rem 0", color: "var(--text-muted)", textAlign: "center" }}>
-                    Loading analytics data...
-                  </div>
-                ) : studentAnalytics?.subjectWiseAttendance && studentAnalytics.subjectWiseAttendance.length > 0 ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-                    {studentAnalytics.subjectWiseAttendance.map((sub, idx) => (
-                      <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", fontWeight: "600", alignItems: "center" }}>
-                          <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                            {sub.subject}
-                            {sub.isLow && <span title="Low Attendance" style={{ fontSize: "1rem", lineHeight: 1 }}>⚠️</span>}
-                          </span>
-                          <span style={{ color: "var(--primary)" }}>{sub.attendancePercentage.toFixed(1)}%</span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                          <div style={{ flexGrow: 1, height: "8px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "4px", overflow: "hidden" }}>
-                            <div style={{
-                              width: `${sub.attendancePercentage}%`,
-                              height: "100%",
-                              background: sub.attendancePercentage >= 95 
-                                ? "linear-gradient(90deg, #10b981 0%, #059669 100%)" 
-                                : sub.attendancePercentage >= 85 
-                                ? "linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)" 
-                                : "linear-gradient(90deg, #ef4444 0%, #dc2626 100%)",
-                              borderRadius: "4px"
-                            }} />
-                          </div>
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", minWidth: "55px", textAlign: "right" }}>
-                            {sub.presentClasses} / {sub.presentClasses + sub.absentClasses}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ padding: "3rem 0", color: "var(--text-muted)", textAlign: "center", fontStyle: "italic" }}>
-                    No subject attendance logged yet.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Right Column: Attendance Trend Graph */}
-            <div style={{ flex: "1 1 450px" }}>
-              {analyticsLoading ? (
-                <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-                  Loading trend data...
-                </div>
-              ) : (
-                <AttendanceTrendChart trendData={studentAnalytics?.attendanceTrend} />
-              )}
-            </div>
-            
-          </div>
-        </div>
+        <StudentDashboardHome />
       )}
 
       {activeTab === "attendance" && (
         /* Attendance Tab Layout */
         <div style={{ display: "flex", gap: "2rem", flexDirection: "row", flexWrap: "wrap", width: "100%" }}>
-          
+
           {/* Left Panel: Active Session Detail */}
           <div style={{ flex: "1 1 450px" }}>
             {activeSession ? (
@@ -1034,7 +1152,7 @@ function StudentDashboard() {
                         disabled={markingLoading || !coords}
                         className="auth-btn"
                         style={{
-                          background: coords 
+                          background: coords
                             ? "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)"
                             : "rgba(255, 255, 255, 0.05)",
                           width: "100%",
@@ -1100,40 +1218,213 @@ function StudentDashboard() {
                 </div>
 
                 {currentClassStatus.status === "CLASS" && currentClassStatus.currentClass ? (
-                  <div>
-                    <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.5rem", color: "#fff" }}>
-                      {currentClassStatus.currentClass.subject}
-                    </h3>
-                    <p style={{ color: "var(--text-muted)", margin: "0 0 1.5rem 0", fontSize: "0.9rem" }}>
-                      Instructor: <span style={{ color: "#fff" }}>{currentClassStatus.currentClass.faculty?.name || "Unassigned"}</span>
-                    </p>
+                  currentClassStatus.currentClass.subject === "FREE_ACTIVITY" ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                      <h3 style={{ margin: 0, fontSize: "1.4rem", color: "var(--success)" }}>
+                        🌟 Free Activity Period
+                      </h3>
+                      <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "0.9rem" }}>
+                        Assigned Activity: <span style={{ color: "#fff", fontWeight: "700" }}>{currentClassStatus.currentClass.activityName || "Open Activity"}</span>
+                      </p>
 
-                    {/* Progress Bar */}
-                    <div style={{ marginBottom: "0.5rem" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.4rem" }}>
-                        <span>Time elapsed: {currentClassStatus.elapsedMinutes} mins</span>
-                        <span>{currentClassStatus.timeRemainingMinutes} mins left</span>
+                      {/* Countdown Timer */}
+                      <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.75rem", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                          <span>Time Remaining:</span>
+                          <span style={{ color: "var(--warning)", fontWeight: "700" }}>{currentClassStatus.timeRemainingMinutes} mins left</span>
+                        </div>
                       </div>
-                      <div style={{ height: "8px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "4px", overflow: "hidden" }}>
-                        <div style={{
-                          width: `${(currentClassStatus.elapsedMinutes / currentClassStatus.totalPeriodMinutes) * 100}%`,
-                          height: "100%",
-                          background: "linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)"
-                        }}></div>
+
+                      {/* Attendance Status */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.03)", padding: "0.75rem", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Attendance Status:</span>
+                        <span style={{
+                          background: challengeAttendanceStatus === "PRESENT" ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                          color: challengeAttendanceStatus === "PRESENT" ? "var(--success)" : "var(--warning)",
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          fontSize: "0.75rem",
+                          fontWeight: "700"
+                        }}>
+                          {challengeAttendanceStatus}
+                        </span>
+                      </div>
+
+                      {/* Coding challenge logic */}
+                      {currentClassStatus.currentClass.activityName === "Coding Practice" ? (
+                        freeActivityChallenge ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "0.5rem" }}>
+                            <div style={{ background: "rgba(99, 102, 241, 0.05)", border: "1px solid rgba(99, 102, 241, 0.2)", borderRadius: "12px", padding: "1rem" }}>
+                              <h4 style={{ margin: "0 0 0.5rem 0", color: "var(--primary)" }}>💻 Challenge: {freeActivityChallenge.title}</h4>
+                              <p style={{ margin: 0, fontSize: "0.85rem", color: "#e2e8f0", whiteSpace: "pre-line" }}>
+                                {freeActivityChallenge.description}
+                              </p>
+                            </div>
+
+                            {/* Read-Only Status Banner */}
+                            {challengeAttendanceStatus === "PRESENT" && (
+                              <div style={{ background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "8px", padding: "10px", color: "var(--success)", fontSize: "0.85rem", fontWeight: "600", textAlign: "center" }}>
+                                🎉 Challenge successfully solved! Attendance marked PRESENT. Workspace is now read-only.
+                              </div>
+                            )}
+                            {challengeAttendanceStatus !== "PRESENT" && currentClassStatus && currentClassStatus.timeRemainingMinutes <= 0 && (
+                              <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "8px", padding: "10px", color: "var(--error)", fontSize: "0.85rem", fontWeight: "600", textAlign: "center" }}>
+                                ⏳ Time has expired for this period. Workspace is now read-only.
+                              </div>
+                            )}
+
+                            {/* Language Selector */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Select Language</label>
+                              <select
+                                className="input-field"
+                                value={studentLanguage}
+                                disabled={challengeAttendanceStatus === "PRESENT" || (currentClassStatus && currentClassStatus.timeRemainingMinutes <= 0)}
+                                onChange={(e) => {
+                                  setStudentLanguage(e.target.value);
+                                  if (e.target.value === "python") setStudentCode(freeActivityChallenge.boilerplatePython || "");
+                                  else if (e.target.value === "java") setStudentCode(freeActivityChallenge.boilerplateJava || "");
+                                  else if (e.target.value === "cpp") setStudentCode(freeActivityChallenge.boilerplateCpp || "");
+                                  else if (e.target.value === "c") setStudentCode(freeActivityChallenge.boilerplateC || "");
+                                }}
+                                style={{ margin: 0, height: "35px", fontSize: "0.8rem" }}
+                              >
+                                <option value="python">Python 3</option>
+                                <option value="java">Java 17</option>
+                                <option value="cpp">C++ 17</option>
+                                <option value="c">C (GCC)</option>
+                              </select>
+                            </div>
+
+                            {/* Code Editor */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Solution Editor</label>
+                              <textarea
+                                value={studentCode}
+                                onChange={(e) => setStudentCode(e.target.value)}
+                                disabled={challengeAttendanceStatus === "PRESENT" || (currentClassStatus && currentClassStatus.timeRemainingMinutes <= 0)}
+                                rows={8}
+                                style={{
+                                  background: "#0f172a",
+                                  border: "1px solid var(--card-border)",
+                                  borderRadius: "10px",
+                                  padding: "10px",
+                                  color: "#38bdf8",
+                                  fontFamily: "monospace",
+                                  fontSize: "0.85rem",
+                                  width: "100%",
+                                  boxSizing: "border-box",
+                                  resize: "vertical"
+                                }}
+                              />
+                            </div>
+
+                            {/* Submission Logs */}
+                            {submissionLogs && (
+                              <div style={{ background: "#020617", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "8px", padding: "10px" }}>
+                                <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "4px" }}>Console output / test case results</div>
+                                <pre style={{ margin: 0, fontSize: "0.75rem", color: submissionStatus === "PASSED" ? "var(--success)" : "var(--error)", fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
+                                  {submissionLogs}
+                                </pre>
+                              </div>
+                            )}
+
+                            {/* AI Review feedback */}
+                            {aiReviewFeedback && (
+                              <div style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: "10px", padding: "12px" }}>
+                                <div style={{ fontSize: "0.75rem", color: "var(--primary)", fontWeight: "700", marginBottom: "6px" }}>🤖 AI Code Review & Feedback:</div>
+                                <div style={{ fontSize: "0.8rem", color: "#e2e8f0", whiteSpace: "pre-line", lineHeight: "1.4" }}>
+                                  {aiReviewFeedback}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Run & Submit Action Buttons */}
+                            <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
+                              <button
+                                onClick={handleRunChallenge}
+                                disabled={submissionStatus === "SUBMITTING" || challengeAttendanceStatus === "PRESENT" || (currentClassStatus && currentClassStatus.timeRemainingMinutes <= 0)}
+                                style={{
+                                  flex: 1,
+                                  background: "rgba(255,255,255,0.05)",
+                                  color: "#fff",
+                                  border: "1px solid var(--card-border)",
+                                  borderRadius: "8px",
+                                  padding: "0.7rem",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  transition: "all 0.3s"
+                                }}
+                              >
+                                ⚙️ Run Code
+                              </button>
+                              <button
+                                onClick={handleSubmitChallenge}
+                                disabled={submissionStatus === "SUBMITTING" || challengeAttendanceStatus === "PRESENT" || (currentClassStatus && currentClassStatus.timeRemainingMinutes <= 0)}
+                                style={{
+                                  flex: 1,
+                                  background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
+                                  color: "#fff",
+                                  border: "none",
+                                  borderRadius: "8px",
+                                  padding: "0.7rem",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  transition: "all 0.3s"
+                                }}
+                              >
+                                {submissionStatus === "SUBMITTING" ? "Running..." : "🚀 Submit Solution"}
+                              </button>
+                            </div>
+
+                          </div>
+                        ) : (
+                          <div style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "1.5rem", textAlign: "center" }}>
+                            Retrieving coding challenge details...
+                          </div>
+                        )
+                      ) : (
+                        <div style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "1.5rem", textAlign: "center", border: "1px dashed var(--card-border)", borderRadius: "12px" }}>
+                          📅 Engage in the assigned self-directed learning activity. Attendance is marked manually by faculty.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.5rem", color: "var(--text-main)" }}>
+                        {currentClassStatus.currentClass.subject}
+                      </h3>
+                      <p style={{ color: "var(--text-muted)", margin: "0 0 1.5rem 0", fontSize: "0.9rem" }}>
+                        Instructor: <span style={{ color: "var(--text-main)" }}>{currentClassStatus.currentClass.faculty?.name || "Unassigned"}</span>
+                      </p>
+
+                      {/* Progress Bar */}
+                      <div style={{ marginBottom: "0.5rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.4rem" }}>
+                          <span>Time elapsed: {currentClassStatus.elapsedMinutes} mins</span>
+                          <span>{currentClassStatus.timeRemainingMinutes} mins left</span>
+                        </div>
+                        <div style={{ height: "8px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "4px", overflow: "hidden" }}>
+                          <div style={{
+                            width: `${(currentClassStatus.elapsedMinutes / currentClassStatus.totalPeriodMinutes) * 100}%`,
+                            height: "100%",
+                            background: "linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)"
+                          }}></div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )
                 ) : (
                   <div style={{ padding: "1.5rem 0", textAlign: "center" }}>
                     <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
                       {currentClassStatus.status === "LUNCH" || currentClassStatus.status === "BREAK" ? "☕" : "🏖️"}
                     </div>
-                    <h4 style={{ color: "#fff", margin: "0 0 0.25rem 0" }}>
+                    <h4 style={{ color: "var(--text-main)", margin: "0 0 0.25rem 0" }}>
                       {currentClassStatus.status === "LUNCH" ? "Lunch Break" :
-                       currentClassStatus.status === "BREAK" ? "Short Break" :
-                       currentClassStatus.status === "WEEKEND" ? "Weekend" :
-                       currentClassStatus.status === "BEFORE_COLLEGE" ? "Before College Hours" :
-                       currentClassStatus.status === "ENDED" ? "Classes Ended" : "Free Hour"}
+                        currentClassStatus.status === "BREAK" ? "Short Break" :
+                          currentClassStatus.status === "WEEKEND" ? "Weekend" :
+                            currentClassStatus.status === "BEFORE_COLLEGE" ? "Before College Hours" :
+                              currentClassStatus.status === "ENDED" ? "Classes Ended" : "Free Hour"}
                     </h4>
                     <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "0.85rem" }}>
                       {currentClassStatus.status === "LUNCH" || currentClassStatus.status === "BREAK" || currentClassStatus.status === "BEFORE_COLLEGE"
@@ -1151,11 +1442,11 @@ function StudentDashboard() {
                 </span>
                 {currentClassStatus.nextClass ? (
                   <div style={{ marginTop: "1rem" }}>
-                    <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.3rem", color: "#fff" }}>
+                    <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.3rem", color: "var(--text-main)" }}>
                       {currentClassStatus.nextClass.subject}
                     </h3>
                     <p style={{ color: "var(--text-muted)", margin: "0 0 1rem 0", fontSize: "0.85rem" }}>
-                      Period: <span style={{ color: "#fff" }}>{currentClassStatus.nextClass.period}</span> | Instructor: <span style={{ color: "#fff" }}>{currentClassStatus.nextClass.faculty?.name || "Unassigned"}</span>
+                      Period: <span style={{ color: "var(--text-main)" }}>{currentClassStatus.nextClass.period}</span> | Instructor: <span style={{ color: "var(--text-main)" }}>{currentClassStatus.nextClass.faculty?.name || "Unassigned"}</span>
                     </p>
                     <div style={{ display: "inline-block", background: "rgba(99, 102, 241, 0.1)", border: "1px solid rgba(99, 102, 241, 0.2)", borderRadius: "6px", padding: "0.4rem 0.8rem", fontSize: "0.8rem", color: "var(--primary)", fontWeight: "600" }}>
                       Upcoming today
@@ -1164,7 +1455,7 @@ function StudentDashboard() {
                 ) : (
                   <div style={{ padding: "1.5rem 0", textAlign: "center" }}>
                     <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🎓</div>
-                    <h4 style={{ color: "#fff", margin: "0 0 0.25rem 0" }}>No More Classes Today</h4>
+                    <h4 style={{ color: "var(--text-main)", margin: "0 0 0.25rem 0" }}>No More Classes Today</h4>
                     <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "0.85rem" }}>
                       All scheduled classes are complete.
                     </p>
@@ -1177,7 +1468,7 @@ function StudentDashboard() {
           {/* Today's Timeline */}
           {currentClassStatus && currentClassStatus.todayTimeline && currentClassStatus.todayTimeline.length > 0 && (
             <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "1.5rem" }}>
-              <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff", fontSize: "1.1rem", fontWeight: "600" }}>
+              <h3 style={{ margin: "0 0 1.5rem 0", color: "var(--text-main)", fontSize: "1.1rem", fontWeight: "600" }}>
                 📅 Today's Timeline
               </h3>
               <div className="timeline-horizontal-scroll" style={{ display: "flex", gap: "1rem", overflowX: "auto", paddingBottom: "0.5rem" }}>
@@ -1187,18 +1478,17 @@ function StudentDashboard() {
                     className={`timeline-period-node ${item.isActive ? "active" : ""} ${item.isCompleted ? "completed" : ""}`}
                     style={{
                       flex: "0 0 160px",
-                      background: item.isActive 
-                        ? "rgba(99, 102, 241, 0.15)" 
-                        : item.isCompleted 
-                        ? "rgba(16, 185, 129, 0.05)" 
-                        : "rgba(31, 41, 55, 0.4)",
-                      border: `1px solid ${
-                        item.isActive 
-                          ? "var(--primary)" 
-                          : item.isCompleted 
-                          ? "rgba(16, 185, 129, 0.3)" 
-                          : "var(--card-border)"
-                      }`,
+                      background: item.isActive
+                        ? "rgba(99, 102, 241, 0.15)"
+                        : item.isCompleted
+                          ? "rgba(16, 185, 129, 0.05)"
+                          : "rgba(31, 41, 55, 0.4)",
+                      border: `1px solid ${item.isActive
+                          ? "var(--primary)"
+                          : item.isCompleted
+                            ? "rgba(16, 185, 129, 0.3)"
+                            : "var(--card-border)"
+                        }`,
                       borderRadius: "12px",
                       padding: "1rem",
                       position: "relative",
@@ -1234,23 +1524,21 @@ function StudentDashboard() {
                 <thead>
                   <tr>
                     <th>Day</th>
-                    <th>P1<span className="time-sub">8:45-9:40</span></th>
-                    <th>P2<span className="time-sub">9:40-10:35</span></th>
-                    <th className="break-hdr">Break<span className="time-sub">10:35-10:50</span></th>
-                    <th>P3<span className="time-sub">10:50-11:45</span></th>
-                    <th>P4<span className="time-sub">11:45-12:40</span></th>
-                    <th className="break-hdr">Lunch<span className="time-sub">12:40-1:40</span></th>
-                    <th>P5<span className="time-sub">1:40-2:35</span></th>
-                    <th>P6<span className="time-sub">2:35-3:30</span></th>
-                    <th>P7<span className="time-sub">3:30-4:25</span></th>
-                    <th>P8<span className="time-sub">4:25-5:20</span></th>
+                    <th>P1<span className="time-sub">8:15-9:15</span></th>
+                    <th>P2<span className="time-sub">9:15-10:15</span></th>
+                    <th className="break-hdr">Break<span className="time-sub">10:15-10:45</span></th>
+                    <th>P3<span className="time-sub">10:45-11:45</span></th>
+                    <th>P4<span className="time-sub">11:45-12:45</span></th>
+                    <th className="break-hdr">Lunch<span className="time-sub">12:45-1:45</span></th>
+                    <th>P5<span className="time-sub">1:45-2:45</span></th>
+                    <th>P6<span className="time-sub">2:45-3:45</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => {
-                    const isToday = currentClassStatus?.status !== "WEEKEND" && currentClassStatus?.todayTimeline && currentClassStatus?.todayTimeline.length > 0 && 
+                    const isToday = currentClassStatus?.status !== "WEEKEND" && currentClassStatus?.todayTimeline && currentClassStatus?.todayTimeline.length > 0 &&
                       (simParams?.simulatedDay ? simParams.simulatedDay === day : new Date().toLocaleDateString("en-US", { weekday: "long" }) === day);
-                    
+
                     return (
                       <tr key={day} className={isToday ? "today-row" : ""}>
                         <td className="day-name-cell">{day}</td>
@@ -1258,13 +1546,42 @@ function StudentDashboard() {
                         <td className="grid-break-cell">Short Break</td>
                         {[3, 4].map(p => renderGridCell(day, p))}
                         <td className="grid-break-cell">Lunch Break</td>
-                        {[5, 6, 7, 8].map(p => renderGridCell(day, p))}
+                        {[5, 6].map(p => renderGridCell(day, p))}
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
+
+            {/* Subject/Staff reference directory */}
+            {uniqueSubjects.length > 0 && (
+              <div style={{ marginTop: "2rem", borderTop: "1px dashed rgba(255,255,255,0.08)", paddingTop: "1.5rem" }}>
+                <h4 style={{ color: "#fff", fontSize: "1rem", fontWeight: "600", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  📖 Course Information & Instructors
+                </h4>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)", fontWeight: "600" }}>
+                        <th style={{ padding: "0.75rem 1rem" }}>Code / Acronym</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>Course Title</th>
+                        <th style={{ padding: "0.75rem 1rem" }}>Name of the Staff</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {uniqueSubjects.map((sub, idx) => (
+                        <tr key={idx} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", color: "#e5e7eb" }}>
+                          <td style={{ padding: "0.75rem 1rem", fontWeight: "700", color: "var(--primary)" }}>{sub.code}</td>
+                          <td style={{ padding: "0.75rem 1rem" }}>{sub.name}</td>
+                          <td style={{ padding: "0.75rem 1rem", color: "#a5b4fc" }}>{sub.staff}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
 
           <style>{`
@@ -1377,7 +1694,7 @@ function StudentDashboard() {
       {activeTab === "leave" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "2rem", width: "100%", animation: "fadeIn 0.5s ease" }}>
           <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", alignItems: "flex-start" }}>
-            
+
             {/* Left: Submit Form */}
             <div className="dashboard-card" style={{ flex: "1 1 350px", background: "rgba(30, 41, 59, 0.3)", borderRadius: "20px", padding: "2.5rem" }}>
               <h3 style={{ margin: "0 0 1.5rem 0", fontFamily: "var(--font-heading)", fontSize: "1.3rem", fontWeight: "700" }}>📝 New Request</h3>
@@ -1474,7 +1791,64 @@ function StudentDashboard() {
                 </div>
               )}
             </div>
-            
+
+          </div>
+        </div>
+      )}
+
+      {/* ─── CODING HISTORY TAB ─────────────────────────────────────────── */}
+      {activeTab === "coding-history" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "2rem", width: "100%", animation: "fadeIn 0.5s ease" }}>
+          <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.3)", borderRadius: "20px", padding: "2.5rem" }}>
+            <h3 style={{ margin: "0 0 1.5rem 0", fontFamily: "var(--font-heading)", fontSize: "1.3rem", fontWeight: "700" }}>📜 My Coding Submissions</h3>
+            {historyLoading ? (
+              <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>Loading submissions history...</div>
+            ) : codingHistory.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>💻</div>
+                You haven't submitted any coding challenge solutions yet.
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)", fontWeight: "600" }}>
+                      <th style={{ padding: "0.75rem 1rem" }}>Problem</th>
+                      <th style={{ padding: "0.75rem 1rem" }}>Language</th>
+                      <th style={{ padding: "0.75rem 1rem" }}>Score</th>
+                      <th style={{ padding: "0.75rem 1rem" }}>Status</th>
+                      <th style={{ padding: "0.75rem 1rem" }}>Submitted At</th>
+                      <th style={{ padding: "0.75rem 1rem" }}>AI Feedback Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {codingHistory.map((sub) => (
+                      <tr key={sub.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)", color: "#e5e7eb" }}>
+                        <td style={{ padding: "0.75rem 1rem", fontWeight: "600", color: "var(--primary)" }}>{sub.problemTitle || "Challenge"}</td>
+                        <td style={{ padding: "0.75rem 1rem", textTransform: "uppercase", fontSize: "0.75rem" }}>{sub.language}</td>
+                        <td style={{ padding: "0.75rem 1rem", fontWeight: "700", color: sub.allPassed ? "var(--success)" : "var(--warning)" }}>{sub.score}%</td>
+                        <td style={{ padding: "0.75rem 1rem" }}>
+                          <span style={{
+                            background: sub.allPassed ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)",
+                            color: sub.allPassed ? "var(--success)" : "var(--error)",
+                            border: `1px solid ${sub.allPassed ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`,
+                            borderRadius: "6px", padding: "0.2rem 0.6rem", fontSize: "0.7rem", fontWeight: "700"
+                          }}>
+                            {sub.allPassed ? "ALL PASSED" : "FAILED"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "0.75rem 1rem" }}>{sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : ""}</td>
+                        <td style={{ padding: "0.75rem 1rem", maxWidth: "250px", overflow: "hidden", textOverride: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span title={sub.aiFeedback} style={{ cursor: "pointer", color: "#a5b4fc", textDecoration: "underline" }} onClick={() => alert(sub.aiFeedback)}>
+                            View AI Feedback
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

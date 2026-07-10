@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_BASE from '../../services/api';
 
 const CareerDashboardAdmin = () => {
     const [data, setData] = useState(null);
@@ -9,7 +10,7 @@ const CareerDashboardAdmin = () => {
 
     const fetchAdminData = async () => {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:8080/api/career/admin', {
+        const res = await fetch(`${API_BASE}/api/career/admin`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -20,38 +21,53 @@ const CareerDashboardAdmin = () => {
     if (!data) return <div className="p-8 text-slate-400">Loading admin insights...</div>;
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <h2 className="text-2xl font-bold text-white mb-6">College Career Readiness Insights</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", animation: "fadeIn 0.5s ease" }}>
+            <h2 style={{ fontSize: "1.5rem", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>
+                College Career Readiness Insights
+            </h2>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="glass-card p-6 rounded-2xl flex flex-col items-center border border-blue-500/20">
-                    <div className="text-sm text-slate-400 mb-2 text-center">Avg Career Score</div>
-                    <div className="text-4xl font-bold text-blue-400">{Math.round(data.averageCareerScore)}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
+                <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "1px solid var(--card-border)", background: "var(--bg-secondary)" }}>
+                    <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "8px", fontWeight: "600" }}>Avg Career Score</div>
+                    <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "var(--primary)" }}>{Math.round(data.averageCareerScore)}</div>
                 </div>
-                <div className="glass-card p-6 rounded-2xl flex flex-col items-center">
-                    <div className="text-sm text-slate-400 mb-2">Avg Resume</div>
-                    <div className="text-3xl font-bold text-emerald-400">{Math.round(data.averageResumeScore * 4)}/100</div>
+                <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "1px solid var(--card-border)", background: "var(--bg-secondary)" }}>
+                    <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "8px", fontWeight: "600" }}>Avg Resume</div>
+                    <div style={{ fontSize: "2.2rem", fontWeight: "800", color: "var(--success)" }}>{Math.round(data.averageResumeScore * 4)}/100</div>
                 </div>
-                <div className="glass-card p-6 rounded-2xl flex flex-col items-center">
-                    <div className="text-sm text-slate-400 mb-2">Avg Coding</div>
-                    <div className="text-3xl font-bold text-amber-400">{Math.round(data.averageCodingScore * 4)}/100</div>
+                <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "1px solid var(--card-border)", background: "var(--bg-secondary)" }}>
+                    <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "8px", fontWeight: "600" }}>Avg Coding</div>
+                    <div style={{ fontSize: "2.2rem", fontWeight: "800", color: "var(--warning)" }}>{Math.round(data.averageCodingScore * 4)}/100</div>
                 </div>
-                <div className="glass-card p-6 rounded-2xl flex flex-col items-center">
-                    <div className="text-sm text-slate-400 mb-2">Avg Interview</div>
-                    <div className="text-3xl font-bold text-purple-400">{Math.round(data.averageInterviewScore * 4)}/100</div>
+                <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "1px solid var(--card-border)", background: "var(--bg-secondary)" }}>
+                    <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "8px", fontWeight: "600" }}>Avg Interview</div>
+                    <div style={{ fontSize: "2.2rem", fontWeight: "800", color: "var(--secondary)" }}>{Math.round(data.averageInterviewScore * 4)}/100</div>
                 </div>
             </div>
 
-            <div className="glass-card p-6 rounded-2xl mt-8">
-                <h3 className="text-xl font-semibold mb-6 text-white">Department Comparison</h3>
-                <div className="space-y-4">
+            <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--card-border)", background: "var(--bg-secondary)" }}>
+                <h3 style={{ margin: "0 0 20px 0", fontSize: "1.15rem", fontWeight: "700", color: "var(--text-main)" }}>Department Comparison</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     {data.departmentComparison.map((dept, i) => (
-                        <div key={i} className="flex items-center gap-4">
-                            <div className="w-24 text-slate-300 text-sm">{dept.department || 'N/A'}</div>
-                            <div className="flex-1 h-6 bg-white/5 rounded-full overflow-hidden flex items-center">
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                            <div style={{ width: "100px", color: "var(--text-main)", fontSize: "0.85rem", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {dept.department || 'N/A'}
+                            </div>
+                            <div style={{ flex: 1, height: "24px", background: "var(--input-bg)", border: "1px solid var(--card-border)", borderRadius: "12px", overflow: "hidden", display: "flex", alignItems: "center" }}>
                                 <div 
-                                    className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 flex items-center justify-end px-2 text-xs text-white font-bold"
-                                    style={{ width: `${Math.max(10, dept.averageScore)}%` }}
+                                    style={{ 
+                                        width: `${Math.max(10, dept.averageScore)}%`,
+                                        height: "100%",
+                                        background: "linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "flex-end",
+                                        paddingRight: "8px",
+                                        color: "#fff",
+                                        fontSize: "0.75rem",
+                                        fontWeight: "700",
+                                        transition: "width 0.5s ease-out"
+                                    }}
                                 >
                                     {Math.round(dept.averageScore)}
                                 </div>

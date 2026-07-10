@@ -17,9 +17,7 @@ const SimulationControl = ({ onChange }) => {
     { label: "01:00 PM (Lunch Break)", value: "13:00" },
     { label: "02:00 PM (Period 5: AGAI/PCD/AIES/DCN/OS)", value: "14:00" },
     { label: "03:00 PM (Period 6: DBMS/AGAI/PCD)", value: "15:00" },
-    { label: "04:00 PM (Period 7: CC LAB/AI LAB/SE)", value: "16:00" },
-    { label: "05:00 PM (Period 8: CC LAB/AI LAB/SE)", value: "17:00" },
-    { label: "06:00 PM (After College / Ended)", value: "18:00" }
+    { label: "04:00 PM (After College / Ended)", value: "16:00" }
   ];
 
   useEffect(() => {

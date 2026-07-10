@@ -1,0 +1,78 @@
+[
+  {
+    "title": "Factorial of a Number",
+    "description": "Write a program that reads an integer N from standard input (stdin) and prints its factorial to standard output (stdout).\n\nConstraints: 0 <= N <= 10.",
+    "difficulty": "Easy",
+    "topic": "Basic Math",
+    "boilerplates": {
+      "python": "import sys\ndef factorial(n):\n    # Write your Python code here\n    if n <= 1: return 1\n    return n * factorial(n - 1)\n\nif __name__ == \"__main__\":\n    line = sys.stdin.read().strip()\n    if line:\n        print(factorial(int(line)), end=\"\")",
+      "java": "import java.util.Scanner;\npublic class Solution {\n    public static int factorial(int n) {\n        if (n <= 1) return 1;\n        return n * factorial(n - 1);\n    }\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (sc.hasNextInt()) {\n            int n = sc.nextInt();\n            System.out.print(factorial(n));\n        }\n    }\n}",
+      "cpp": "#include <iostream>\nusing namespace std;\nint factorial(int n) {\n    if (n <= 1) return 1;\n    return n * factorial(n - 1);\n}\nint main() {\n    int n;\n    if (cin >> n) {\n        cout << factorial(n);\n    }\n    return 0;\n}",
+      "c": "#include <stdio.h>\nint factorial(int n) {\n    if (n <= 1) return 1;\n    return n * factorial(n - 1);\n}\nint main() {\n    int n;\n    if (scanf(\"%d\", &n) == 1) {\n        printf(\"%d\", factorial(n));\n    }\n    return 0;\n}"
+    },
+    "sample_input": "5",
+    "sample_output": "120",
+    "hidden_test_cases": [
+      {
+        "input": "5",
+        "expectedOutput": "120"
+      },
+      {
+        "input": "0",
+        "expectedOutput": "1"
+      },
+      {
+        "input": "10",
+        "expectedOutput": "3628800"
+      }
+    ]
+  },
+  {
+    "title": "Two Sum",
+    "description": "Given a space-separated list of integers and a target value, print the indices of the two numbers such that they add up to the target.\n\nExample:\nInput: 2 7 11 15\n9\nOutput: 0 1",
+    "difficulty": "Easy",
+    "topic": "Arrays",
+    "boilerplates": {
+      "python": "import sys\n# Write your code here",
+      "java": "import java.util.Scanner;\npublic class Solution {\n    public static void main(String[] args) {\n        // Write your code here\n    }\n}",
+      "cpp": "#include <iostream>\nusing namespace std;\nint main() {\n    return 0;\n}",
+      "c": "#include <stdio.h>\nint main() {\n    return 0;\n}"
+    },
+    "sample_input": "2 7 11 15\n9",
+    "sample_output": "0 1",
+    "hidden_test_cases": [
+      {
+        "input": "2 7 11 15\n9",
+        "expectedOutput": "0 1"
+      },
+      {
+        "input": "3 2 4\n6",
+        "expectedOutput": "1 2"
+      }
+    ]
+  },
+  {
+    "title": "Palindrome Number",
+    "description": "Determine whether an integer is a palindrome. An integer is a palindrome when it reads the same backward as forward.",
+    "difficulty": "Easy",
+    "topic": "Basic Math",
+    "boilerplates": {
+      "python": "import sys\n# Write your code here",
+      "java": "import java.util.Scanner;\npublic class Solution {\n    public static void main(String[] args) {\n        // Write your code here\n    }\n}",
+      "cpp": "#include <iostream>\nusing namespace std;\nint main() {\n    return 0;\n}",
+      "c": "#include <stdio.h>\nint main() {\n    return 0;\n}"
+    },
+    "sample_input": "121",
+    "sample_output": "true",
+    "hidden_test_cases": [
+      {
+        "input": "121",
+        "expectedOutput": "true"
+      },
+      {
+        "input": "-121",
+        "expectedOutput": "false"
+      }
+    ]
+  }
+]

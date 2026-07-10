@@ -62,6 +62,7 @@ public class AuthServiceImpl implements AuthService {
                 .name(user.getName())
                 .registerNumber(user.getRegisterNumber())
                 .department(user.getDepartment())
+                .classAdvisor(user.isClassAdvisor())
                 .build();
     }
 
@@ -75,8 +76,9 @@ public class AuthServiceImpl implements AuthService {
         );
 
         User user = userRepository.findByEmail(request.getEmail())
+                .or(() -> userRepository.findByRegisterNumber(request.getEmail()))
                 .orElseGet(() -> userRepository.findByName(request.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email or username: " + request.getEmail())));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email or register number: " + request.getEmail())));
 
         CustomUserDetails userDetails = new CustomUserDetails(user);
         String jwtToken = jwtService.generateToken(userDetails);
@@ -89,6 +91,7 @@ public class AuthServiceImpl implements AuthService {
                 .name(user.getName())
                 .registerNumber(user.getRegisterNumber())
                 .department(user.getDepartment())
+                .classAdvisor(user.isClassAdvisor())
                 .build();
     }
 
