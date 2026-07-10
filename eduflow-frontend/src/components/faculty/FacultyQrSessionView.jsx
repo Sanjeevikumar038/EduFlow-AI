@@ -16,7 +16,8 @@ function FacultyQrSessionView({
   handleStartSession,
   handleEndSession,
   formatTimeLeft,
-  handleManualOverride
+  handleManualOverride,
+  isAdvisor
 }) {
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", width: "100%", animation: "fadeIn 0.5s ease" }}>
@@ -145,7 +146,9 @@ function FacultyQrSessionView({
                     {sub.subjectCode} - {sub.subjectName}
                   </option>
                 ))}
-                <option value="CUSTOM">-- Enter Custom Code --</option>
+                {isAdvisor && (
+                  <option value="CUSTOM">-- Enter Custom Code --</option>
+                )}
               </select>
             </div>
 

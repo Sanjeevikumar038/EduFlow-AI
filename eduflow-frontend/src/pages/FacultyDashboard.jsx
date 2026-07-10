@@ -1016,6 +1016,7 @@ function FacultyDashboard() {
               handleEndSession={handleEndSession}
               formatTimeLeft={formatTimeLeft}
               handleManualOverride={handleManualOverride}
+              isAdvisor={isAdvisor}
             />
           )}
 

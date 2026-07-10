@@ -22,54 +22,62 @@ const CareerDashboardFaculty = () => {
     if (!data) return <div className="p-8 text-slate-400">Loading faculty insights...</div>;
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <h2 className="text-2xl font-bold text-white mb-6">Department Career Readiness ({department})</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", animation: "fadeIn 0.5s ease" }}>
+            <h2 style={{ fontSize: "1.5rem", fontWeight: "800", color: "var(--text-main)", margin: 0 }}>
+                Department Career Readiness ({department})
+            </h2>
             
-            <div className="glass-card p-8 rounded-3xl flex items-center justify-between mb-8 border border-white/5">
+            <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--card-border)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                    <h3 className="text-lg text-slate-300">Overall Readiness</h3>
-                    <p className="text-sm text-slate-500 mt-1">Average career score of students in {department}</p>
+                    <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "700", color: "var(--text-main)" }}>Overall Readiness</h3>
+                    <p style={{ margin: "4px 0 0 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                        Average career score of students in {department}
+                    </p>
                 </div>
-                <div className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">
+                <div style={{ fontSize: "2.5rem", fontWeight: "800", color: "var(--primary)" }}>
                     {Math.round(data.averageReadiness)}%
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="glass-card p-6 rounded-2xl">
-                    <h3 className="text-xl font-semibold mb-4 text-emerald-400">🏆 Top Career Ready Students</h3>
-                    <div className="space-y-3">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px" }}>
+                <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--card-border)", background: "var(--bg-secondary)" }}>
+                    <h3 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: "700", color: "var(--success)" }}>
+                        🏆 Top Career Ready Students
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {data.topStudents.length > 0 ? data.topStudents.map((s, i) => (
-                            <div key={i} className="flex justify-between items-center p-3 bg-white/5 rounded-xl">
+                            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--input-bg)", border: "1px solid var(--card-border)", borderRadius: "12px" }}>
                                 <div>
-                                    <div className="text-white font-medium">{s.name}</div>
-                                    <div className="text-xs text-slate-400">{s.registerNumber}</div>
+                                    <div style={{ fontWeight: "600", color: "var(--text-main)", fontSize: "0.9rem" }}>{s.name}</div>
+                                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px" }}>{s.registerNumber}</div>
                                 </div>
-                                <div className="text-emerald-400 font-bold">{s.overallScore}</div>
+                                <div style={{ color: "var(--success)", fontWeight: "800", fontSize: "1.1rem" }}>{s.overallScore}</div>
                             </div>
-                        )) : <div className="text-slate-400">No data available.</div>}
+                        )) : <div style={{ color: "var(--text-muted)", fontStyle: "italic" }}>No data available.</div>}
                     </div>
                 </div>
 
-                <div className="glass-card p-6 rounded-2xl border-t-4 border-amber-500">
-                    <h3 className="text-xl font-semibold mb-4 text-amber-400">⚠️ Needs Mentoring</h3>
-                    <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--card-border)", background: "var(--bg-secondary)" }}>
+                    <h3 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: "700", color: "var(--warning)" }}>
+                        ⚠️ Needs Mentoring
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "280px", overflowY: "auto", paddingRight: "4px" }} className="custom-scrollbar">
                         {data.needsImprovement.length > 0 ? data.needsImprovement.map((s, i) => (
-                            <div key={i} className="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-amber-500/10">
+                            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--input-bg)", border: "1px solid var(--card-border)", borderRadius: "12px" }}>
                                 <div>
-                                    <div className="text-white font-medium">{s.name}</div>
-                                    <div className="text-xs text-slate-400">{s.registerNumber}</div>
+                                    <div style={{ fontWeight: "600", color: "var(--text-main)", fontSize: "0.9rem" }}>{s.name}</div>
+                                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px" }}>{s.registerNumber}</div>
                                 </div>
-                                <div className="text-right">
-                                    <div className="text-amber-400 font-bold">{s.overallScore}</div>
-                                    <div className="text-[10px] text-slate-500 flex gap-1">
-                                        {s.resumeScore < 15 && <span title="Low Resume">📄</span>}
-                                        {s.codingScore < 15 && <span title="Low Coding">💻</span>}
-                                        {s.interviewScore < 15 && <span title="Low Interview">🎤</span>}
+                                <div style={{ textAlign: "right" }}>
+                                    <div style={{ color: "var(--warning)", fontWeight: "800", fontSize: "1.1rem" }}>{s.overallScore}</div>
+                                    <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end", marginTop: "4px" }}>
+                                        {s.resumeScore < 15 && <span title="Low Resume" style={{ fontSize: "0.85rem" }}>📄</span>}
+                                        {s.codingScore < 15 && <span title="Low Coding" style={{ fontSize: "0.85rem" }}>💻</span>}
+                                        {s.interviewScore < 15 && <span title="Low Interview" style={{ fontSize: "0.85rem" }}>🎤</span>}
                                     </div>
                                 </div>
                             </div>
-                        )) : <div className="text-slate-400">All students are doing well!</div>}
+                        )) : <div style={{ color: "var(--text-muted)", fontStyle: "italic" }}>All students are doing well!</div>}
                     </div>
                 </div>
             </div>

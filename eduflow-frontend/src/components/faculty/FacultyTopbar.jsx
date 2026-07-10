@@ -169,7 +169,8 @@ const SKCET_CALENDAR_DATA = (() => {
   });
 })();
 
-function FacultyTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, name, subtitle, isDark, setIsDark, handleLogout, onOpenCalendar }) {
+function FacultyTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, name, subtitle, isDark, setIsDark, handleLogout }) {
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [calendarFilter, setCalendarFilter] = useState("ALL");
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
