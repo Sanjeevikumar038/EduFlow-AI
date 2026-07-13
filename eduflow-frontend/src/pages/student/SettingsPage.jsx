@@ -13,13 +13,11 @@ function SettingsPage() {
     department: localStorage.getItem("department") || "M.Tech CSE",
     batch: "2023 - 2028", // Standard academic batch
   });
-
   // Load theme preference
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("eduflow-theme");
-    return saved ? saved === "dark" : true;
+    return saved ? saved === "dark" : false;
   });
-
   // Other state settings
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);

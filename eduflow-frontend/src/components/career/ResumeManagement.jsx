@@ -435,7 +435,11 @@ const ResumeManagement = () => {
                                             {label: 'Achievements & Impact', val: atsBreakdown.Achievements || 0},
                                             {label: 'Keywords Coverage', val: atsBreakdown.Keywords || 0},
                                         ].map((score, idx) => {
-                                            const val = Math.round(score.val);
+                                            const rawVal = Math.round(score.val);
+                                            let val = rawVal;
+                                            if (val > 0 && val <= 10) {
+                                                val = val * 10;
+                                            }
                                             let barColor = "var(--success)";
                                             if (val < 60) {
                                                 barColor = "var(--error)";

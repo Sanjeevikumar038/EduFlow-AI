@@ -648,8 +648,9 @@ public class DatabaseInitializer implements CommandLineRunner {
         try {
             mapper = new ObjectMapper();
             File jsonFile = new File("src/main/resources/coding_questions_bank.json");
-            if (jsonFile.exists() && codingQuestionBankRepository.count() == 0) {
+            if (jsonFile.exists() && codingQuestionBankRepository.count() < 7) {
                 System.out.println("--- Seeding Coding Question Bank from JSON... ---");
+                codingQuestionBankRepository.deleteAll();
                 List<Map<String, Object>> questionsList = mapper.readValue(jsonFile, List.class);
                 for (Map<String, Object> qData : questionsList) {
                     Map<String, String> boilerplates = (Map<String, String>) qData.get("boilerplates");

@@ -147,7 +147,7 @@ function AdminDashboard() {
 
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("eduflow-theme");
-    return saved ? saved === "dark" : true; 
+    return saved ? saved === "dark" : false;
   });
 
   useEffect(() => {
@@ -533,7 +533,7 @@ function AdminDashboard() {
 
   const handleLogout = () => {
     localStorage.clear();
-    navigate("/login");
+    navigate("/admin");
   };
 
   const showFeedback = (message, type = "success") => {

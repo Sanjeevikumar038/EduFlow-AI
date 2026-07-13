@@ -1,14 +1,15 @@
 # EduFlow - Smart College Portal & Attendance Management System
 
-EduFlow is an advanced college portal web application designed to manage student registration, department-specific academic tracking, faculty accounts, and a secure smart attendance verification system using real-time GPS proximity and dynamic QR codes.
+EduFlow is an advanced college portal web application designed to manage student registration, department-specific academic tracking, faculty accounts, a secure smart attendance verification system using real-time GPS proximity and dynamic QR codes, a Groq AI-powered ATS Resume Analyzer, and a full-screen daily Coding Assessment Workspace.
 
 ---
 
 ## 🛠 Tech Stack
 
-* **Frontend**: React.js (Vite), Axios, Vanilla CSS (Glassmorphic dark-theme, responsive layouts)
+* **Frontend**: React.js (Vite), Axios, Vanilla CSS (Premium Glassmorphic layouts, responsive 50/50 card splits, dynamic animations)
 * **Backend**: Spring Boot 3.x, Spring Security, Hibernate JPA
 * **Database**: PostgreSQL
+* **AI Model Integration**: Groq AI API (using Llama models) for ATS resume parsing and mentorship analysis
 * **Authentication**: Stateless JWT (JSON Web Tokens) with BCrypt password hashing
 * **Network & Security**: Served over HTTPS (using self-signed certificates via Vite SSL) to support secure-context Web APIs (Geolocation and Camera/MediaDevices) on mobile devices.
 
@@ -41,10 +42,9 @@ The portal divides users into three distinct roles with strict permission bounda
 ### 1. STUDENT
 * **Self-Registration**: Can register by providing Name, Email, Password, and choosing their Department from a dropdown list.
 * **Auto-Generated Register Numbers**: Register numbers are automatically generated per department, running sequentially from `001` (e.g., `727723EUCI001`, `727723EUCI002`).
-* **Smart Attendance**: Can check in to an active class session by:
-  1. Authorizing GPS Geolocation access.
-  2. Scanning the teacher's dynamic class session QR code via mobile/webcam scanner.
-* **Access Boundary**: Reject attendance check-ins if the student's department does not match the session host faculty's department.
+* **Smart Attendance**: Can check in to an active class session by authorizing GPS Geolocation access and scanning the teacher's dynamic class session QR code via mobile/webcam scanner.
+* **ATS Resume Analyzer**: Can upload PDF resumes to receive an instant ATS score and detailed career feedback.
+* **Daily Coding Challenge**: Participate in daily sequential programming assessments in a focused coding sandbox.
 
 ### 2. FACULTY
 * **Creation**: Accounts are created exclusively by the Administrator (no self-registration allowed).
@@ -55,27 +55,37 @@ The portal divides users into three distinct roles with strict permission bounda
 
 ### 3. ADMIN
 * **Startup Account**: Pre-seeded in the database on application startup (`admin` / `admin@123`).
-* **Full CRUD Management**: 
-  * Create and delete student and faculty profiles.
-  * Search, sort, and filter the global directory of all departments.
-  * View complete system logs and attendance stats.
+* **Full CRUD Management**: Create and delete student and faculty profiles; search, sort, and filter the global directory.
 
 ---
 
 ## 🚀 Key Features Implemented
 
-### 1. Smart Proximity & Department Attendance Verification
-* **GPS Validation**: Captures student latitude/longitude during scanning and validates it against the faculty's starting coordinates. Student must be within a safe radius (~100m) to check in.
+### 1. Modern SaaS ERP Split-Screen Login
+* **Unified Portal (`/`)**: A single unified card layout for Student and Faculty logins. System automatically detects user role upon successful authentication and routes them to their dashboard.
+* **Admin Portal (`/admin`)**: Restricted separate login area for Administrators only.
+* **Premium Design**: Clean card container (95% width, 1550px max-width, 750px height) with full-bleed royal blue illustration panels, same-line checkbox & forgot password row, and compact layouts.
+
+### 2. Smart Proximity Geolocation & Department Verification
+* **GPS Proximity**: Captures student latitude/longitude during scanning and validates it against the faculty's starting coordinates. Student must be within a safe radius (~100m) to check in.
 * **Department-Matching Validation**: Prevents students from checking in to sessions hosted by faculty members of a different department.
-* **Mock Bypass Prevention**: Built-in safeguards to detect and disable mock locations or scan bypasses.
 
-### 2. Vite HTTPS Configuration for Mobile Geolocation/Camera
-* HTML5 Geolocation and MediaDevices (Camera) APIs are strictly restricted by modern mobile browsers (Chrome/Safari) to **Secure Contexts** (HTTPS or localhost).
-* Vite is configured with `@vitejs/plugin-basic-ssl` to serve the app over HTTPS.
-* Network endpoints resolve dynamically using `window.location.hostname` to support testing over local IP networks (e.g., `https://192.168.x.x:5173`).
+### 3. Groq AI-Powered ATS Resume Hub
+* **AI Analysis**: Extracts PDF resume text and requests an ATS scorecard JSON payload from Groq AI.
+* **Metrics Breakdown**: Scores are normalized to percentages representing Formatting & Layout, Grammar & Tone, Projects & Experience, Skills Match Rate, Achievements & Impact, and Keywords Coverage.
+* **Actionable Feedback**: Lists categorized Strengths, Weaknesses, and direct suggestions for improvement.
 
-### 3. Secured API Routing (Spring Security)
-Endpoints are heavily guarded and mapped based on specific roles:
+### 4. Rotating Daily Coding Assessment Workspace
+* **Sequential Rotation**: Dynamically schedules a rotating coding challenge from a 7-question bank (Factorial, Two Sum, Palindrome Number, Reverse a String, Fizz Buzz, Valid Parentheses, Merge Sorted Arrays).
+* **Focused Environment**: Starts a full-screen coding workspace with a multi-language compiler sandbox (Java, Python, C++, C support) and real-time test case validation.
+
+### 5. Multi-Theme Capability
+* **Light Theme Default**: Application defaults to a light theme for optimal readability across all student, faculty, and administrator dashboard layouts.
+* **Toggled Dark Theme**: Users can easily toggle a premium dark theme layout from their Settings page.
+
+---
+
+## 🔒 Secured API Routing (Spring Security)
 
 | Method | Endpoint | Description | Role Required |
 | :--- | :--- | :--- | :--- |
@@ -91,6 +101,9 @@ Endpoints are heavily guarded and mapped based on specific roles:
 | `POST` | `/api/attendance/mark` | Mark student attendance (GPS & Dept matches) | `STUDENT` |
 | `GET` | `/api/attendance/session/{id}/records` | Live check-in list (department-filtered) | `FACULTY` |
 | `GET` | `/api/attendance/session/{id}/report` | Attendance report sheets (department-filtered) | `FACULTY` / `ADMIN` |
+| `POST` | `/api/resume/upload` | Upload PDF and parse ATS resume metrics via Groq AI | `STUDENT` |
+| `GET` | `/api/coding/challenge` | Fetch sequential daily rotating coding challenge | `STUDENT` |
+| `POST` | `/api/coding/run` | Compile code and run test cases inside sandbox | `STUDENT` |
 
 ---
 
@@ -104,7 +117,13 @@ spring.datasource.username=postgres
 spring.datasource.password=YOUR_PASSWORD
 ```
 
-### 2. Backend Server
+### 2. Groq AI Integration
+Add your Groq API key to activate the ATS resume analyzer:
+```properties
+groq.api.key=YOUR_GROQ_API_KEY
+```
+
+### 3. Backend Server
 Build and run the Spring Boot application:
 ```bash
 cd eduflow-backend
@@ -112,7 +131,7 @@ mvn clean compile
 mvn spring-boot:run
 ```
 
-### 3. Frontend Web Server
+### 4. Frontend Web Server
 Install dependencies and run the HTTPS development server:
 ```bash
 cd eduflow-frontend

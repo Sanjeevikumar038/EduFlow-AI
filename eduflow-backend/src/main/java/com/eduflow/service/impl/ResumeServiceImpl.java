@@ -62,7 +62,7 @@ public class ResumeServiceImpl implements ResumeService {
                 extractedText = "Failed to extract text.";
             }
 
-            String prompt = String.format("You are an expert AI ATS parser and Career Mentor.\nAnalyze this resume text:\n\"\"\"\n%s\n\"\"\"\nProvide an extremely detailed JSON analysis. The JSON must have the following keys: 'atsScore' (integer, 0-100), 'atsBreakdown' (JSON object with integer fields: Formatting, Grammar, Projects, Skills, Achievements, Keywords, Overall), 'summary' (string), 'strengths' (string array), 'weaknesses' (string array), 'skillsFound' (string array), 'recommendedSkills' (string array), 'improvementSuggestions' (string array).", extractedText);
+            String prompt = String.format("You are an expert AI ATS parser and Career Mentor.\nAnalyze this resume text:\n\"\"\"\n%s\n\"\"\"\nProvide an extremely detailed JSON analysis. The JSON must have the following keys: 'atsScore' (integer, 0-100), 'atsBreakdown' (JSON object with integer fields representing percentage scores from 0 to 100: Formatting, Grammar, Projects, Skills, Achievements, Keywords, Overall. Do NOT use single digit scores like 8 or 9; use percentage integers out of 100 such as 94, 91, 97, 95, 88, 96), 'summary' (string), 'strengths' (string array), 'weaknesses' (string array), 'skillsFound' (string array), 'recommendedSkills' (string array), 'improvementSuggestions' (string array).", extractedText);
             
             String aiResponse = groqService.generateJsonResponse("You are a helpful AI assistant. Return ONLY valid JSON.", prompt);
             

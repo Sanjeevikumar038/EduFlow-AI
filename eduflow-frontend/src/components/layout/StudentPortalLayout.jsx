@@ -174,10 +174,12 @@ function StudentPortalLayout() {
   const roleLine = `${department} · Sem 8`;
 
   const [currentClass, setCurrentClass] = useState("Checking...");
+
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("eduflow-theme");
-    return saved ? saved === "dark" : true; // default dark
+    return saved ? saved === "dark" : false;
   });
+
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [calendarFilter, setCalendarFilter] = useState("ALL");
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -224,7 +226,7 @@ function StudentPortalLayout() {
 
   const handleLogout = () => {
     localStorage.clear();
-    navigate("/login");
+    navigate("/");
   };
 
   const menuItems = [

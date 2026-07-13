@@ -1,14 +1,20 @@
 import { useState } from "react";
 import { login } from "../services/authService";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import loginIllustration from "../assets/login-illustration.png";
 
 function PortalLogin() {
-  const [activeTab, setActiveTab] = useState("STUDENT"); // STUDENT or FACULTY
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Modals state
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
   const navigate = useNavigate();
 
   const showFeedback = (msg, isError = true) => {
@@ -36,12 +42,6 @@ function PortalLogin() {
       const response = await login({ email, password });
       const { token, role, name, registerNumber, department, classAdvisor } = response.data;
 
-      if (role !== activeTab) {
-        showFeedback(`Invalid credentials for ${activeTab.toLowerCase()} portal.`);
-        setLoading(false);
-        return;
-      }
-
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
       localStorage.setItem("name", name);
@@ -57,135 +57,210 @@ function PortalLogin() {
       }
       localStorage.setItem("classAdvisor", classAdvisor ? "true" : "false");
 
+      if (role === "ADMIN") {
+        showFeedback("Admin authenticated. Redirecting to Admin Panel...", false);
+        setTimeout(() => {
+          navigate("/admin");
+        }, 400);
+        return;
+      }
+
       showFeedback("Login Successful! Redirecting...", false);
       setTimeout(() => {
         if (role === "STUDENT") navigate("/student/dashboard");
         else if (role === "FACULTY") navigate("/faculty");
-      }, 1000);
+      }, 400);
     } catch (error) {
-      showFeedback(error.response?.data?.message || "Invalid Credentials");
+      showFeedback(error.response?.data?.message || "Invalid email or password");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      {/* Custom Error Banner */}
-      {error && (
-        <div style={{
-          background: "rgba(239, 68, 68, 0.15)",
-          border: "1px solid var(--error)",
-          color: "var(--error)",
-          borderRadius: "10px",
-          padding: "0.75rem 1rem",
-          fontSize: "0.9rem",
-          fontWeight: "500",
-          textAlign: "center",
-          animation: "fadeIn 0.3s ease"
-        }}>
-          ⚠️ {error}
+    <div className="erp-page-wrapper">
+      <div className="erp-login-card">
+        {/* Left Panel (Form Side) */}
+        <div className="erp-left-form-panel">
+          <div className="erp-logo-section">
+            <div className="erp-logo-row">
+              <div className="erp-logo-box">E</div>
+              <div className="erp-logo-text">EduFlow</div>
+            </div>
+            <div className="erp-logo-sub">AI-POWERED ACADEMIC ERP</div>
+          </div>
+
+          <div className="erp-form-content">
+            <div className="erp-heading-section">
+              <h2>Login</h2>
+              <p>Enter your account details</p>
+            </div>
+
+            {/* Toast Notification */}
+            {error && (
+              <div className="erp-toast">
+                <span>❌</span> {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="erp-toast success">
+                <span>✅</span> {success}
+              </div>
+            )}
+
+            <form className="erp-form" onSubmit={handleLogin}>
+              <div className="erp-form-fields">
+                <div className="erp-input-group">
+                  <label htmlFor="email-input">Email / Register Number</label>
+                  <div className="erp-input-wrapper">
+                    <span className="input-icon-left">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                    </span>
+                    <input
+                      id="email-input"
+                      className="erp-input-field"
+                      type="text"
+                      placeholder="Enter email or register number"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                      tabIndex="1"
+                    />
+                  </div>
+                </div>
+
+                <div className="erp-input-group">
+                  <label htmlFor="password-input">Password</label>
+                  <div className="erp-input-wrapper">
+                    <span className="input-icon-left">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    </span>
+                    <input
+                      id="password-input"
+                      className="erp-input-field"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      tabIndex="2"
+                    />
+                    <button
+                      type="button"
+                      className="input-icon-right"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{ border: "none", cursor: "pointer", background: "none" }}
+                      tabIndex="3"
+                    >
+                      {showPassword ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="erp-extra-row">
+                <label className="erp-checkbox-label" tabIndex="4">
+                  <input type="checkbox" /> Remember me
+                </label>
+                <button
+                  type="button"
+                  className="erp-link"
+                  onClick={() => setShowForgotModal(true)}
+                  tabIndex="5"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+
+              <button className="erp-login-btn" type="submit" disabled={loading} tabIndex="6">
+                {loading ? (
+                  <>
+                    <div className="erp-spinner"></div>
+                    <span>Signing In...</span>
+                  </>
+                ) : (
+                  "Login"
+                )}
+              </button>
+            </form>
+
+            <div className="erp-footer-notice">
+              Don't have an account?{" "}
+              <button
+                type="button"
+                className="erp-link"
+                style={{ fontWeight: "600" }}
+                onClick={() => setShowHelpModal(true)}
+              >
+                Contact your Administrator
+              </button>
+            </div>
+          </div>
+
+          <div className="erp-footer">
+            © 2026 EduFlow · Version 1.0
+          </div>
+        </div>
+
+        {/* Right Panel (Illustration Side) */}
+        <div className="erp-right-illustration-panel">
+          <img src={loginIllustration} alt="Workspace Illustration" className="erp-full-right-img" />
+        </div>
+      </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotModal && (
+        <div className="erp-modal-overlay" onClick={() => setShowForgotModal(false)}>
+          <div className="erp-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="erp-modal-header">
+              <h3>Forgot Password</h3>
+              <button className="erp-modal-close" onClick={() => setShowForgotModal(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="erp-modal-body">
+              <p>For security reasons, passwords can only be reset by your department administrator.</p>
+              <p>Please contact your department administrator or the college IT support.</p>
+            </div>
+            <div className="erp-modal-footer">
+              Email: <a href="mailto:sanjeevikumarwk@gmail.com" className="erp-link" style={{ fontWeight: "600" }}>sanjeevikumarwk@gmail.com</a>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Custom Success Banner */}
-      {success && (
-        <div style={{
-          background: "rgba(16, 185, 129, 0.15)",
-          border: "1px solid var(--success)",
-          color: "var(--success)",
-          borderRadius: "10px",
-          padding: "0.75rem 1rem",
-          fontSize: "0.9rem",
-          fontWeight: "500",
-          textAlign: "center",
-          animation: "fadeIn 0.3s ease"
-        }}>
-          ✅ {success}
+      {/* Need Help Modal */}
+      {showHelpModal && (
+        <div className="erp-modal-overlay" onClick={() => setShowHelpModal(false)}>
+          <div className="erp-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="erp-modal-header">
+              <h3>Need Help?</h3>
+              <button className="erp-modal-close" onClick={() => setShowHelpModal(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="erp-modal-body">
+              <p>Contact your administrator if you experience:</p>
+              <ul className="erp-modal-list">
+                <li>Login issues</li>
+                <li>Account locked</li>
+                <li>Password reset</li>
+                <li>Attendance discrepancies</li>
+                <li>Technical issues</li>
+              </ul>
+            </div>
+            <div className="erp-modal-footer">
+              Email: <a href="mailto:sanjeevikumarwk@gmail.com" className="erp-link" style={{ fontWeight: "600" }}>sanjeevikumarwk@gmail.com</a>
+            </div>
+          </div>
         </div>
       )}
-      <div className="auth-header">
-        <h1>Welcome Back</h1>
-        <p>Access your EduFlow account</p>
-      </div>
-
-      {/* Tab Switcher */}
-      <div style={{ display: "flex", gap: "0.5rem", background: "var(--input-bg)", padding: "4px", borderRadius: "10px", border: "1px solid var(--input-border)" }}>
-        <button
-          type="button"
-          onClick={() => { setActiveTab("STUDENT"); setEmail(""); setPassword(""); }}
-          style={{
-            flex: 1,
-            padding: "0.6rem",
-            border: "none",
-            borderRadius: "8px",
-            background: activeTab === "STUDENT" ? "var(--primary)" : "transparent",
-            color: activeTab === "STUDENT" ? "#fff" : "var(--text-muted)",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          Student
-        </button>
-        <button
-          type="button"
-          onClick={() => { setActiveTab("FACULTY"); setEmail(""); setPassword(""); }}
-          style={{
-            flex: 1,
-            padding: "0.6rem",
-            border: "none",
-            borderRadius: "8px",
-            background: activeTab === "FACULTY" ? "var(--primary)" : "transparent",
-            color: activeTab === "FACULTY" ? "#fff" : "var(--text-muted)",
-            fontFamily: "var(--font-heading)",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease"
-          }}
-        >
-          Faculty
-        </button>
-      </div>
-
-      <form className="auth-form" onSubmit={handleLogin}>
-        <div className="form-group">
-          <label>Username / Email</label>
-          <input
-            className="input-field"
-            type="text"
-            placeholder={`Enter your username or email`}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className="form-group">
-          <label>Password</label>
-          <input
-            className="input-field"
-            type="password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-
-        <button className="auth-btn" type="submit" disabled={loading}>
-          {loading ? "Logging in..." : `Login as ${activeTab === "STUDENT" ? "Student" : "Faculty"}`}
-        </button>
-      </form>
-
-      <div className="auth-footer" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <div>
-          <Link className="auth-link" to="/login" style={{ fontSize: "0.85rem", opacity: 0.8 }}>
-            ← Access Admin Portal
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

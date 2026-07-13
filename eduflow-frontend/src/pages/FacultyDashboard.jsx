@@ -28,12 +28,10 @@ function FacultyDashboard() {
   // Tab State
   const [activeTab, setActiveTab] = useState("overview"); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("eduflow-theme");
-    return saved ? saved === "dark" : true; 
+    return saved ? saved === "dark" : false;
   });
-
   useEffect(() => {
     const html = document.documentElement;
     if (isDark) {
@@ -414,7 +412,7 @@ function FacultyDashboard() {
 
   const handleLogout = () => {
     localStorage.clear();
-    navigate("/login");
+    navigate("/");
   };
 
   const showFeedback = (message, type = "success") => {

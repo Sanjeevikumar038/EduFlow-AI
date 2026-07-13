@@ -21,18 +21,40 @@ import CodingWorkspacePage from "./pages/student/CodingWorkspacePage";
 function PrivateRoute({ children, allowedRole }) {
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
-  if (!token) return <Navigate to="/portal" replace />;
-  if (allowedRole && role !== allowedRole) return <Navigate to="/portal" replace />;
+  if (!token) return <Navigate to="/" replace />;
+  if (allowedRole && role !== allowedRole) {
+    // Clear unauthorized session
+    localStorage.clear();
+    return <Navigate to="/" replace />;
+  }
   return children;
+}
+
+// Admin route handler: renders dashboard if authenticated, else shows login form
+function AdminRoute() {
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
+  if (token) {
+    if (role === "ADMIN") {
+      return <AdminDashboard />;
+    } else {
+      // Clear unauthorized student/faculty session trying to access admin route
+      localStorage.clear();
+      return <Navigate to="/" replace />;
+    }
+  }
+  return <Login />;
 }
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<PortalLogin />} />
+        <Route path="/admin" element={<AdminRoute />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/portal" element={<PortalLogin />} />
+        <Route path="/portal" element={<Navigate to="/" replace />} />
+        <Route path="/login" element={<Navigate to="/admin" replace />} />
         <Route path="/student/coding-workspace" element={<PrivateRoute allowedRole="STUDENT"><CodingWorkspacePage /></PrivateRoute>} />
         <Route path="/student" element={<PrivateRoute allowedRole="STUDENT"><StudentPortalLayout /></PrivateRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
@@ -47,8 +69,7 @@ function App() {
           <Route path="settings" element={<SettingsPage />} />
         </Route>
         <Route path="/faculty" element={<PrivateRoute allowedRole="FACULTY"><FacultyDashboard /></PrivateRoute>} />
-        <Route path="/admin" element={<PrivateRoute allowedRole="ADMIN"><AdminDashboard /></PrivateRoute>} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
