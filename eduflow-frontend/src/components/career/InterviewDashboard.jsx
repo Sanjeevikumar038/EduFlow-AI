@@ -327,7 +327,7 @@ const InterviewDashboard = () => {
                                 borderRadius: "12px"
                             }}>
                                 <span style={{ fontSize: "1.5rem", animation: "spin 1s infinite linear" }}>🔄</span>
-                                <span style={{ fontWeight: "700", color: "var(--primary)" }}>Groq AI evaluating response...</span>
+                                <span style={{ fontWeight: "700", color: "var(--primary)" }}>AI evaluating response...</span>
                             </div>
                         ) : (
                             liveTranscript || <span style={{ color: "var(--text-muted)" }}>🎙️ Listening... Speak clearly. Remaining seconds indicator dictates time before auto-submit.</span>

@@ -1,25 +1,100 @@
-# EduFlow - Smart College Portal & Attendance Management System
+# EduFlow
+### AI-Powered Smart Academic ERP for Modern Universities
 
-EduFlow is an advanced college portal web application designed to manage student registration, department-specific academic tracking, faculty accounts, a secure smart attendance verification system using real-time GPS proximity and dynamic QR codes, a Groq AI-powered ATS Resume Analyzer, and a full-screen daily Coding Assessment Workspace.
+![React](https://img.shields.io/badge/React-19-blue)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3-green)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue)
+![JWT](https://img.shields.io/badge/JWT-Authentication-orange)
+![Groq AI](https://img.shields.io/badge/Groq-AI-purple)
+![License](https://img.shields.io/badge/License-MIT-success)
+
+EduFlow is an advanced, AI-powered smart academic ERP and college portal system. It bridges the gap between daily campus administration and practical learning by integrating role-based user management, geolocated QR attendance checks, an automated AI resume scanner, and a sandbox-based coding workspace where students solve daily challenges to secure class attendance.
+
+---
+
+## 📊 Project Statistics
+
+| Metric | Value |
+| :--- | :--- |
+| User Roles | 3 (Student, Faculty, Admin) |
+| Departments | 11 |
+| Coding Questions | 100+ Curated Problems |
+| REST APIs | 15+ Secured Endpoints |
+| Authentication | JWT + BCrypt |
+| Attendance | QR + GPS + Department Validated |
+| AI Modules | Resume Analyzer, Code Review |
+
+---
+
+## 🏛 Architecture
+
+```
+                  React + Vite
+                       │
+          Axios + JWT Authentication
+                       │
+               Spring Boot REST API
+                       │
+        ┌──────────────┼──────────────┐
+        │              │              │
+   PostgreSQL       Groq AI      Code Executor
+        │              │              │
+   Attendance     Resume AI     Java/C/Python/C++
+   Coding         Code Review
+   Users
+   Resume
+```
+
+---
+
+## 🤖 AI Integration
+
+Groq AI powers:
+
+* **ATS Resume Analysis** — Extracts PDF text and generates detailed ATS scorecards with category breakdowns and actionable career suggestions.
+* **AI Code Review & Suggestions** — Reviews submitted code for optimizations, best practices, and performance improvements.
+
+---
+
+## 🔐 Authentication Flow
+
+```
+        User Login
+             ↓
+  Spring Boot Authentication
+             ↓
+     JWT Token Generated
+             ↓
+   Stored in Browser (localStorage)
+             ↓
+      Protected API Calls
+             ↓
+   Role Based Authorization
+```
 
 ---
 
 ## 🛠 Tech Stack
 
-* **Frontend**: React.js (Vite), Axios, Vanilla CSS (Premium Glassmorphic layouts, responsive 50/50 card splits, dynamic animations)
+* **Frontend**: React.js 19 (Vite), Axios, Vanilla CSS (Premium Glassmorphic layouts, responsive card splits, fluid animations)
 * **Backend**: Spring Boot 3.x, Spring Security, Hibernate JPA
 * **Database**: PostgreSQL
-* **AI Model Integration**: Groq AI API (using Llama models) for ATS resume parsing and mentorship analysis
-* **Authentication**: Stateless JWT (JSON Web Tokens) with BCrypt password hashing
-* **Network & Security**: Served over HTTPS (using self-signed certificates via Vite SSL) to support secure-context Web APIs (Geolocation and Camera/MediaDevices) on mobile devices.
+* **AI Integration**: Groq AI API (Llama models) for resume parsing and code review
+* **Authentication**: Stateless JWT (JSON Web Tokens) with BCrypt hashing
+* **Code Execution Sandbox**:
+  * Java
+  * Python
+  * C
+  * C++
+* **Network**: Served over HTTPS (Vite SSL) to allow mobile Geolocation and Camera Web APIs
 
 ---
 
 ## 🏛 Supported Departments & Academic Codes
 
-EduFlow tracks students and faculty across 11 specific departments. Each department is associated with a distinct two-character short code used for generating register numbers:
+EduFlow registers and manages academic records across 11 departments using sequential register numbers starting from `001`:
 
-| Department Name | Short Code | Register Number Format (Start) |
+| Department Name | Short Code | Register Number Format |
 | :--- | :---: | :--- |
 | **Civil Engineering** | `CE` | `727723EUCE001` |
 | **Computer Science & Engineering** | `CS` | `727723EUCS001` |
@@ -35,75 +110,108 @@ EduFlow tracks students and faculty across 11 specific departments. Each departm
 
 ---
 
-## 👥 Role Permissions & Architecture
+## 👥 Role Permissions & Access Boundaries
 
-The portal divides users into three distinct roles with strict permission boundaries:
-
-### 1. STUDENT
-* **Self-Registration**: Can register by providing Name, Email, Password, and choosing their Department from a dropdown list.
-* **Auto-Generated Register Numbers**: Register numbers are automatically generated per department, running sequentially from `001` (e.g., `727723EUCI001`, `727723EUCI002`).
-* **Smart Attendance**: Can check in to an active class session by authorizing GPS Geolocation access and scanning the teacher's dynamic class session QR code via mobile/webcam scanner.
-* **ATS Resume Analyzer**: Can upload PDF resumes to receive an instant ATS score and detailed career feedback.
-* **Daily Coding Challenge**: Participate in daily sequential programming assessments in a focused coding sandbox.
-
-### 2. FACULTY
-* **Creation**: Accounts are created exclusively by the Administrator (no self-registration allowed).
-* **Attendance Session Host**: Can start and stop class sessions, rendering a dynamic QR code containing the session ID and server coordinates.
-* **Live Feed**: Has a live check-in feed updating in real-time, showing only checked-in students from their own department.
-* **Student Directory**: Accesses a view-only list of students, filtered strictly to their own department.
-* **Class Reports**: Compiles and views attendance roll-call reports showing present and absent status, filtered strictly to their own department.
-
-### 3. ADMIN
-* **Startup Account**: Pre-seeded in the database on application startup (`admin` / `admin@123`).
-* **Full CRUD Management**: Create and delete student and faculty profiles; search, sort, and filter the global directory.
+* **STUDENT**: Self-registration with auto-register generation. Accesses geolocated QR attendance, ATS resume analyzer, and daily coding workspace.
+* **FACULTY**: Created exclusively by Administrators. Hosts attendance sessions, reviews real-time department roll-calls, manages student records, and overrides coding attendance.
+* **ADMIN**: Pre-seeded account (`admin` / `admin@123`). Full CRUD controls over students and faculty across all departments.
 
 ---
 
-## 🚀 Key Features Implemented
+## ✨ Key Features
 
-### 1. Modern SaaS ERP Split-Screen Login
-* **Unified Portal (`/`)**: A single unified card layout for Student and Faculty logins. System automatically detects user role upon successful authentication and routes them to their dashboard.
-* **Admin Portal (`/admin`)**: Restricted separate login area for Administrators only.
-* **Premium Design**: Clean card container (95% width, 1550px max-width, 750px height) with full-bleed royal blue illustration panels, same-line checkbox & forgot password row, and compact layouts.
+| Module | Status |
+| :--- | :---: |
+| Authentication (JWT) | ✅ |
+| Smart Attendance (QR + GPS) | ✅ |
+| Department Validation | ✅ |
+| Student Dashboard | ✅ |
+| Faculty Dashboard | ✅ |
+| Admin Dashboard | ✅ |
+| AI Resume Analyzer | ✅ |
+| Coding Workspace | ✅ |
+| AI Code Review | ✅ |
+| Daily Coding Challenge | ✅ |
+| Coding History & Progress | ✅ |
+| Performance Dashboard | ✅ |
+| Automatic Coding Attendance | ✅ |
+| Faculty Attendance Override | ✅ |
 
-### 2. Smart Proximity Geolocation & Department Verification
-* **GPS Proximity**: Captures student latitude/longitude during scanning and validates it against the faculty's starting coordinates. Student must be within a safe radius (~100m) to check in.
-* **Department-Matching Validation**: Prevents students from checking in to sessions hosted by faculty members of a different department.
+---
 
-### 3. Groq AI-Powered ATS Resume Hub
-* **AI Analysis**: Extracts PDF resume text and requests an ATS scorecard JSON payload from Groq AI.
-* **Metrics Breakdown**: Scores are normalized to percentages representing Formatting & Layout, Grammar & Tone, Projects & Experience, Skills Match Rate, Achievements & Impact, and Keywords Coverage.
-* **Actionable Feedback**: Lists categorized Strengths, Weaknesses, and direct suggestions for improvement.
+## 🚀 Feature Breakdown
 
-### 4. Rotating Daily Coding Assessment Workspace
-* **Sequential Rotation**: Dynamically schedules a rotating coding challenge from a 7-question bank (Factorial, Two Sum, Palindrome Number, Reverse a String, Fizz Buzz, Valid Parentheses, Merge Sorted Arrays).
-* **Focused Environment**: Starts a full-screen coding workspace with a multi-language compiler sandbox (Java, Python, C++, C support) and real-time test case validation.
+### 1. Modern Login Experience
+* **Unified Portal (`/`)**: Single login card for both Students and Faculty. System auto-detects roles and redirects to respective dashboards.
+* **Hidden Admin Portal (`/admin`)**: Dedicated login route reserved exclusively for Administrators.
+* **Premium Design**: ERP-inspired split-screen interface with full-bleed illustration panel and responsive layout.
 
-### 5. Multi-Theme Capability
-* **Light Theme Default**: Application defaults to a light theme for optimal readability across all student, faculty, and administrator dashboard layouts.
-* **Toggled Dark Theme**: Users can easily toggle a premium dark theme layout from their Settings page.
+### 2. Smart Attendance Verification
+Attendance is verified using multiple layers:
+* **Dynamic QR Codes** — Sessions rendered as QR images with transient session IDs.
+* **GPS Location Verification** — Compares student coordinates against faculty starting location within a ~100m radius.
+* **Department Validation** — Rejects scans from mismatched departments.
+* **Active Session Validation** — Ensures the session is currently live before accepting check-ins.
+* **Coding Assessment Verification** — Automatic attendance during Free Activity Period based on coding performance.
+
+### 3. AI Coding Practice Workspace
+Students write, compile, and execute code in a focused full-screen sandbox:
+* **100+ Curated Coding Problems** across multiple difficulty levels and topics.
+* **Automatic Daily Rotation** — A new challenge is assigned each day.
+* **Faculty Override Support** — Faculty can manually assign specific problems.
+* **Unlimited Run Code** — Test against sample inputs as many times as needed.
+* **Hidden Test Cases** — Submit solution to validate against hidden inputs.
+* **75% Passing Rule** — Attendance awarded when ≥75% of hidden test cases pass.
+* **AI Code Review** — Get AI-powered review and optimization suggestions.
+* **Coding History** — Track all past submissions and attempts.
+* **Progress Dashboard** — View scores, streaks, and performance metrics.
+
+### 4. Smart Free Activity Period
+EduFlow introduces an innovative Free Activity Period dedicated entirely to coding practice.
+* Students receive one coding challenge every day.
+* Attendance is automatically awarded when the student successfully solves at least **75% of the hidden test cases**.
+* This transforms attendance into a measure of practical learning rather than passive classroom presence.
+
+### 5. Coding Performance Hub
+Students can view:
+* **Coding History** — All past submissions with timestamps.
+* **Attempts** — Number of tries per problem.
+* **Scores** — Best score achieved per problem.
+* **Pass Percentage** — Overall success rate.
+* **AI Feedback** — Saved AI code reviews and suggestions.
+* **Success Rate** — Problems solved vs attempted ratio.
+* **Streak** — Consecutive days of successful submissions.
+
+### 6. AI-Powered ATS Resume Hub
+* **ATS Scorecard** — Generates an overall score out of 100 from uploaded PDF resumes.
+* **Multi-Category Breakdown** — Formatting & Layout, Grammar & Tone, Projects & Experience, Skills Match Rate, Achievements & Impact, Keywords Coverage.
+* **Mentorship Reports** — Personalized Strengths, Weaknesses, and actionable improvement suggestions.
 
 ---
 
 ## 🔒 Secured API Routing (Spring Security)
 
-| Method | Endpoint | Description | Role Required |
+| Method | Endpoint | Description | Role |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Student self-registration with auto-register number | Permitted to all |
-| `POST` | `/api/auth/login` | Login and return JWT token + role/department | Permitted to all |
-| `GET` | `/api/admin/students` | Fetch students (filters by department if called by FACULTY) | `ADMIN` / `FACULTY` |
+| `POST` | `/api/auth/register` | Student self-registration | Public |
+| `POST` | `/api/auth/login` | Login and return JWT token | Public |
+| `GET` | `/api/admin/students` | Fetch students (dept-filtered for faculty) | `ADMIN` / `FACULTY` |
 | `POST` | `/api/admin/create-student` | Admin-created student accounts | `ADMIN` |
-| `DELETE` | `/api/admin/students/{id}` | Admin-only student removal | `ADMIN` |
-| `GET` | `/api/admin/faculty` | Fetch list of all faculty profiles | `ADMIN` |
-| `POST` | `/api/admin/create-faculty` | Admin-only faculty creation | `ADMIN` |
-| `DELETE` | `/api/admin/faculty/{id}` | Admin-only faculty removal | `ADMIN` |
+| `DELETE` | `/api/admin/students/{id}` | Remove student | `ADMIN` |
+| `GET` | `/api/admin/faculty` | Fetch all faculty profiles | `ADMIN` |
+| `POST` | `/api/admin/create-faculty` | Create faculty account | `ADMIN` |
+| `DELETE` | `/api/admin/faculty/{id}` | Remove faculty | `ADMIN` |
 | `POST` | `/api/attendance/session/start` | Host a class session | `FACULTY` |
-| `POST` | `/api/attendance/mark` | Mark student attendance (GPS & Dept matches) | `STUDENT` |
-| `GET` | `/api/attendance/session/{id}/records` | Live check-in list (department-filtered) | `FACULTY` |
-| `GET` | `/api/attendance/session/{id}/report` | Attendance report sheets (department-filtered) | `FACULTY` / `ADMIN` |
-| `POST` | `/api/resume/upload` | Upload PDF and parse ATS resume metrics via Groq AI | `STUDENT` |
-| `GET` | `/api/coding/challenge` | Fetch sequential daily rotating coding challenge | `STUDENT` |
-| `POST` | `/api/coding/run` | Compile code and run test cases inside sandbox | `STUDENT` |
+| `POST` | `/api/attendance/mark` | Mark attendance (GPS + Dept) | `STUDENT` |
+| `GET` | `/api/attendance/session/{id}/records` | Live check-in list | `FACULTY` |
+| `GET` | `/api/attendance/session/{id}/report` | Attendance report | `FACULTY` / `ADMIN` |
+| `POST` | `/api/resume/upload` | Upload PDF for AI ATS analysis | `STUDENT` |
+| `GET` | `/api/coding/challenge` | Fetch daily coding challenge | `STUDENT` |
+| `GET` | `/api/coding/problems` | List all coding problems | `STUDENT` |
+| `POST` | `/api/coding/run` | Compile and run test cases | `STUDENT` |
+| `POST` | `/api/coding/submit` | Submit solution against hidden tests | `STUDENT` |
+| `GET` | `/api/coding/history` | Fetch coding submission history | `STUDENT` |
+| `POST` | `/api/coding/override-attendance` | Faculty override coding attendance | `FACULTY` |
 
 ---
 
@@ -117,14 +225,13 @@ spring.datasource.username=postgres
 spring.datasource.password=YOUR_PASSWORD
 ```
 
-### 2. Groq AI Integration
-Add your Groq API key to activate the ATS resume analyzer:
+### 2. AI Integration
+Add your Groq API key:
 ```properties
 groq.api.key=YOUR_GROQ_API_KEY
 ```
 
 ### 3. Backend Server
-Build and run the Spring Boot application:
 ```bash
 cd eduflow-backend
 mvn clean compile
@@ -132,16 +239,63 @@ mvn spring-boot:run
 ```
 
 ### 4. Frontend Web Server
-Install dependencies and run the HTTPS development server:
 ```bash
 cd eduflow-frontend
 npm install
 npm run dev
 ```
 
-The Vite dev server will print local network URLs, e.g.:
-```
-  ➜  Local:   https://localhost:5173/
-  ➜  Network: https://192.168.1.100:5173/
-```
-Open the network URL on your mobile phone connected to the same Wi-Fi. (Note: Accept the browser self-signed certificate warning to proceed).
+---
+
+## 🖼 Screenshots
+
+### Login Portal
+![Login](screenshots/login.png)
+
+### Student Dashboard
+![Student](screenshots/student-dashboard.png)
+
+### Faculty Dashboard
+![Faculty](screenshots/faculty-dashboard.png)
+
+### Admin Dashboard
+![Admin](screenshots/admin-dashboard.png)
+
+### QR Attendance
+![QR](screenshots/attendance.png)
+
+### Coding Workspace
+![Coding](screenshots/coding.png)
+
+### Resume Analyzer
+![Resume](screenshots/resume.png)
+
+---
+
+## 🔮 Future Enhancements
+
+* **Online Judge System** — Competitive compiler infrastructure
+* **Contest Mode** — Host real-time hackathons and coding rounds
+* **Leaderboard** — Global ranks and scoring parameters
+* **Coding Badges** — Gamified achievements based on streaks and performance
+* **AI Interview Simulator** — Speech-to-text interactive mock interviews
+* **Placement Analytics** — Campus hiring predictions and insights
+* **Email Notifications** — Real-time push updates for sessions and results
+* **Mobile Application** — Native Android/iOS builds
+
+---
+
+## 📜 License
+
+This project is released under the **MIT License**.
+
+---
+
+## 👨‍💻 Author
+
+**Sanjeevi Kumar**  
+Integrated M.Tech Computer Science & Engineering  
+Sri Krishna College of Engineering & Technology
+
+* GitHub: [github.com/Sanjeevikumar038](https://github.com/Sanjeevikumar038)
+* LinkedIn: [linkedin.com/in/sanjeevikumar038](https://linkedin.com/in/sanjeevikumar038)

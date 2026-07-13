@@ -410,7 +410,7 @@ const ResumeManagement = () => {
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid var(--card-border)", paddingBottom: "16px", marginBottom: "20px" }}>
                                         <div>
                                             <h3 style={{ margin: 0, fontSize: "1.3rem", fontWeight: "800", color: "var(--text-main)" }}>ATS Score Overview</h3>
-                                            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600", textTransform: "uppercase" }}>Powered by Groq AI</span>
+                                            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600", textTransform: "uppercase" }}>Powered by AI</span>
                                         </div>
                                         <div style={{ textAlign: "right" }}>
                                             <div style={{ fontSize: "2.2rem", fontWeight: "900", color: "var(--primary)", lineHeight: "1" }}>
