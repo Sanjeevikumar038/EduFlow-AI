@@ -80,6 +80,45 @@ const CareerDashboardFaculty = () => {
                         )) : <div style={{ color: "var(--text-muted)", fontStyle: "italic" }}>All students are doing well!</div>}
                     </div>
                 </div>
+                <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--card-border)", background: "var(--bg-secondary)", gridColumn: "1 / -1" }}>
+                    <h3 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: "700", color: "var(--primary)" }}>
+                        📊 Student Detailed Readiness
+                    </h3>
+                    <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem", textAlign: "left" }}>
+                            <thead>
+                                <tr style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--card-border)" }}>
+                                    <th style={{ padding: "0.75rem" }}>Student</th>
+                                    <th style={{ padding: "0.75rem" }}>Overall (100)</th>
+                                    <th style={{ padding: "0.75rem" }}>Resume (25)</th>
+                                    <th style={{ padding: "0.75rem" }}>Coding (25)</th>
+                                    <th style={{ padding: "0.75rem" }}>Interview (25)</th>
+                                    <th style={{ padding: "0.75rem" }}>Attendance (25)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.allStudents && data.allStudents.map((s, i) => (
+                                    <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
+                                        <td style={{ padding: "0.75rem" }}>
+                                            <div style={{ fontWeight: "600", color: "var(--text-main)" }}>{s.name}</div>
+                                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{s.registerNumber}</div>
+                                        </td>
+                                        <td style={{ padding: "0.75rem", fontWeight: "800", color: s.overallScore >= 70 ? "var(--success)" : "var(--warning)" }}>{s.overallScore}</td>
+                                        <td style={{ padding: "0.75rem" }}>
+                                            {s.resumeScore > 0 ? <span style={{ color: "var(--success)" }}>{s.resumeScore}</span> : <span style={{ color: "var(--text-muted)" }}>No Resume</span>}
+                                        </td>
+                                        <td style={{ padding: "0.75rem" }}>{s.codingScore}</td>
+                                        <td style={{ padding: "0.75rem" }}>{s.interviewScore}</td>
+                                        <td style={{ padding: "0.75rem" }}>{s.attendanceScore}</td>
+                                    </tr>
+                                ))}
+                                {(!data.allStudents || data.allStudents.length === 0) && (
+                                    <tr><td colSpan="6" style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)" }}>No students found in {department}</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     );

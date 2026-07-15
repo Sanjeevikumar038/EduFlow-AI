@@ -317,7 +317,7 @@ function SettingsPage() {
                   gap: "6px"
                 }}
               >
-                {isDark ? "🌙 Dark Mode" : "☀️ Light Mode"}
+                {isDark ? <><i className="fa-solid fa-moon"></i> Dark Mode</> : <><i className="fa-solid fa-sun"></i> Light Mode</>}
               </button>
             </div>
 

@@ -206,7 +206,7 @@ function FacultyTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, name, sub
           className="lg:hidden"
           title="Open Menu"
         >
-          ☰
+          <i className="fa-solid fa-bars"></i>
         </button>
 
         {/* Search bar input */}
@@ -235,7 +235,7 @@ function FacultyTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, name, sub
             style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem" }} 
             title="Academic Calendar"
           >
-            📅
+            <i className="fa-solid fa-calendar-day"></i>
           </button>
 
           {/* Globe Icon */}
@@ -244,7 +244,7 @@ function FacultyTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, name, sub
             style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem" }} 
             title="SKCET Placement Portal"
           >
-            🌐
+            <i className="fa-solid fa-globe"></i>
           </button>
 
           {/* Theme Switcher */}
@@ -253,7 +253,7 @@ function FacultyTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, name, sub
             style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem", color: isDark ? "#fbbf24" : "var(--text-muted)" }}
             title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
-            {isDark ? "🌙" : "☀️"}
+            {isDark ? <i className="fa-solid fa-moon"></i> : <i className="fa-solid fa-sun"></i>}
           </button>
 
           {/* Notifications */}
@@ -262,7 +262,7 @@ function FacultyTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, name, sub
               style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem" }} 
               title="Notifications"
             >
-              🔔
+              <i className="fa-solid fa-bell"></i>
               <span style={{ position: "absolute", top: "-2px", right: "-2px", width: "8px", height: "8px", backgroundColor: "#f43f5e", borderRadius: "50%" }} />
             </button>
           </div>
@@ -283,7 +283,7 @@ function FacultyTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, name, sub
             <div className="hidden md:block">
               <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
                 <span style={{ fontWeight: "600", color: "var(--text-main)", fontSize: "0.875rem" }}>{name}</span>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>▼</span>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}><i className="fa-solid fa-chevron-down"></i></span>
               </div>
               <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: "500" }}>{subtitle}</div>
             </div>
@@ -330,7 +330,7 @@ function FacultyTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, name, sub
                 onMouseEnter={e => e.currentTarget.style.background = "rgba(244, 63, 94, 0.08)"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}
               >
-                🚪 Logout
+                <i className="fa-solid fa-right-from-bracket"></i> Logout
               </button>
             </div>
           )}

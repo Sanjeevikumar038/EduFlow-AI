@@ -411,21 +411,26 @@ public class CodingChallengeController {
         }
         studentQuestionProgressRepository.save(progress);
 
-        // Update aggregate attempts stats in CodingProgress:
-        Optional<CodingProgress> cpOpt = codingProgressRepository.findByStudent(user);
-        if (cpOpt.isPresent()) {
-            CodingProgress cp = cpOpt.get();
-            cp.setTotalAttempted(cp.getTotalAttempted() + 1);
-            if (score > cp.getBestScore()) {
-                cp.setBestScore(score);
-            }
-            List<StudentQuestionProgress> allProgs = studentQuestionProgressRepository.findByStudentId(user.getId());
-            double sum = allProgs.stream().mapToInt(StudentQuestionProgress::getBestScore).sum();
-            cp.setAverageScore(sum / allProgs.size());
-            cp.setSuccessRate((double) cp.getTotalSolved() * 100.0 / cp.getTotalAttempted());
-            cp.setLastUpdated(LocalDateTime.now());
-            codingProgressRepository.save(cp);
+        // Update aggregate attempts stats in CodingProgress (create if not exists):
+        CodingProgress cpAgg = codingProgressRepository.findByStudent(user).orElseGet(() -> {
+            CodingProgress newCp = CodingProgress.builder()
+                    .student(user)
+                    .easySolved(0).mediumSolved(0).hardSolved(0).totalSolved(0)
+                    .totalAttempted(0).bestScore(0).averageScore(0.0).successRate(0.0)
+                    .currentStreak(0).longestStreak(0)
+                    .build();
+            return codingProgressRepository.save(newCp);
+        });
+        cpAgg.setTotalAttempted(cpAgg.getTotalAttempted() + 1);
+        if (score > cpAgg.getBestScore()) {
+            cpAgg.setBestScore(score);
         }
+        List<StudentQuestionProgress> allProgs = studentQuestionProgressRepository.findByStudentId(user.getId());
+        double sum = allProgs.stream().mapToInt(StudentQuestionProgress::getBestScore).sum();
+        cpAgg.setAverageScore(allProgs.isEmpty() ? 0.0 : sum / allProgs.size());
+        cpAgg.setSuccessRate(cpAgg.getTotalAttempted() > 0 ? (double) cpAgg.getTotalSolved() * 100.0 / cpAgg.getTotalAttempted() : 0.0);
+        cpAgg.setLastUpdated(LocalDateTime.now());
+        codingProgressRepository.save(cpAgg);
 
         // 7. Resolve or create Attendance Session for FREE_ACTIVITY today
         Optional<AttendanceSession> activeSessionOpt = attendanceSessionRepository.findByActive(true).stream()

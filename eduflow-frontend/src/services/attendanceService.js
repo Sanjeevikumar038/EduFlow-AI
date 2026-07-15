@@ -43,6 +43,14 @@ export const getSessionRecords = (sessionId, token) => {
   });
 };
 
+export const getSessionStudents = (sessionId, token) => {
+  return axios.get(`${ATTENDANCE_API}/session/${sessionId}/students`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
 export const getAllSessions = (token) => {
   return axios.get(`${ATTENDANCE_API}/sessions`, {
     headers: {
@@ -105,11 +113,6 @@ export const getLowAttendanceStudents = (token) => {
   });
 };
 
-export const getSessionStudents = (sessionId, token) => {
-  return axios.get(`${ATTENDANCE_API}/session/${sessionId}/students`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-};
 
 export const markManualAttendance = (sessionId, studentId, status, token) => {
   return axios.post(`${ATTENDANCE_API}/session/${sessionId}/manual`, { studentId, status }, {

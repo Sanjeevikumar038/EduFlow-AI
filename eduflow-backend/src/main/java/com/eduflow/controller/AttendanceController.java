@@ -464,13 +464,8 @@ public class AttendanceController {
                 }
             }
             if (!user.isClassAdvisor()) {
-                List<FacultyExpertise> expertises = facultyExpertiseRepository.findByFacultyId(user.getId());
-                List<String> assignedSubjects = expertises.stream()
-                    .filter(fe -> fe.getSubject() != null && fe.getSubject().getSubjectCode() != null)
-                    .map(fe -> fe.getSubject().getSubjectCode().toLowerCase().trim())
-                    .toList();
                 sessions = rawSessions.stream()
-                    .filter(s -> s.getSubject() != null && assignedSubjects.contains(s.getSubject().toLowerCase().trim()))
+                    .filter(s -> s.getFacultyId() != null && s.getFacultyId().equals(user.getId()))
                     .collect(java.util.stream.Collectors.toList());
             } else {
                 sessions = new java.util.ArrayList<>(rawSessions);

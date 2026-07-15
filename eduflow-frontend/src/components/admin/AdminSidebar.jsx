@@ -2,16 +2,16 @@ import React from "react";
 
 function AdminSidebar({ activeTab, setActiveTab, handleLogout }) {
   const adminMenuItems = [
-    { id: "analytics", label: "Analytics Control", icon: "📊" },
-    { id: "faculty", label: "Faculty Management", icon: "👤" },
-    { id: "students", label: "Student Management", icon: "🎓" },
-    { id: "timetable", label: "Timetable Manager", icon: "📅" },
-    { id: "subjects", label: "Subject Master", icon: "📚" },
-    { id: "expertise", label: "Faculty Expertise", icon: "🎯" },
-    { id: "leaves", label: "Faculty Leaves", icon: "🏖️" },
-    { id: "leave", label: "Student Leaves/OD", icon: "📄" },
-    { id: "workload", label: "Workload", icon: "⏱️" },
-    { id: "career", label: "Career", icon: "⭐" },
+    { id: "analytics", label: "Analytics Control", icon: <i className="fa-solid fa-chart-pie"></i> },
+    { id: "faculty", label: "Faculty Management", icon: <i className="fa-solid fa-user"></i> },
+    { id: "students", label: "Student Management", icon: <i className="fa-solid fa-user-graduate"></i> },
+    { id: "timetable", label: "Timetable Manager", icon: <i className="fa-solid fa-calendar-days"></i> },
+    { id: "subjects", label: "Subject Master", icon: <i className="fa-solid fa-book"></i> },
+    { id: "expertise", label: "Faculty Expertise", icon: <i className="fa-solid fa-bullseye"></i> },
+    { id: "leaves", label: "Faculty Leaves", icon: <i className="fa-solid fa-umbrella-beach"></i> },
+    { id: "leave", label: "Student Leaves/OD", icon: <i className="fa-solid fa-file-invoice"></i> },
+    { id: "workload", label: "Workload", icon: <i className="fa-solid fa-stopwatch"></i> },
+    { id: "career", label: "Career", icon: <i className="fa-solid fa-star"></i> },
   ];
 
   return (

@@ -647,11 +647,11 @@ const CodingWorkspacePage = () => {
                                 <option value="c">C (GCC)</option>
                             </select>
                             
-                            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1rem" }} title="Toggle Dark Theme">
-                                🌙
+                            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1rem", color: "var(--text-muted)" }} title="Toggle Dark Theme">
+                                <i className="fa-solid fa-moon"></i>
                             </button>
-                            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1rem" }} title="Expand Screen">
-                                🗖
+                            <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1rem", color: "var(--text-muted)" }} title="Expand Screen">
+                                <i className="fa-solid fa-expand"></i>
                             </button>
                         </div>
                     </div>

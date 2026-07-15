@@ -59,7 +59,7 @@ function DepartmentComparisonChart({ data }) {
   return (
     <div style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem", width: "100%", height: "100%" }}>
       <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff", fontSize: "1.2rem", fontFamily: "var(--font-heading)", fontWeight: "600", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
-        📊 Department Attendance Comparison
+        <i className="fa-solid fa-chart-pie" style={{ color: "var(--primary)" }}></i> Department Attendance Comparison
       </h3>
       <div style={{ width: "100%", overflowX: "auto" }}>
         <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} width="100%" height="100%" style={{ overflow: "visible", minWidth: "500px" }}>
@@ -1194,7 +1194,7 @@ function AdminDashboard() {
       ))}
 
       {/* 2. Add Student Modal */}
-      {renderModal(showAddStudentModal, () => setShowAddStudentModal(false), "🎓 Add New Student Profile", (
+      {renderModal(showAddStudentModal, () => setShowAddStudentModal(false), <><i className="fa-solid fa-user-graduate"></i> Add New Student Profile</>, (
         <form className="auth-form" onSubmit={async (e) => { await handleCreateStudent(e); setShowAddStudentModal(false); }}>
           <div className="form-group">
             <label>Student Name</label>
@@ -1569,7 +1569,7 @@ function AdminDashboard() {
 
             {/* Performance Stats */}
             <div style={{ background: "rgba(99, 102, 241, 0.05)", border: "1px solid rgba(99, 102, 241, 0.15)", padding: "1.25rem", borderRadius: "16px", marginBottom: "2rem" }}>
-              <h4 style={{ margin: "0 0 1rem 0", color: "#fff", fontSize: "1rem" }}>📈 Academic ERP Statistics</h4>
+              <h4 style={{ margin: "0 0 1rem 0", color: "#fff", fontSize: "1rem", display: "flex", alignItems: "center", gap: "6px" }}><i className="fa-solid fa-chart-line" style={{ color: "var(--primary)" }}></i> Academic ERP Statistics</h4>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "1rem", textAlign: "center" }}>
                 <div>
                   <div style={{ fontSize: "1.5rem", fontWeight: "700", color: "var(--success)" }}>
@@ -1612,7 +1612,7 @@ function AdminDashboard() {
 
             {/* Attendance History Timeline */}
             <div>
-              <h4 style={{ margin: "0 0 0.75rem 0", color: "#fff", fontSize: "1rem" }}>📅 Attendance Log Timeline</h4>
+              <h4 style={{ margin: "0 0 0.75rem 0", color: "#fff", fontSize: "1rem", display: "flex", alignItems: "center", gap: "6px" }}><i className="fa-solid fa-calendar-day" style={{ color: "var(--primary)" }}></i> Attendance Log Timeline</h4>
               <div style={{ maxHeight: "200px", overflowY: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
                   <thead>

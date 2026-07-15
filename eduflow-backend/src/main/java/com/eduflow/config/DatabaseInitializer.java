@@ -358,26 +358,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             );
 
             if (isMtechCse) {
-                if (u.getRole() == Role.STUDENT && !"727723EUCI045".equalsIgnoreCase(u.getRegisterNumber())) {
-                    attendanceRepository.deleteAll(attendanceRepository.findByStudentId(u.getId()));
-                    codingProgressRepository.findByStudent(u).ifPresent(codingProgressRepository::delete);
-
-                    List<InterviewAttempt> attempts = interviewAttemptRepository.findByStudentOrderByStartedAtDesc(u);
-                    for (InterviewAttempt attempt : attempts) {
-                        interviewResponseRepository.deleteAll(interviewResponseRepository.findByAttemptOrderByQuestionNumberAsc(attempt));
-                        interviewAttemptRepository.delete(attempt);
-                    }
-
-                    careerHistoryRepository.deleteAll(careerHistoryRepository.findByStudentOrderByCareerScoreDateAsc(u));
-                    studentProfileRepository.findByUserId(u.getId()).ifPresent(studentProfileRepository::delete);
-                    resumeRepository.deleteAll(resumeRepository.findByStudentOrderByUploadedDateDesc(u));
-                    notificationRepository.deleteAll(notificationRepository.findByUserOrderByTimestampDesc(u));
-                    interviewSessionRepository.deleteAll(interviewSessionRepository.findByStudentOrderByCreatedAtDesc(u));
-                    interviewResultRepository.deleteAll(interviewResultRepository.findByStudentOrderByDateDesc(u));
-                    leaveRequestRepository.deleteAll(leaveRequestRepository.findByStudentId(u.getId()));
-
-                    userRepository.delete(u);
-                } else if (u.getRole() == Role.FACULTY) {
+                if (u.getRole() == Role.FACULTY) {
                     facultyExpertiseRepository.deleteByFacultyId(u.getId());
                     facultyAvailabilityRepository.deleteAll(facultyAvailabilityRepository.findByFacultyId(u.getId()));
 

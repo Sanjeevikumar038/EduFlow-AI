@@ -202,7 +202,7 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
           className="lg:hidden"
           title="Open Menu"
         >
-          ☰
+          <i className="fa-solid fa-bars"></i>
         </button>
 
         {/* Search Input Row with Magnifying-Glass */}
@@ -231,7 +231,7 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
             style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem" }} 
             title="Academic Calendar"
           >
-            📅
+            <i className="fa-solid fa-calendar-day"></i>
           </button>
 
           {/* Globe Icon */}
@@ -240,7 +240,7 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
             style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem" }} 
             title="SKCET Placement Portal"
           >
-            🌐
+            <i className="fa-solid fa-globe"></i>
           </button>
 
           {/* Theme switcher */}
@@ -249,7 +249,7 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
             style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem", color: isDark ? "#fbbf24" : "var(--text-muted)" }}
             title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
-            {isDark ? "🌙" : "☀️"}
+            {isDark ? <i className="fa-solid fa-moon"></i> : <i className="fa-solid fa-sun"></i>}
           </button>
 
           {/* Notification Bell Icon with Badge */}
@@ -258,8 +258,8 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
               style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem" }} 
               title="Notifications"
             >
-              🔔
-              <span style={{ position: "absolute", top: "-2px", right: "-2px", width: "8px", height: "8px", backgroundColor: "var(--error)", borderRadius: "50%" }} />
+              <i className="fa-solid fa-bell"></i>
+              <span style={{ position: "absolute", top: "-2px", right: "-2px", width: "8px", height: "8px", backgroundColor: "#f43f5e", borderRadius: "50%" }} />
             </button>
           </div>
         </div>
@@ -279,7 +279,7 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
             <div className="hidden md:block">
               <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
                 <span style={{ fontWeight: "600", color: "var(--text-main)", fontSize: "0.875rem" }}>System Admin</span>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>▼</span>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}><i className="fa-solid fa-chevron-down"></i></span>
               </div>
               <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "700" }}>ADMIN</div>
             </div>
@@ -326,7 +326,7 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
                 onMouseEnter={e => e.currentTarget.style.background = "rgba(244, 63, 94, 0.08)"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}
               >
-                🚪 Logout
+                <i className="fa-solid fa-right-from-bracket"></i> Logout
               </button>
             </div>
           )}
@@ -376,7 +376,7 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
               background: "rgba(30, 41, 59, 0.2)"
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                <span style={{ fontSize: "1.5rem" }}>📅</span>
+                <span style={{ fontSize: "1.5rem", color: "var(--primary)" }}><i className="fa-solid fa-calendar-day"></i></span>
                 <div>
                   <h2 style={{ margin: 0, color: "var(--text-main)", fontSize: "1.05rem", fontWeight: "800", letterSpacing: "0.5px" }}>
                     SRI KRISHNA COLLEGE OF ENGINEERING AND TECHNOLOGY
@@ -438,7 +438,7 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
                     transition: "all 0.2s ease"
                   }}
                 >
-                  📍 {month}
+                  <i className="fa-solid fa-location-dot" style={{ color: "var(--primary)" }}></i> {month}
                 </button>
               ))}
             </div>

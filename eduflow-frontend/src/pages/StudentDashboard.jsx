@@ -18,7 +18,7 @@ function AttendanceTrendChart({ trendData }) {
   if (!trendData || trendData.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "3rem 1.5rem", color: "var(--text-muted)", fontStyle: "italic", background: "rgba(30, 41, 59, 0.2)", border: "1px solid var(--card-border)", borderRadius: "16px" }}>
-        📊 No trend data available yet. Trends will appear as attendance is marked.
+        <i className="fa-solid fa-chart-pie"></i> No trend data available yet. Trends will appear as attendance is marked.
       </div>
     );
   }
@@ -56,7 +56,7 @@ function AttendanceTrendChart({ trendData }) {
   return (
     <div style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem", width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.2)" }}>
       <h3 style={{ margin: "0 0 1.5rem 0", color: "var(--text-main)", fontSize: "1.2rem", fontFamily: "var(--font-heading)", fontWeight: "600", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
-        📈 Attendance Trend
+        <i className="fa-solid fa-chart-line" style={{ color: "var(--primary)" }}></i> Attendance Trend
       </h3>
       <div style={{ position: "relative", width: "100%", flexGrow: 1 }}>
         <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%" style={{ overflow: "visible" }}>
@@ -815,7 +815,7 @@ function StudentDashboard() {
             transition: "all 0.3s ease"
           }}
         >
-          📊 Portal Overview
+          <i className="fa-solid fa-chart-pie"></i> Portal Overview
         </button>
         <button
           onClick={() => setActiveTab("attendance")}
@@ -831,7 +831,7 @@ function StudentDashboard() {
             transition: "all 0.3s ease"
           }}
         >
-          📅 Smart Attendance
+          <i className="fa-solid fa-calendar-check"></i> Smart Attendance
         </button>
         <button
           onClick={() => setActiveTab("timetable")}
@@ -847,7 +847,7 @@ function StudentDashboard() {
             transition: "all 0.3s ease"
           }}
         >
-          📅 Timetable
+          <i className="fa-solid fa-calendar-days"></i> Timetable
         </button>
         <button
           onClick={() => setActiveTab("leave")}
@@ -863,7 +863,7 @@ function StudentDashboard() {
             transition: "all 0.3s ease"
           }}
         >
-          📋 Leave / OD
+          <i className="fa-solid fa-file-invoice"></i> Leave / OD
         </button>
         <button
           onClick={() => setActiveTab("coding-history")}
@@ -879,7 +879,7 @@ function StudentDashboard() {
             transition: "all 0.3s ease"
           }}
         >
-          📜 Coding History
+          <i className="fa-solid fa-scroll"></i> Coding History
         </button>
         <button
           onClick={() => setActiveTab("resume")}
@@ -895,7 +895,7 @@ function StudentDashboard() {
             transition: "all 0.3s ease"
           }}
         >
-          📄 Resume
+          <i className="fa-solid fa-file-lines"></i> Resume
         </button>
         <button
           onClick={() => setActiveTab("coding")}
@@ -911,7 +911,7 @@ function StudentDashboard() {
             transition: "all 0.3s ease"
           }}
         >
-          💻 Coding
+          <i className="fa-solid fa-code"></i> Coding
         </button>
         <button
           onClick={() => setActiveTab("interview")}
@@ -927,7 +927,7 @@ function StudentDashboard() {
             transition: "all 0.3s ease"
           }}
         >
-          🎤 Interview
+          <i className="fa-solid fa-microphone-lines"></i> Interview
         </button>
         <button
           onClick={() => setActiveTab("career")}
@@ -943,7 +943,7 @@ function StudentDashboard() {
             transition: "all 0.3s ease"
           }}
         >
-          ⭐ Career
+          <i className="fa-solid fa-star"></i> Career
         </button>
       </div>
 
@@ -1025,7 +1025,7 @@ function StudentDashboard() {
                   marginTop: "1rem"
                 }}>
                   <h4 style={{ margin: "0 0 0.75rem 0", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.95rem" }}>
-                    📍 GPS Verification
+                    <i className="fa-solid fa-location-crosshairs"></i> GPS Verification
                   </h4>
                   {gpsLoading ? (
                     <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>Locating coordinates...</p>
@@ -1071,7 +1071,7 @@ function StudentDashboard() {
                 textAlign: "center",
                 padding: "3rem 2rem"
               }}>
-                <div style={{ fontSize: "3rem", marginBottom: "1rem", animation: "pulse 2s infinite" }}>📡</div>
+                <div style={{ fontSize: "3rem", marginBottom: "1rem", animation: "pulse 2s infinite" }}><i className="fa-solid fa-satellite-dish"></i></div>
                 <h3 style={{ margin: "0 0 0.5rem 0" }}>No Active Sessions</h3>
                 <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", maxWidth: "300px", marginBottom: "2rem" }}>
                   Please wait for your faculty instructor to begin the attendance session.
@@ -1132,7 +1132,7 @@ function StudentDashboard() {
                       alignItems: "center",
                       gap: "1rem"
                     }}>
-                      <div style={{ fontSize: "2.5rem" }}>📷</div>
+                      <div style={{ fontSize: "2.5rem" }}><i className="fa-solid fa-camera"></i></div>
                       <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Camera inactive</span>
                     </div>
                   )}
@@ -1183,7 +1183,7 @@ function StudentDashboard() {
 
             {activeSession && (
               <div style={{ textAlign: "center", padding: "1rem 0", color: "var(--text-muted)", fontSize: "0.8rem", borderTop: "1px solid var(--card-border)" }}>
-                🛡️ Mock locations and bypass methods are strictly disabled.
+                <i className="fa-solid fa-shield-halved"></i> Mock locations and bypass methods are strictly disabled.
               </div>
             )}
           </div>
@@ -1221,7 +1221,7 @@ function StudentDashboard() {
                   currentClassStatus.currentClass.subject === "FREE_ACTIVITY" ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                       <h3 style={{ margin: 0, fontSize: "1.4rem", color: "var(--success)" }}>
-                        🌟 Free Activity Period
+                        <i className="fa-solid fa-star"></i> Free Activity Period
                       </h3>
                       <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "0.9rem" }}>
                         Assigned Activity: <span style={{ color: "#fff", fontWeight: "700" }}>{currentClassStatus.currentClass.activityName || "Open Activity"}</span>
@@ -1255,7 +1255,7 @@ function StudentDashboard() {
                         freeActivityChallenge ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "0.5rem" }}>
                             <div style={{ background: "rgba(99, 102, 241, 0.05)", border: "1px solid rgba(99, 102, 241, 0.2)", borderRadius: "12px", padding: "1rem" }}>
-                              <h4 style={{ margin: "0 0 0.5rem 0", color: "var(--primary)" }}>💻 Challenge: {freeActivityChallenge.title}</h4>
+                              <h4 style={{ margin: "0 0 0.5rem 0", color: "var(--primary)" }}><i className="fa-solid fa-code"></i> Challenge: {freeActivityChallenge.title}</h4>
                               <p style={{ margin: 0, fontSize: "0.85rem", color: "#e2e8f0", whiteSpace: "pre-line" }}>
                                 {freeActivityChallenge.description}
                               </p>
@@ -1373,7 +1373,7 @@ function StudentDashboard() {
                                   transition: "all 0.3s"
                                 }}
                               >
-                                {submissionStatus === "SUBMITTING" ? "Running..." : "🚀 Submit Solution"}
+                                {submissionStatus === "SUBMITTING" ? "Running..." : <><i className="fa-solid fa-rocket"></i> Submit Solution</>}
                               </button>
                             </div>
 
@@ -1385,7 +1385,9 @@ function StudentDashboard() {
                         )
                       ) : (
                         <div style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "1.5rem", textAlign: "center", border: "1px dashed var(--card-border)", borderRadius: "12px" }}>
-                          📅 Engage in the assigned self-directed learning activity. Attendance is marked manually by faculty.
+                          <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
+                            <i className="fa-solid fa-calendar-day"></i> Engage in the assigned self-directed learning activity. Attendance is marked manually by faculty.
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1417,7 +1419,7 @@ function StudentDashboard() {
                 ) : (
                   <div style={{ padding: "1.5rem 0", textAlign: "center" }}>
                     <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
-                      {currentClassStatus.status === "LUNCH" || currentClassStatus.status === "BREAK" ? "☕" : "🏖️"}
+                      {currentClassStatus.status === "LUNCH" || currentClassStatus.status === "BREAK" ? <i className="fa-solid fa-mug-hot"></i> : <i className="fa-solid fa-umbrella-beach"></i>}
                     </div>
                     <h4 style={{ color: "var(--text-main)", margin: "0 0 0.25rem 0" }}>
                       {currentClassStatus.status === "LUNCH" ? "Lunch Break" :
@@ -1454,7 +1456,7 @@ function StudentDashboard() {
                   </div>
                 ) : (
                   <div style={{ padding: "1.5rem 0", textAlign: "center" }}>
-                    <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🎓</div>
+                    <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}><i className="fa-solid fa-graduation-cap"></i></div>
                     <h4 style={{ color: "var(--text-main)", margin: "0 0 0.25rem 0" }}>No More Classes Today</h4>
                     <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "0.85rem" }}>
                       All scheduled classes are complete.
@@ -1468,8 +1470,8 @@ function StudentDashboard() {
           {/* Today's Timeline */}
           {currentClassStatus && currentClassStatus.todayTimeline && currentClassStatus.todayTimeline.length > 0 && (
             <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "1.5rem" }}>
-              <h3 style={{ margin: "0 0 1.5rem 0", color: "var(--text-main)", fontSize: "1.1rem", fontWeight: "600" }}>
-                📅 Today's Timeline
+              <h3 style={{ margin: "0 0 1.5rem 0", color: "var(--text-main)", fontSize: "1.2rem", fontFamily: "var(--font-heading)", fontWeight: "600", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
+                <i className="fa-solid fa-calendar-day" style={{ color: "var(--primary)" }}></i> Today's Timeline
               </h3>
               <div className="timeline-horizontal-scroll" style={{ display: "flex", gap: "1rem", overflowX: "auto", paddingBottom: "0.5rem" }}>
                 {currentClassStatus.todayTimeline.map((item, idx) => (
@@ -1517,7 +1519,7 @@ function StudentDashboard() {
           {/* Weekly Timetable Grid */}
           <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem" }}>
             <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff", fontSize: "1.2rem", fontWeight: "600" }}>
-              📅 Weekly Schedule (Monday - Friday)
+              <i className="fa-solid fa-calendar-days" style={{ color: "var(--primary)" }}></i> Weekly Schedule (Monday - Friday)
             </h3>
             <div style={{ overflowX: "auto" }}>
               <table className="timetable-grid-table">
@@ -1558,7 +1560,7 @@ function StudentDashboard() {
             {uniqueSubjects.length > 0 && (
               <div style={{ marginTop: "2rem", borderTop: "1px dashed rgba(255,255,255,0.08)", paddingTop: "1.5rem" }}>
                 <h4 style={{ color: "#fff", fontSize: "1rem", fontWeight: "600", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  📖 Course Information & Instructors
+                  <i className="fa-solid fa-book"></i> Course Information & Instructors
                 </h4>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
@@ -1697,7 +1699,7 @@ function StudentDashboard() {
 
             {/* Left: Submit Form */}
             <div className="dashboard-card" style={{ flex: "1 1 350px", background: "rgba(30, 41, 59, 0.3)", borderRadius: "20px", padding: "2.5rem" }}>
-              <h3 style={{ margin: "0 0 1.5rem 0", fontFamily: "var(--font-heading)", fontSize: "1.3rem", fontWeight: "700" }}>📝 New Request</h3>
+              <h3 style={{ margin: "0 0 1.5rem 0", fontFamily: "var(--font-heading)", fontSize: "1.3rem", fontWeight: "700" }}><i className="fa-solid fa-pen-to-square"></i> New Request</h3>
               <form onSubmit={handleLeaveSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                 <div>
                   <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: "600" }}>Leave Type</label>
@@ -1749,12 +1751,12 @@ function StudentDashboard() {
 
             {/* Right: Request History */}
             <div className="dashboard-card" style={{ flex: "2 1 500px", background: "rgba(30, 41, 59, 0.3)", borderRadius: "20px", padding: "2.5rem" }}>
-              <h3 style={{ margin: "0 0 1.5rem 0", fontFamily: "var(--font-heading)", fontSize: "1.3rem", fontWeight: "700" }}>🕰️ My Requests</h3>
+              <h3 style={{ margin: "0 0 1.5rem 0", fontFamily: "var(--font-heading)", fontSize: "1.3rem", fontWeight: "700" }}><i className="fa-solid fa-clock-rotate-left"></i> My Requests</h3>
               {leaveLoading ? (
                 <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>Loading requests...</div>
               ) : myLeaveRequests.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🍃</div>
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}><i className="fa-solid fa-leaf"></i></div>
                   You haven't submitted any leave requests yet.
                 </div>
               ) : (

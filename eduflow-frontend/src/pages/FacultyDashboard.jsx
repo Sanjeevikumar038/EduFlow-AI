@@ -106,6 +106,7 @@ function FacultyDashboard() {
   const [registerFilterDate, setRegisterFilterDate] = useState("");
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerMode, setRegisterMode] = useState("manual"); // "manual" or "existing"
+  const [showEditModal, setShowEditModal] = useState(false);
   const [manualDate, setManualDate] = useState(new Date().toISOString().substring(0, 10));
   const [manualStartTime, setManualStartTime] = useState("09:30");
   const [manualEndTime, setManualEndTime] = useState("10:30");
@@ -632,18 +633,32 @@ function FacultyDashboard() {
     }
   };
 
+  const [showReportModal, setShowReportModal] = useState(false);
+
   const handleViewReport = async (session) => {
+    if (!session) {
+      setShowReportModal(false);
+      return;
+    }
     setSelectedSession(session);
     setReportLoading(true);
     try {
       const res = await getSessionReport(session.id, token);
       setReportRecords(res.data || []);
+      setShowReportModal(true);
     } catch (error) {
       console.error("Error fetching session report:", error);
       showFeedback("Failed to load attendance report.", "error");
     } finally {
       setReportLoading(false);
     }
+  };
+
+  const handleEditSession = (session) => {
+    setSelectedSession(session);
+    setRegisterSessionId(session.id);
+    loadRegisterSession(session.id);
+    setShowEditModal(true);
   };
 
   const loadRegisterSession = async (sessionId) => {
@@ -689,6 +704,7 @@ function FacultyDashboard() {
       await saveBulkAttendance(registerSessionId, requests, token);
       showFeedback("Attendance register saved/updated successfully!");
       setHasUnsavedChanges(false);
+      setShowEditModal(false);
       await loadRegisterSession(registerSessionId);
     } catch (error) {
       showFeedback(error.response?.data || "Failed to save/update attendance register.", "error");
@@ -946,7 +962,8 @@ function FacultyDashboard() {
         {/* Scrollable page viewport content */}
         <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "2rem" }} className="custom-scrollbar">
           
-          {/* Welcome section with single rounded pill badge */}
+          {/* Welcome section - only shown on dashboard/overview */}
+          {activeTab === "overview" && (
           <div className="dashboard-title" style={{ marginBottom: "2rem" }}>
             <h1 style={{ fontSize: "2rem", fontWeight: "800", background: "linear-gradient(135deg, #fff 0%, #a5b4fc 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               Welcome back, {name}
@@ -966,6 +983,7 @@ function FacultyDashboard() {
               </span>
             </div>
           </div>
+          )}
 
           {/* Feedback banner */}
           {feedback.message && (
@@ -1104,7 +1122,7 @@ function FacultyDashboard() {
             />
           )}
 
-          {isAdvisor && activeTab === "analytics" && (
+          {activeTab === "analytics" && (
             <FacultyAdvisorAnalyticsView
               lowAttendanceStudents={lowAttendanceStudents}
               lowAttendanceLoading={lowAttendanceLoading}
@@ -1115,9 +1133,11 @@ function FacultyDashboard() {
               sessions={sessions}
               analyticsLoading={analyticsLoading}
               handleViewReport={handleViewReport}
+              handleEditSession={handleEditSession}
               selectedSession={selectedSession}
               reportLoading={reportLoading}
               reportRecords={reportRecords}
+              showReportModal={showReportModal}
             />
           )}
 
@@ -1412,6 +1432,120 @@ function FacultyDashboard() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Session Inline Modal */}
+      {showEditModal && selectedSession && (
+        <div style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(5, 7, 17, 0.8)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 9999,
+          padding: "2rem"
+        }}>
+          <div style={{
+            background: "var(--bg-main)",
+            border: "1px solid var(--card-border)",
+            borderRadius: "24px",
+            width: "100%",
+            maxWidth: "750px",
+            maxHeight: "90vh",
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.5), 0 10px 10px -5px rgba(0,0,0,0.5)",
+            position: "relative",
+            overflow: "hidden"
+          }}>
+            {/* Header */}
+            <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid var(--card-border)", background: "rgba(30,41,59,0.4)" }}>
+              <button
+                onClick={() => setShowEditModal(false)}
+                style={{ position: "absolute", top: "1.5rem", right: "1.5rem", background: "transparent", border: "none", color: "#fff", fontSize: "1.5rem", cursor: "pointer", opacity: 0.7 }}
+              >✕</button>
+              <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: "800", color: "#fff" }}>Edit Attendance Session</h2>
+              <p style={{ margin: "4px 0 0 0", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                Session #{selectedSession.id} · {selectedSession.subject} · {new Date(selectedSession.startTime).toLocaleDateString()}
+              </p>
+            </div>
+
+            {/* Roster Area */}
+            <div style={{ padding: "0", overflowY: "auto", flexGrow: 1 }}>
+              {registerLoading ? (
+                <div style={{ padding: "3rem", textAlign: "center", color: "var(--primary)" }}>Loading roster...</div>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem", textAlign: "left" }}>
+                  <thead style={{ position: "sticky", top: 0, background: "var(--bg-main)", zIndex: 10 }}>
+                    <tr style={{ borderBottom: "1px solid var(--card-border)", color: "var(--text-muted)" }}>
+                      <th style={{ padding: "1rem" }}>Reg No</th>
+                      <th style={{ padding: "1rem" }}>Student</th>
+                      <th style={{ padding: "1rem", textAlign: "center" }}>Status</th>
+                      <th style={{ padding: "1rem" }}>Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {localRegisterRecords.map(r => {
+                      const isAbsent = r.status === "ABSENT" || r.status === "PENDING";
+                      return (
+                        <tr key={r.studentId} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                          <td style={{ padding: "0.75rem 1rem", fontWeight: "600", color: "var(--text-main)" }}>{r.registerNumber}</td>
+                          <td style={{ padding: "0.75rem 1rem" }}>{r.name}</td>
+                          <td style={{ padding: "0.75rem 1rem", textAlign: "center" }}>
+                            <button
+                              onClick={() => handleRegisterOverride(r.studentId, isAbsent ? "PRESENT" : "ABSENT")}
+                              style={{
+                                background: isAbsent ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
+                                border: `1px solid ${isAbsent ? "var(--error)" : "var(--success)"}`,
+                                color: isAbsent ? "var(--error)" : "var(--success)",
+                                padding: "4px 12px", borderRadius: "6px", fontWeight: "700", fontSize: "0.8rem", cursor: "pointer", minWidth: "85px"
+                              }}
+                            >
+                              {isAbsent ? "ABSENT" : "PRESENT"}
+                            </button>
+                          </td>
+                          <td style={{ padding: "0.75rem 1rem" }}>
+                            <input
+                              type="text" className="input-field" placeholder="Notes..."
+                              value={r.remarks || ""}
+                              onChange={e => handleRemarksChange(r.studentId, e.target.value)}
+                              style={{ margin: 0, height: "30px", fontSize: "0.8rem", padding: "4px 8px" }}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {localRegisterRecords.length === 0 && (
+                      <tr><td colSpan="4" style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>No students found for this session.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Footer Action */}
+            <div style={{ padding: "1.25rem 2rem", borderTop: "1px solid var(--card-border)", background: "rgba(30,41,59,0.4)", display: "flex", justifyContent: "flex-end", gap: "1rem" }}>
+              <button
+                onClick={() => setShowEditModal(false)}
+                style={{ background: "transparent", border: "1px solid var(--card-border)", color: "#fff", borderRadius: "8px", padding: "8px 20px", fontWeight: "600", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveRegister}
+                disabled={!hasUnsavedChanges || registerLoading}
+                style={{
+                  background: hasUnsavedChanges ? "linear-gradient(135deg, #f43f5e 0%, #be123c 100%)" : "rgba(255,255,255,0.03)",
+                  border: "none", color: hasUnsavedChanges ? "#fff" : "var(--text-muted)", borderRadius: "8px", padding: "8px 24px", fontWeight: "700", cursor: hasUnsavedChanges ? "pointer" : "not-allowed"
+                }}
+              >
+                {registerLoading ? "Saving..." : "Save Changes"}
+              </button>
             </div>
           </div>
         </div>

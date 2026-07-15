@@ -69,7 +69,7 @@ function FacultyOverviewView({ facultyAnalytics, facultyAnalyticsLoading, curren
           title="Department Students"
           value={totalStudents}
           status="M.TECH CSE"
-          icon="🎓"
+          icon={<i className="fa-solid fa-user-graduate"></i>}
           caption="Registered Active Students"
           progress={progressTotal}
           color="rose"
@@ -78,7 +78,7 @@ function FacultyOverviewView({ facultyAnalytics, facultyAnalyticsLoading, curren
           title="Present Today"
           value={presentToday}
           status="ACTIVE"
-          icon="✓"
+          icon={<i className="fa-solid fa-check"></i>}
           caption="Unique Students Checked In"
           progress={progressPresent}
           color="rose"
@@ -87,7 +87,7 @@ function FacultyOverviewView({ facultyAnalytics, facultyAnalyticsLoading, curren
           title="Absent Today"
           value={absentToday}
           status="CLEAN"
-          icon="✕"
+          icon={<i className="fa-solid fa-times"></i>}
           caption="Not Checked In Today"
           progress={progressAbsent}
           color="rose"
@@ -96,7 +96,7 @@ function FacultyOverviewView({ facultyAnalytics, facultyAnalyticsLoading, curren
           title="Avg Attendance"
           value={avgAttendance}
           status="DEPT AVG"
-          icon="📈"
+          icon={<i className="fa-solid fa-chart-line"></i>}
           caption="Cumulative Avg Rate"
           progress={progressAvg}
           color="rose"
@@ -109,7 +109,7 @@ function FacultyOverviewView({ facultyAnalytics, facultyAnalyticsLoading, curren
         {/* Left Card: Today's Sessions */}
         <div className="dashboard-card" style={{ flex: "2 1 500px", background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem" }}>
           <h3 style={{ margin: "0 0 1.5rem 0", color: "var(--text-main)", fontSize: "1.2rem", fontFamily: "var(--font-heading)", fontWeight: "600", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
-            📅 Today's Teaching Sessions
+            <i className="fa-solid fa-calendar-day" style={{ color: "var(--primary)" }}></i> Today's Teaching Sessions
           </h3>
           {timetableLoading ? (
             <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>Loading timeline...</div>
@@ -141,7 +141,7 @@ function FacultyOverviewView({ facultyAnalytics, facultyAnalyticsLoading, curren
                           {session.subject}
                         </h4>
                         <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                          📍 Room: {session.room || "Lab 2"} · CSE Department
+                          <i className="fa-solid fa-location-dot" style={{ color: "var(--primary)" }}></i> Room: {session.room || "Lab 2"} · CSE Department
                         </span>
                       </div>
                       <span style={{
@@ -159,7 +159,7 @@ function FacultyOverviewView({ facultyAnalytics, facultyAnalyticsLoading, curren
                 })
               ) : (
                 <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                  🏝️ No teaching periods scheduled for today.
+                  <i className="fa-solid fa-umbrella-beach"></i> No teaching periods scheduled for today.
                 </div>
               )}
             </div>
@@ -169,14 +169,14 @@ function FacultyOverviewView({ facultyAnalytics, facultyAnalyticsLoading, curren
         {/* Right Card: Recent Activity */}
         <div className="dashboard-card" style={{ flex: "1 1 350px", background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem" }}>
           <h3 style={{ margin: "0 0 1.5rem 0", color: "var(--text-main)", fontSize: "1.2rem", fontFamily: "var(--font-heading)", fontWeight: "600", borderBottom: "1px solid var(--card-border)", paddingBottom: "0.5rem" }}>
-            ⚡ Recent Session Log
+            <i className="fa-solid fa-bolt" style={{ color: "var(--primary)" }}></i> Recent Session Log
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {sessions && sessions.length > 0 ? (
               sessions.slice(0, 4).map((s, idx) => (
                 <div key={idx} style={{ display: "flex", alignItems: "center", gap: "1rem", paddingBottom: "0.75rem", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                   <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(244, 63, 94, 0.1)", border: "1px solid rgba(244, 63, 94, 0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>
-                    📱
+                    <i className="fa-solid fa-mobile-screen" style={{ color: "var(--primary)" }}></i>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <h5 style={{ margin: 0, fontSize: "0.85rem", fontWeight: "600", color: "var(--text-main)" }}>

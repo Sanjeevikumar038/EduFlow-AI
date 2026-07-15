@@ -90,7 +90,7 @@ function TimetableManagerView({
       <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.25)", border: "1px solid var(--card-border)", borderRadius: "20px", padding: "2rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
           <div>
-            <h3 style={{ margin: 0, color: "#fff" }}>📅 Timetable Matrix Builder</h3>
+            <h3 style={{ margin: 0, color: "#fff" }}><i className="fa-solid fa-calendar-days" style={{ color: "var(--primary)", marginRight: "8px" }}></i> Timetable Matrix Builder</h3>
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: "0.25rem 0 0 0" }}>
               Configure weekly subject schedules and allocate registered faculty members to periods.
             </p>

@@ -234,7 +234,7 @@ function AttendancePage() {
       {/* Title Header */}
       <div>
         <h2 className="text-3xl font-extrabold text-white tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
-          📅 Smart Attendance Hub
+          <i className="fa-solid fa-calendar-check text-primary"></i> Smart Attendance Hub
         </h2>
         <p style={{ color: "var(--text-muted)", marginTop: "8px", fontSize: "0.95rem" }}>
           Scan class QR codes to mark presence and track your subject wise attendance analytics in real-time.
@@ -470,8 +470,8 @@ function AttendancePage() {
           
           {/* Overall Attendance Card */}
           <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: "700", color: "var(--text-main)", borderBottom: "1px solid var(--card-border)", paddingBottom: "12px", width: "100%", textAlign: "left", margin: 0 }}>
-              📈 Analytics Summary
+            <h3 style={{ fontSize: "1.1rem", fontWeight: "700", color: "var(--text-main)", borderBottom: "1px solid var(--card-border)", paddingBottom: "12px", width: "100%", textAlign: "left", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              <i className="fa-solid fa-chart-line" style={{ color: "var(--primary)" }}></i> Analytics Summary
             </h3>
 
             {analyticsLoading ? (

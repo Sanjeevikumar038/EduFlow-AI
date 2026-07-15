@@ -2,19 +2,19 @@ import React from "react";
 
 function FacultySidebar({ activeTab, setActiveTab, handleLogout, name, subtitle, mobileMenuOpen, setMobileMenuOpen }) {
   const menuItems = [
-    { id: "overview", label: "Dashboard Overview", icon: "📊" },
-    { id: "qr-session", label: "QR Session", icon: "📱" },
-    { id: "register", label: "Manual Attendance", icon: "✍️" },
-    { id: "schedule", label: "My Schedule", icon: "📅" },
-    { id: "career", label: "Career", icon: "🚀" }
+    { id: "overview", label: "Dashboard Overview", icon: <i className="fa-solid fa-chart-pie"></i> },
+    { id: "qr-session", label: "QR Session", icon: <i className="fa-solid fa-qrcode"></i> },
+    { id: "register", label: "Manual Attendance", icon: <i className="fa-solid fa-pen-to-square"></i> },
+    { id: "analytics", label: "Attendance Analytics", icon: <i className="fa-solid fa-chart-line"></i> },
+    { id: "schedule", label: "My Schedule", icon: <i className="fa-solid fa-calendar-days"></i> },
+    { id: "career", label: "Career", icon: <i className="fa-solid fa-rocket"></i> }
   ];
 
   const isAdvisor = localStorage.getItem("classAdvisor") === "true";
   if (isAdvisor) {
-    menuItems.splice(4, 0, 
-      { id: "analytics", label: "Attendance Analytics", icon: "📈" },
-      { id: "students", label: "Manage Students", icon: "🎓" },
-      { id: "leave", label: "Leave Requests", icon: "📋" }
+    menuItems.splice(5, 0, 
+      { id: "students", label: "Manage Students", icon: <i className="fa-solid fa-user-graduate"></i> },
+      { id: "leave", label: "Leave Requests", icon: <i className="fa-solid fa-clipboard-list"></i> }
     );
   }
 
@@ -44,7 +44,7 @@ function FacultySidebar({ activeTab, setActiveTab, handleLogout, name, subtitle,
         {/* Logo block */}
         <div style={{ padding: "0 0.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ fontSize: "1.5rem" }}>⚡</span>
+            <span style={{ fontSize: "1.5rem", color: "var(--primary)" }}><i className="fa-solid fa-bolt"></i></span>
             <span style={{ fontWeight: "800", fontSize: "1.25rem", color: "var(--text-main)" }}>EduFlow</span>
           </div>
           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "2.2rem" }}>

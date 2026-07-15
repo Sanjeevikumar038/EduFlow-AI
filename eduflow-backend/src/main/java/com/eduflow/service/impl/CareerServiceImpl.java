@@ -143,7 +143,7 @@ public class CareerServiceImpl implements CareerService {
 
     @Override
     public Map<String, Object> getFacultyInsights(String department) {
-        List<User> students = userRepository.findByRoleAndDepartment(Role.STUDENT, department);
+        List<User> students = userRepository.findByRoleAndDepartmentIgnoreCase(Role.STUDENT, department);
         
         List<Map<String, Object>> studentData = new ArrayList<>();
         double totalScore = 0;
@@ -174,6 +174,7 @@ public class CareerServiceImpl implements CareerService {
         response.put("averageReadiness", students.isEmpty() ? 0 : totalScore / students.size());
         response.put("topStudents", studentData.stream().limit(5).collect(Collectors.toList()));
         response.put("needsImprovement", studentData.stream().filter(s -> (int)s.get("overallScore") < 70).collect(Collectors.toList()));
+        response.put("allStudents", studentData);
         
         return response;
     }

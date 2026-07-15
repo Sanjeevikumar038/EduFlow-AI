@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import NotificationBell from "../career/NotificationBell";
 import { getCurrentClassStatus } from "../../services/timetableService";
+import MobileAttendancePortal from "../../pages/student/MobileAttendancePortal";
 
 const calendarOverrides = {
   "June-4": { wd: "W1", do: "I", act: "Reopening II, III, IV Years", isS: true },
@@ -230,15 +231,15 @@ function StudentPortalLayout() {
   };
 
   const menuItems = [
-    { path: "/student/dashboard", icon: "🏠", label: "Dashboard" },
-    { path: "/student/attendance", icon: "📅", label: "Attendance" },
-    { path: "/student/timetable", icon: "🗓", label: "Timetable" },
-    { path: "/student/coding", icon: "💻", label: "Coding" },
-    { path: "/student/resume", icon: "📄", label: "Resume" },
-    { path: "/student/interview", icon: "🎤", label: "AI Interview" },
-    { path: "/student/career", icon: "⭐", label: "Career" },
-    { path: "/student/leave", icon: "📝", label: "Leave / OD" },
-    { path: "/student/settings", icon: "⚙", label: "Settings" },
+    { path: "/student/dashboard", icon: <i className="fa-solid fa-house"></i>, label: "Dashboard" },
+    { path: "/student/attendance", icon: <i className="fa-solid fa-calendar-check"></i>, label: "Attendance" },
+    { path: "/student/timetable", icon: <i className="fa-solid fa-calendar-days"></i>, label: "Timetable" },
+    { path: "/student/coding", icon: <i className="fa-solid fa-laptop-code"></i>, label: "Coding" },
+    { path: "/student/resume", icon: <i className="fa-solid fa-file-lines"></i>, label: "Resume" },
+    { path: "/student/interview", icon: <i className="fa-solid fa-microphone"></i>, label: "AI Interview" },
+    { path: "/student/career", icon: <i className="fa-solid fa-star"></i>, label: "Career" },
+    { path: "/student/leave", icon: <i className="fa-solid fa-file-signature"></i>, label: "Leave / OD" },
+    { path: "/student/settings", icon: <i className="fa-solid fa-gear"></i>, label: "Settings" },
   ];
 
   // Generate dynamic initials and first name from logged-in user name
@@ -246,6 +247,18 @@ function StudentPortalLayout() {
     ? name.split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().substring(0, 2)
     : "ST";
   const firstName = name ? name.split(" ")[0] : "Student";
+
+  const [isMobileScreen, setIsMobileScreen] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobileScreen(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  if (isMobileScreen) {
+    return <MobileAttendancePortal />;
+  }
 
   return (
     <div className="portal-layout" style={{
@@ -387,19 +400,19 @@ function StudentPortalLayout() {
               {/* Calendar Icon */}
               <button 
                 onClick={() => setShowCalendarModal(true)}
-                style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem" }} 
+                style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem", color: "var(--text-muted)" }} 
                 title="Academic Calendar"
               >
-                📅
+                <i className="fa-solid fa-calendar-day"></i>
               </button>
 
               {/* Globe Icon */}
               <button 
                 onClick={() => window.open("https://placement.skcet.ac.in", "_blank")}
-                style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem" }} 
+                style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem", color: "var(--text-muted)" }} 
                 title="SKCET Placement Portal"
               >
-                🌐
+                <i className="fa-solid fa-globe"></i>
               </button>
 
               {/* Moon (Dark Mode toggler) */}
@@ -408,7 +421,7 @@ function StudentPortalLayout() {
                 title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem", color: isDark ? "#fbbf24" : "var(--text-muted)" }}
               >
-                🌙
+                {isDark ? <i className="fa-solid fa-moon"></i> : <i className="fa-solid fa-sun"></i>}
               </button>
 
               {/* Notification Bell Icon with Badge */}

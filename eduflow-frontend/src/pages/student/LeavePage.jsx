@@ -109,7 +109,7 @@ function LeavePage() {
           alignItems: "center",
           gap: "8px"
         }}>
-          <span>📋</span> Apply for Leave / OD
+          <span><i className="fa-solid fa-file-invoice" style={{ color: "var(--primary)" }}></i></span> Apply for Leave / OD
         </h2>
         
         <form onSubmit={handleLeaveSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>

@@ -89,8 +89,8 @@ function StudentDashboardHome() {
         }}
       >
         <div>
-          <h1 style={{ fontFamily: "var(--font-heading)", fontSize: "2rem", fontWeight: "700", color: "var(--text-main)", margin: 0 }}>
-            Welcome back, {firstName}! 👋
+          <h1 style={{ fontFamily: "var(--font-heading)", fontSize: "2rem", fontWeight: "700", color: "var(--text-main)", margin: 0, display: "flex", alignItems: "center", gap: "10px" }}>
+            Welcome back, {firstName}! <i className="fa-solid fa-hand-sparkles" style={{ color: "#fbbf24" }}></i>
           </h1>
           <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
             Stay consistent and keep learning every day.

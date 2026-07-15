@@ -50,11 +50,11 @@ function StatCard({ title, value, status, icon, caption, progress, color }) {
 
 function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
   const recentActivities = [
-    { id: 1, icon: "👤", title: "Faculty Account Created", details: "Dr. Sarah Connor registered under CSE department.", time: "5 mins ago" },
-    { id: 2, icon: "📅", title: "Timetable Updated", details: "Timetable periods assigned for M.Tech CSE.", time: "1 hour ago" },
-    { id: 3, icon: "📄", title: "OD Request Approved", details: "Approved student leave request for John Doe.", time: "2 hours ago" },
-    { id: 4, icon: "📚", title: "New Subject Registered", details: "Subject 'Applied Generative AI' registered.", time: "1 day ago" },
-    { id: 5, icon: "⚙️", title: "System Maintenance", details: "Weekly database backup completed successfully.", time: "1 day ago" }
+    { id: 1, icon: <i className="fa-solid fa-user"></i>, title: "Faculty Account Created", details: "Dr. Sarah Connor registered under CSE department.", time: "5 mins ago" },
+    { id: 2, icon: <i className="fa-solid fa-calendar-days"></i>, title: "Timetable Updated", details: "Timetable periods assigned for M.Tech CSE.", time: "1 hour ago" },
+    { id: 3, icon: <i className="fa-solid fa-file-invoice"></i>, title: "OD Request Approved", details: "Approved student leave request for John Doe.", time: "2 hours ago" },
+    { id: 4, icon: <i className="fa-solid fa-book"></i>, title: "New Subject Registered", details: "Subject 'Applied Generative AI' registered.", time: "1 day ago" },
+    { id: 5, icon: <i className="fa-solid fa-gear"></i>, title: "System Maintenance", details: "Weekly database backup completed successfully.", time: "1 day ago" }
   ];
 
   return (
@@ -66,7 +66,7 @@ function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
           title="Total Students"
           value={adminAnalytics?.totalStudents !== undefined ? `${(adminAnalytics.totalStudents * 1.0).toFixed(1)}%` : "78.0%"}
           status="TOTAL ACTIVE"
-          icon="🎓"
+          icon={<i className="fa-solid fa-user-graduate"></i>}
           caption="System Student Count"
           progress={78}
           color="amber"
@@ -75,7 +75,7 @@ function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
           title="Total Faculty"
           value={adminAnalytics?.totalFaculty !== undefined ? `${(adminAnalytics.totalFaculty * 1.0).toFixed(1)}%` : "19.0%"}
           status="TOTAL CONDUCTOR"
-          icon="👤"
+          icon={<i className="fa-solid fa-user"></i>}
           caption="System Faculty Count"
           progress={19}
           color="rose"
@@ -84,7 +84,7 @@ function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
           title="Total Sessions"
           value={adminAnalytics?.totalSessions !== undefined ? `${(adminAnalytics.totalSessions * 1.0).toFixed(1)}%` : "0.0%"}
           status="CONDUCTED"
-          icon="⚡"
+          icon={<i className="fa-solid fa-bolt"></i>}
           caption="Total Attendance Sessions"
           progress={0}
           color="rose"

@@ -158,7 +158,7 @@ const InterviewDashboard = () => {
             {/* Header info */}
             <div>
               <h2 className="text-3xl font-extrabold text-white tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
-                🎙️ AI Mock Interview Prep
+                <i className="fa-solid fa-microphone" style={{ color: "var(--primary)" }}></i> AI Mock Interview Prep
               </h2>
               <p style={{ color: "var(--text-muted)", marginTop: "8px", fontSize: "0.95rem" }}>
                 Practice simulated placement interviews with real-time audio transcriptions and smart evaluation feedback.
@@ -167,7 +167,7 @@ const InterviewDashboard = () => {
 
             {/* Start session centered card */}
             <div className="glass-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px", textAlign: "center", borderRadius: "16px" }}>
-                <div style={{ fontSize: "2.5rem", marginBottom: "16px" }}>🎙️</div>
+                <div style={{ fontSize: "2.5rem", marginBottom: "16px", color: "var(--primary)" }}><i className="fa-solid fa-microphone"></i></div>
                 <h3 style={{ fontSize: "1.25rem", fontWeight: "800", color: "var(--text-main)", marginBottom: "8px" }}>Ready for your mock interview?</h3>
                 <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", maxW: "500px", marginBottom: "24px" }}>
                     Select your domain below. You will be asked 5 sequential technical and behavioral questions, with 60 seconds to speak for each answer.
@@ -213,7 +213,7 @@ const InterviewDashboard = () => {
             {/* History logs card */}
             <div className="glass-card" style={{ padding: "24px", borderRadius: "16px" }}>
                 <h3 style={{ fontSize: "1.1rem", fontWeight: "700", color: "var(--text-main)", borderBottom: "1px solid var(--card-border)", paddingBottom: "12px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span>⏳</span> Session Logs & Evaluation History
+                    <span><i className="fa-solid fa-hourglass-half"></i></span> Session Logs & Evaluation History
                 </h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                     {history.length === 0 ? (
@@ -326,11 +326,11 @@ const InterviewDashboard = () => {
                                 gap: "12px",
                                 borderRadius: "12px"
                             }}>
-                                <span style={{ fontSize: "1.5rem", animation: "spin 1s infinite linear" }}>🔄</span>
+                                <span style={{ fontSize: "1.5rem" }}><i className="fa-solid fa-spinner fa-spin"></i></span>
                                 <span style={{ fontWeight: "700", color: "var(--primary)" }}>AI evaluating response...</span>
                             </div>
                         ) : (
-                            liveTranscript || <span style={{ color: "var(--text-muted)" }}>🎙️ Listening... Speak clearly. Remaining seconds indicator dictates time before auto-submit.</span>
+                            liveTranscript || <span style={{ color: "var(--text-muted)" }}><i className="fa-solid fa-microphone" style={{ color: "var(--primary)" }}></i> Listening... Speak clearly. Remaining seconds indicator dictates time before auto-submit.</span>
                         )}
                     </div>
 
@@ -353,7 +353,7 @@ const InterviewDashboard = () => {
                                 gap: "8px"
                             }}
                         >
-                            {currentQuestionIndex === 4 ? 'Complete Interview 🏁' : 'Submit & Next ➔'}
+                            {currentQuestionIndex === 4 ? <span>Complete Interview <i className="fa-solid fa-flag-checkered"></i></span> : <span>Submit & Next <i className="fa-solid fa-arrow-right"></i></span>}
                         </button>
                     </div>
                 </div>
@@ -391,7 +391,7 @@ const InterviewDashboard = () => {
                         gap: "6px"
                     }}
                 >
-                    ⬅️ Back to Performance Hub
+                    <i className="fa-solid fa-arrow-left"></i> Back to Performance Hub
                 </button>
                 <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: "700" }}>{attempt.domainName} Evaluation</span>
             </div>
@@ -425,7 +425,11 @@ const InterviewDashboard = () => {
                         <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
                             <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "4px" }}>Rating</span>
                             <span style={{ fontSize: "1.75rem", fontWeight: "800", color: "#fbbf24", letterSpacing: "1px" }}>
-                                {aiSummary.interviewRating || "⭐⭐⭐⭐"}
+                                {aiSummary.interviewRating ? (
+                                    Array.from(aiSummary.interviewRating).filter(c => c === '⭐').map((_, i) => <i key={i} className="fa-solid fa-star"></i>)
+                                ) : (
+                                    <span><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i></span>
+                                )}
                             </span>
                         </div>
 
@@ -474,7 +478,7 @@ const InterviewDashboard = () => {
                     {/* Strengths card */}
                     <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", borderLeft: "4px solid #10b981" }}>
                         <h4 style={{ fontSize: "0.95rem", fontWeight: "700", color: "#10b981", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <span>✓</span> Highlighted Strengths
+                            <span><i className="fa-solid fa-check"></i></span> Highlighted Strengths
                         </h4>
                         <p style={{ color: "var(--text-main)", fontSize: "0.85rem", lineHeight: "1.5" }}>{aiSummary.strongestArea}</p>
                     </div>
@@ -482,15 +486,15 @@ const InterviewDashboard = () => {
                     {/* Weaknesses card */}
                     <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", borderLeft: "4px solid #f43f5e" }}>
                         <h4 style={{ fontSize: "0.95rem", fontWeight: "700", color: "#f43f5e", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <span>✗</span> Areas for Improvement
+                            <span><i className="fa-solid fa-times"></i></span> Areas for Improvement
                         </h4>
                         <p style={{ color: "var(--text-main)", fontSize: "0.85rem", lineHeight: "1.5" }}>{aiSummary.weakestArea}</p>
                     </div>
 
                     {/* Recommendations card */}
                     <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", borderLeft: "4px solid var(--primary)" }}>
-                        <h4 style={{ fontSize: "0.95rem", fontWeight: "700", color: "var(--primary)", marginBottom: "8px" }}>
-                            📚 Recommended Action Items
+                        <h4 style={{ fontSize: "0.95rem", fontWeight: "700", color: "var(--primary)", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                            <i className="fa-solid fa-book"></i> Recommended Action Items
                         </h4>
                         <ul style={{ paddingLeft: "16px", margin: 0, display: "flex", flexDirection: "column", gap: "8px", fontSize: "0.85rem", color: "var(--text-main)" }}>
                             {(aiSummary.recommendedLearningPath || []).map((path, i) => (
