@@ -6,6 +6,7 @@ function AdminSidebar({ activeTab, setActiveTab, handleLogout }) {
     { id: "faculty", label: "Faculty Management", icon: <i className="fa-solid fa-user"></i> },
     { id: "students", label: "Student Management", icon: <i className="fa-solid fa-user-graduate"></i> },
     { id: "timetable", label: "Timetable Manager", icon: <i className="fa-solid fa-calendar-days"></i> },
+    { id: "classes", label: "Institutional Classes", icon: <i className="fa-solid fa-chalkboard-user"></i> },
     { id: "subjects", label: "Subject Master", icon: <i className="fa-solid fa-book"></i> },
     { id: "expertise", label: "Faculty Expertise", icon: <i className="fa-solid fa-bullseye"></i> },
     { id: "leaves", label: "Faculty Leaves", icon: <i className="fa-solid fa-umbrella-beach"></i> },

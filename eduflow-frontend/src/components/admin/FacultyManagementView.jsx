@@ -4,9 +4,15 @@ function FacultyManagementView({
   filteredFaculty,
   searchTerm,
   setSearchTerm,
+  deptFilter,
+  setDeptFilter,
+  facultyDepts = [],
   handleDeleteFaculty,
+  handleClearAllFaculty,
+  handlePurgeMockData,
   deletingId,
   setShowAddFacultyModal,
+  setShowBulkImportFacultyModal,
   getFacultySubjects,
   availability
 }) {
@@ -19,15 +25,56 @@ function FacultyManagementView({
             ({filteredFaculty.length} visible)
           </span>
         </h3>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+          {setDeptFilter && (
+            <select
+              className="input-field"
+              value={deptFilter || "All"}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              style={{ maxWidth: "230px", height: "38px", cursor: "pointer", fontWeight: "500" }}
+            >
+              <option value="All">🏢 All Departments ({facultyDepts.length})</option>
+              {facultyDepts.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          )}
           <input
             className="input-field"
             type="text"
             placeholder="Search faculty..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ maxWidth: "240px", height: "38px" }}
+            style={{ maxWidth: "200px", height: "38px" }}
           />
+          {handleClearAllFaculty && filteredFaculty.length > 0 && (
+            <button
+              onClick={handleClearAllFaculty}
+              style={{
+                background: "rgba(239, 68, 68, 0.15)",
+                border: "1px solid rgba(239, 68, 68, 0.4)",
+                color: "#f87171", borderRadius: "8px", padding: "0.5rem 1rem",
+                fontWeight: "600", fontSize: "0.85rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px"
+              }}
+            >
+              <span>🗑️</span> Clear All Faculty
+            </button>
+          )}
+          {setShowBulkImportFacultyModal && (
+            <button
+              onClick={() => setShowBulkImportFacultyModal(true)}
+              style={{
+                background: "rgba(99, 102, 241, 0.15)",
+                border: "1px solid rgba(99, 102, 241, 0.4)",
+                color: "#818cf8", borderRadius: "8px", padding: "0.5rem 1rem",
+                fontWeight: "600", fontSize: "0.85rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px"
+              }}
+            >
+              <span>📥</span> Import Excel / CSV
+            </button>
+          )}
           <button
             onClick={() => setShowAddFacultyModal(true)}
             style={{

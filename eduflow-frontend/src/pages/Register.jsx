@@ -61,7 +61,7 @@ function Register() {
       setTimeout(() => {
         if (userRole === "STUDENT") navigate("/student");
         else if (userRole === "FACULTY") navigate("/faculty");
-        else if (userRole === "ADMIN") navigate("/admin");
+        else if (userRole === "ADMIN") navigate("/admin/dashboard");
         else navigate("/");
       }, 1000);
     } catch (error) {

@@ -1,15 +1,74 @@
 import React from "react";
 
-function FacultyScheduleView({ timetableData, currentClassStatus, timetableLoading, simParams }) {
+function FacultyScheduleView({ timetableData = [], currentClassStatus, timetableLoading, simParams, facultySubjects = [] }) {
+
+  const getSubjectAbbreviation = (code, name) => {
+    if (!code && !name) return "";
+    const cleanName = (name || code).trim();
+    const cleanCode = (code || name).trim();
+
+    const lowerName = cleanName.toLowerCase();
+    if (lowerName.includes("operating system")) return "OS";
+    if (lowerName.includes("relational database") || lowerName.includes("rdbms") || lowerName.includes("database")) return "RDBMS";
+    if (lowerName.includes("artificial intelligence") || lowerName.includes("ai")) return "AI";
+    if (lowerName.includes("compiler")) return "CI";
+    if (lowerName.includes("computer network") || lowerName.includes("networking")) return "CN";
+    if (lowerName.includes("data structure") || lowerName.includes("dsa")) return "DSA";
+    if (lowerName.includes("universal human") || lowerName.includes("uhv")) return "UHV";
+    if (lowerName.includes("java")) return "JAVA";
+    if (lowerName.includes("python")) return "PYTHON";
+    if (lowerName.includes("web technology") || lowerName.includes("web tech")) return "WT";
+    if (lowerName.includes("machine learning") || lowerName.includes("ml")) return "ML";
+    if (lowerName.includes("software engineering")) return "SE";
+    if (lowerName.includes("mathematics") || lowerName.includes("maths")) return "MATH";
+
+    if (cleanCode.length <= 5 && !/\d{3,}/.test(cleanCode)) {
+      return cleanCode.toUpperCase();
+    }
+
+    const words = cleanName.split(/[\s_\-]+/).filter(w => w.length > 0 && !/^(and|of|for|in|the|with|to)$/i.test(w));
+    if (words.length >= 2) {
+      return words.map(w => w[0].toUpperCase()).join("");
+    }
+    return cleanCode;
+  };
   
+  const formatDeptSemSec = (department, semester, section) => {
+    const sem = Number(semester) || 1;
+    const romanMap = {
+      1: "I", 2: "II", 3: "III", 4: "IV",
+      5: "V", 6: "VI", 7: "VII", 8: "VIII",
+      9: "IX", 10: "X"
+    };
+    const romanSem = romanMap[sem] || `${sem}`;
+
+    const rawDept = (department || "").trim();
+    const upper = rawDept.toUpperCase();
+    let shortDept = "Dept";
+    if (upper.includes("MTECH") || upper.includes("M.TECH")) shortDept = "M.Tech CSE";
+    else if (upper.includes("ARTIFICIAL INTELLIGENCE") || upper.includes("AI & DATA") || upper.includes("AIDS") || upper.includes("AI&DS")) shortDept = "AI&DS";
+    else if (upper.includes("BUSINESS SYSTEMS") || upper.includes("CSBS")) shortDept = "CSBS";
+    else if (upper.includes("CYBER SECURITY") || upper.includes("CSY")) shortDept = "CSY";
+    else if (upper.includes("DESIGN") || upper.includes("CSD")) shortDept = "CSD";
+    else if (upper.includes("MECHANICAL") || upper.includes("MECH")) shortDept = "Mech";
+    else if (upper.includes("CIVIL")) shortDept = "Civil";
+    else if (upper.includes("ELECTRICAL AND ELECTRONICS") || upper.includes("EEE")) shortDept = "EEE";
+    else if (upper.includes("ELECTRONICS") || upper.includes("ECE")) shortDept = "ECE";
+    else if (upper.includes("INFORMATION TECH") || upper.includes("IT")) shortDept = "IT";
+    else if (upper.includes("COMPUTER SCIENCE") || upper.includes("CSE")) shortDept = "CSE";
+    else if (upper.includes("MANAGEMENT") || upper.includes("MBA")) shortDept = "MBA";
+    else {
+      shortDept = rawDept.replace(/Department of\s*/i, "").trim();
+    }
+
+    const sec = (section && section.trim() !== "") ? section.trim().toUpperCase() : "A";
+    return `${romanSem} ${shortDept} ${sec}`;
+  };
+
   const renderFacultyGridCell = (day, period) => {
     const entry = timetableData.find(e => e.dayOfWeek === day && e.period === period);
     const isFreeActivity = entry && entry.subject === "FREE_ACTIVITY";
-    const isMyClass = entry && entry.faculty && (
-      entry.faculty.id === Number(localStorage.getItem("userId")) ||
-      entry.faculty.name === localStorage.getItem("name") ||
-      (localStorage.getItem("email") && entry.faculty.email === localStorage.getItem("email"))
-    );
+    const hasClass = entry && entry.subject && entry.subject.trim() !== "" && !isFreeActivity;
 
     const isActiveCell = currentClassStatus &&
       currentClassStatus.status === "CLASS" &&
@@ -19,11 +78,14 @@ function FacultyScheduleView({ timetableData, currentClassStatus, timetableLoadi
         : new Date().toLocaleDateString("en-US", { weekday: "long" }) === day);
 
     const cellStyle = {
-      padding: "12px 8px",
-      height: "75px",
+      padding: "8px 6px",
+      minHeight: "96px",
+      minWidth: "120px",
       verticalAlign: "middle",
       border: "1px solid rgba(255,255,255,0.06)",
-      textAlign: "center"
+      textAlign: "center",
+      borderRadius: "8px",
+      transition: "all 0.2s ease"
     };
 
     if (isFreeActivity) {
@@ -34,28 +96,85 @@ function FacultyScheduleView({ timetableData, currentClassStatus, timetableLoadi
           <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "2px" }}>Self-Directed</div>
         </td>
       );
-    } else if (isMyClass) {
+    } else if (hasClass) {
+      const courseCode = entry.courseCode || entry.subject;
+      let courseName = entry.subjectName;
+      if (!courseName || courseName.trim() === "" || courseName.toUpperCase() === (courseCode || "").toUpperCase()) {
+        const found = (facultySubjects || []).find(s => 
+          (s.subjectCode && s.subjectCode.trim().toUpperCase() === (courseCode || "").toUpperCase()) ||
+          (s.code && s.code.trim().toUpperCase() === (courseCode || "").toUpperCase())
+        );
+        if (found && (found.subjectName || found.name)) {
+          courseName = found.subjectName || found.name;
+        }
+      }
+      if (!courseName) courseName = courseCode;
+      const roomInfo = entry.room ? (entry.room.roomCode || entry.room.roomName || "Room") : "Classroom";
+      const deptSecBadge = formatDeptSemSec(entry.department, entry.semester, entry.section);
+
+      const tooltipText = `Class: ${deptSecBadge}\nCourse Code: ${courseCode}\nCourse Name: ${courseName}\nRoom: ${roomInfo}`;
+
       return (
-        <td key={period} style={{ 
-          ...cellStyle, 
-          background: isActiveCell ? "rgba(244, 63, 94, 0.12)" : "rgba(244, 63, 94, 0.04)", 
-          border: isActiveCell ? "2px solid #f43f5e" : "1px solid rgba(244, 63, 94, 0.2)" 
-        }}>
-          <div style={{ color: "#fff", fontWeight: "700", fontSize: "0.85rem" }}>{entry.subject}</div>
-          <div style={{ color: "#f43f5e", fontSize: "0.72rem", fontWeight: "600", marginTop: "2px" }}>{entry.department}</div>
-        </td>
-      );
-    } else if (entry && entry.subject && entry.subject.trim() !== "") {
-      return (
-        <td key={period} style={{ ...cellStyle, background: "rgba(255,255,255,0.02)" }}>
-          <div style={{ color: "var(--text-muted)", fontSize: "0.8rem", fontWeight: "500" }}>{entry.subject}</div>
-          <div style={{ color: "var(--text-muted)", fontSize: "0.7rem", marginTop: "2px" }}>{entry.faculty?.name || "Unassigned"}</div>
+        <td
+          key={period}
+          title={tooltipText}
+          style={{ 
+            ...cellStyle, 
+            background: isActiveCell ? "rgba(99, 102, 241, 0.25)" : "rgba(30, 41, 59, 0.55)", 
+            border: isActiveCell ? "2px solid #818cf8" : "1px solid rgba(99, 102, 241, 0.25)" 
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+            {/* 1. Dept & Section Badge (e.g. III Mech A, I CSE B) */}
+            <span style={{
+              fontSize: "0.72rem",
+              fontWeight: "800",
+              color: "#38bdf8",
+              background: "rgba(56, 189, 248, 0.12)",
+              border: "1px solid rgba(56, 189, 248, 0.3)",
+              padding: "2px 6px",
+              borderRadius: "4px",
+              letterSpacing: "0.2px",
+              whiteSpace: "nowrap"
+            }}>
+              {deptSecBadge}
+            </span>
+
+            {/* 2. Course Code (e.g. 25EC504, 25CSI502) */}
+            <span style={{
+              fontWeight: "800",
+              fontSize: "0.82rem",
+              color: "#f8fafc",
+              letterSpacing: "0.3px",
+              marginTop: "2px"
+            }}>
+              {courseCode}
+            </span>
+
+            {/* 3. Course Name (Real Data) */}
+            <span style={{
+              fontSize: "0.68rem",
+              fontWeight: "600",
+              color: "#cbd5e1",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "115px"
+            }}>
+              {courseName}
+            </span>
+
+            {/* 4. Room Info */}
+            <span style={{ fontSize: "0.62rem", color: "var(--text-muted)", marginTop: "1px" }}>
+              <i className="fa-solid fa-door-open" style={{ marginRight: "3px", color: "#818cf8" }}></i>{roomInfo}
+            </span>
+          </div>
         </td>
       );
     } else {
       return (
-        <td key={period} style={{ ...cellStyle }}>
-          <div style={{ color: "rgba(255,255,255,0.15)", fontSize: "0.8rem" }}>-</div>
+        <td key={period} style={{ ...cellStyle, background: "rgba(15, 23, 42, 0.2)" }}>
+          <div style={{ color: "rgba(255,255,255,0.2)", fontSize: "0.75rem", fontStyle: "italic" }}>Free</div>
         </td>
       );
     }

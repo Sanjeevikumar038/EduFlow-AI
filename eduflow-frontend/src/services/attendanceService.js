@@ -3,6 +3,12 @@ import axios from "axios";
 const API_BASE = `http://${window.location.hostname}:8080`;
 const ATTENDANCE_API = `${API_BASE}/api/attendance`;
 
+const getToken = (t) => (t && t !== "undefined" && t !== "null" ? t : localStorage.getItem("token"));
+const authHeaders = (token) => {
+  const t = getToken(token);
+  return t ? { headers: { Authorization: `Bearer ${t}` } } : {};
+};
+
 export const startSession = (data, token) => {
   return axios.post(`${ATTENDANCE_API}/session/start`, data, {
     headers: {
@@ -84,11 +90,7 @@ export const getFacultyAnalytics = (token) => {
 };
 
 export const getAdminAnalytics = (token) => {
-  return axios.get(`${ATTENDANCE_API}/analytics/admin`, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
+  return axios.get(`${ATTENDANCE_API}/analytics/admin`, authHeaders(token));
 };
 
 // ── Export: CSV download ─────────────────────────────────────────────────────

@@ -28,4 +28,32 @@ public class FacultyExpertise {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ExpertiseLevel expertiseLevel;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public User getFaculty() { return faculty; }
+    public void setFaculty(User faculty) { this.faculty = faculty; }
+    public SubjectMaster getSubject() { return subject; }
+    public void setSubject(SubjectMaster subject) { this.subject = subject; }
+    public ExpertiseLevel getExpertiseLevel() { return expertiseLevel; }
+    public void setExpertiseLevel(ExpertiseLevel expertiseLevel) { this.expertiseLevel = expertiseLevel; }
+
+    public static FacultyExpertiseBuilder builder() { return new FacultyExpertiseBuilder(); }
+    public static class FacultyExpertiseBuilder {
+        private Long id;
+        private User faculty;
+        private SubjectMaster subject;
+        private ExpertiseLevel expertiseLevel;
+
+        public FacultyExpertiseBuilder id(Long id) { this.id = id; return this; }
+        public FacultyExpertiseBuilder faculty(User faculty) { this.faculty = faculty; return this; }
+        public FacultyExpertiseBuilder subject(SubjectMaster subject) { this.subject = subject; return this; }
+        public FacultyExpertiseBuilder expertiseLevel(ExpertiseLevel expertiseLevel) { this.expertiseLevel = expertiseLevel; return this; }
+
+        public FacultyExpertise build() {
+            FacultyExpertise fe = new FacultyExpertise();
+            fe.setId(id); fe.setFaculty(faculty); fe.setSubject(subject); fe.setExpertiseLevel(expertiseLevel);
+            return fe;
+        }
+    }
 }

@@ -28,12 +28,12 @@ const SUBJECT_NAME_MAP = {
 };
 
 const FALLBACK_CLASSES = [
-  { period: 1, subject: "DCN", startTime: "8:45 AM", endTime: "9:40 AM", facultyName: "Mr. Pradeep", isActive: false, isCompleted: false },
-  { period: 2, subject: "SE", startTime: "9:40 AM", endTime: "10:35 AM", facultyName: "Mr. Vimit Varghese", isActive: false, isCompleted: false },
-  { period: 3, subject: "DTF", startTime: "10:50 AM", endTime: "11:45 AM", facultyName: "Mr. Sreeraj", isActive: false, isCompleted: false },
-  { period: 4, subject: "AGAI", startTime: "11:45 AM", endTime: "12:40 PM", facultyName: "Mrs. Divya", isActive: false, isCompleted: false },
-  { period: 5, subject: "DCN", startTime: "1:40 PM", endTime: "2:35 PM", facultyName: "Mr. Pradeep", isActive: false, isCompleted: false },
-  { period: 6, subject: "SE", startTime: "2:35 PM", endTime: "3:30 PM", facultyName: "Mr. Vimit Varghese", isActive: false, isCompleted: false },
+  { period: 1, subject: "DCN", startTime: "8:45 AM", endTime: "9:40 AM", facultyName: "Course Instructor", isActive: false, isCompleted: false },
+  { period: 2, subject: "SE", startTime: "9:40 AM", endTime: "10:35 AM", facultyName: "Course Instructor", isActive: false, isCompleted: false },
+  { period: 3, subject: "DTF", startTime: "10:50 AM", endTime: "11:45 AM", facultyName: "Course Instructor", isActive: false, isCompleted: false },
+  { period: 4, subject: "AGAI", startTime: "11:45 AM", endTime: "12:40 PM", facultyName: "Course Instructor", isActive: false, isCompleted: false },
+  { period: 5, subject: "DCN", startTime: "1:40 PM", endTime: "2:35 PM", facultyName: "Course Instructor", isActive: false, isCompleted: false },
+  { period: 6, subject: "SE", startTime: "2:35 PM", endTime: "3:30 PM", facultyName: "Course Instructor", isActive: false, isCompleted: false },
 ];
 
 function ScheduleCard() {
@@ -145,6 +145,11 @@ function ScheduleCard() {
                 {/* Details */}
                 <div style={{ minWidth: 0 }}>
                   <p style={{ fontSize: "0.875rem", fontWeight: "700", color: "var(--text-main)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {item.courseCode && (
+                      <span style={{ color: "var(--primary)", fontWeight: "800", marginRight: "6px" }}>
+                        {item.courseCode}
+                      </span>
+                    )}
                     {displayName}
                   </p>
                   <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.15rem 0 0 0" }}>

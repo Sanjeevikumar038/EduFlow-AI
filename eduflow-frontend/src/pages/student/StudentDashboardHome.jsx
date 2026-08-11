@@ -111,7 +111,7 @@ function StudentDashboardHome() {
             { label: "Email ID", value: email || "727723euci045@skcet.ac.in" },
             { label: "Reg No.", value: registerNumber || "727723EUCI045" },
             { label: "Department", value: department || "M.Tech CSE" },
-            { label: "Semester", value: "8" },
+            { label: "Semester", value: localStorage.getItem("semester") || "7" },
             { label: "Batch", value: "2023 – 2028" },
           ].map((item, idx) => (
             <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>

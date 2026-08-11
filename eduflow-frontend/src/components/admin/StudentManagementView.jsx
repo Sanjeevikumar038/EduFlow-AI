@@ -47,26 +47,41 @@ function StudentManagementView({
   deletingId,
   handleViewProfile,
   setShowAddStudentModal,
-  ALL_DEPTS
+  setShowBulkImportStudentModal,
+  ALL_DEPTS = ["All", "M.Tech CSE", "CSE", "IT", "ECE", "EEE", "Mechanical", "Mechatronics", "AI & Data Science", "CSBS", "Civil"]
 }) {
+  const deptsList = Array.isArray(ALL_DEPTS) ? ALL_DEPTS : ["All", "M.Tech CSE", "CSE", "IT", "ECE", "EEE", "Mechanical", "Mechatronics", "AI & Data Science", "CSBS", "Civil"];
   return (
     <div className="dashboard-card" style={{ background: "rgba(30, 41, 59, 0.2)", display: "flex", flexDirection: "column", gap: "1.5rem", animation: "fadeIn 0.5s ease" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
         <h3 style={{ margin: 0 }}>
           🎓 Student Directory
           <span style={{ fontSize: "0.9rem", color: "var(--text-muted)", marginLeft: "0.5rem" }}>
-            ({students.length} visible)
+            ({students?.length || 0} visible)
           </span>
         </h3>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           <input
             className="input-field"
             type="text"
             placeholder="Search students..."
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setStudentPage(0); }}
-            style={{ maxWidth: "240px", height: "38px" }}
+            style={{ maxWidth: "220px", height: "38px" }}
           />
+          {setShowBulkImportStudentModal && (
+            <button
+              onClick={() => setShowBulkImportStudentModal(true)}
+              style={{
+                background: "rgba(99, 102, 241, 0.15)",
+                border: "1px solid rgba(99, 102, 241, 0.4)",
+                color: "#818cf8", borderRadius: "8px", padding: "0.5rem 1rem",
+                fontWeight: "600", fontSize: "0.85rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px"
+              }}
+            >
+              <span>📥</span> Import Excel / CSV
+            </button>
+          )}
           <button
             onClick={() => setShowAddStudentModal(true)}
             style={{
@@ -89,7 +104,7 @@ function StudentManagementView({
           style={{ flex: "1", minWidth: "120px", fontSize: "0.8rem", height: "36px" }}
         >
           <option value="All">All Departments</option>
-          {ALL_DEPTS.filter(x => x !== "All").map(dept => (
+          {deptsList.filter(x => x !== "All").map(dept => (
             <option key={dept} value={dept}>{dept}</option>
           ))}
         </select>

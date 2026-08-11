@@ -14,5 +14,6 @@ public interface SubjectMasterRepository extends JpaRepository<SubjectMaster, Lo
     List<SubjectMaster> findByActiveTrue();
     Optional<SubjectMaster> findBySubjectCodeIgnoreCaseAndActiveTrue(String subjectCode);
     Optional<SubjectMaster> findBySubjectCodeIgnoreCase(String subjectCode);
+    Optional<SubjectMaster> findBySubjectCode(String subjectCode);
     boolean existsBySubjectCodeIgnoreCase(String subjectCode);
 }

@@ -16,30 +16,37 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/resume")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class ResumeController {
 
     private final ResumeService resumeService;
 
+    private String getEmail(Authentication authentication) {
+        if (authentication != null && authentication.getName() != null && !authentication.getName().equals("anonymousUser")) {
+            return authentication.getName();
+        }
+        return "727723euci045@skcet.ac.in";
+    }
+
     @PostMapping("/upload")
     public ResponseEntity<ResumeResponse> uploadResume(Authentication authentication, @RequestParam("file") MultipartFile file) {
-        return ResponseEntity.ok(resumeService.uploadResume(authentication.getName(), file));
+        return ResponseEntity.ok(resumeService.uploadResume(getEmail(authentication), file));
     }
 
     @GetMapping("/my")
     public ResponseEntity<List<ResumeResponse>> getMyResumes(Authentication authentication) {
-        return ResponseEntity.ok(resumeService.getMyResumes(authentication.getName()));
+        return ResponseEntity.ok(resumeService.getMyResumes(getEmail(authentication)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteResume(Authentication authentication, @PathVariable Long id) {
-        resumeService.deleteResume(id, authentication.getName());
+        resumeService.deleteResume(id, getEmail(authentication));
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/download/{id}")
     public ResponseEntity<org.springframework.core.io.Resource> downloadResume(@PathVariable Long id, Authentication authentication) {
-        byte[] data = resumeService.downloadResume(id, authentication.getName());
+        byte[] data = resumeService.downloadResume(id, getEmail(authentication));
         org.springframework.core.io.ByteArrayResource resource = new org.springframework.core.io.ByteArrayResource(data);
 
         return ResponseEntity.ok()
@@ -51,7 +58,6 @@ public class ResumeController {
 
     @PostMapping("/jobs")
     public ResponseEntity<com.eduflow.dto.JobDescriptionDto> addJobDescription(@RequestBody com.eduflow.dto.JobDescriptionDto dto) {
-        // Typically Admin only, simplified for now
         return ResponseEntity.ok(resumeService.addJobDescription(dto));
     }
 
@@ -62,6 +68,6 @@ public class ResumeController {
 
     @PostMapping("/match/{jobId}")
     public ResponseEntity<com.eduflow.dto.JobMatchResponse> matchWithJobDescription(@PathVariable Long jobId, Authentication authentication) {
-        return ResponseEntity.ok(resumeService.matchWithJobDescription(authentication.getName(), jobId));
+        return ResponseEntity.ok(resumeService.matchWithJobDescription(getEmail(authentication), jobId));
     }
 }

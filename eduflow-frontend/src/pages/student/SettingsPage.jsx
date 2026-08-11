@@ -38,7 +38,7 @@ function SettingsPage() {
     // Apply changes to documentElement
     const html = document.documentElement;
     if (newTheme === "dark") {
-      html.removeAttribute("data-theme");
+      html.setAttribute("data-theme", "dark");
     } else {
       html.setAttribute("data-theme", "light");
     }

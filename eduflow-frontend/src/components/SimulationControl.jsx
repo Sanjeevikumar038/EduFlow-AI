@@ -9,14 +9,14 @@ const SimulationControl = ({ onChange }) => {
   
   const timeOptions = [
     { label: "08:30 AM (Before College)", value: "08:30" },
-    { label: "09:00 AM (Period 1: OS/DCN/PCD/DBMS)", value: "09:00" },
-    { label: "10:00 AM (Period 2: DCN/OS/DBMS/AGAI)", value: "10:00" },
+    { label: "09:00 AM (Period 1)", value: "09:00" },
+    { label: "10:00 AM (Period 2)", value: "10:00" },
     { label: "10:40 AM (Short Break)", value: "10:40" },
-    { label: "11:00 AM (Period 3: PCD/AIES/OS/SE)", value: "11:00" },
-    { label: "12:00 PM (Period 4: AIES/DBMS/DCN)", value: "12:00" },
+    { label: "11:00 AM (Period 3)", value: "11:00" },
+    { label: "12:00 PM (Period 4)", value: "12:00" },
     { label: "01:00 PM (Lunch Break)", value: "13:00" },
-    { label: "02:00 PM (Period 5: AGAI/PCD/AIES/DCN/OS)", value: "14:00" },
-    { label: "03:00 PM (Period 6: DBMS/AGAI/PCD)", value: "15:00" },
+    { label: "02:00 PM (Period 5)", value: "14:00" },
+    { label: "03:00 PM (Period 6)", value: "15:00" },
     { label: "04:00 PM (After College / Ended)", value: "16:00" }
   ];
 

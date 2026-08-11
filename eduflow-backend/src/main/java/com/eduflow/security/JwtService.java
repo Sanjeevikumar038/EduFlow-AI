@@ -21,8 +21,8 @@ public class JwtService {
     
     private final SecretKey key = Keys.hmacShaKeyFor(SECRET_STRING.getBytes(StandardCharsets.UTF_8));
 
-    // Token validity (e.g. 24 hours)
-    private static final long JWT_EXPIRATION = 86400000;
+    // Token validity (7 days)
+    private static final long JWT_EXPIRATION = 604800000L;
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);

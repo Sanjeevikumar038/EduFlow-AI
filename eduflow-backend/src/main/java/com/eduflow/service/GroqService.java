@@ -2,8 +2,8 @@ package com.eduflow.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -14,9 +14,9 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class GroqService {
+
+    private static final Logger log = LoggerFactory.getLogger(GroqService.class);
 
     @Value("${groq.api.key}")
     private String apiKey;
@@ -64,5 +64,9 @@ public class GroqService {
             log.error("Exception calling Groq API", e);
             return "{}"; // Return empty JSON on failure
         }
+    }
+
+    public String getGroqResponse(String prompt) {
+        return generateJsonResponse("You are a helpful AI assistant for EduFlow educational portal.", prompt);
     }
 }

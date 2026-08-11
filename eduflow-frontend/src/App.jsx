@@ -16,49 +16,68 @@ import CodingDashboard from "./components/career/CodingDashboard";
 import InterviewDashboard from "./components/career/InterviewDashboard";
 import CareerDashboard from "./components/career/CareerDashboard";
 import CodingWorkspacePage from "./pages/student/CodingWorkspacePage";
+import ClassroomDashboard from "./pages/ClassroomDashboard";
+import ClassroomDetail from "./pages/ClassroomDetail";
+import ClassroomPortalLayout from "./components/layout/ClassroomPortalLayout";
 
-// Route guard — redirects to login if no token found in localStorage
-function PrivateRoute({ children, allowedRole }) {
-  const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role");
-  if (!token) return <Navigate to="/" replace />;
-  if (allowedRole && role !== allowedRole) {
-    // Clear unauthorized session
-    localStorage.clear();
-    return <Navigate to="/" replace />;
-  }
+// Public route handler: allows access to login pages at all times, no auto-redirects to avoid confusion
+function PublicRoute({ children }) {
   return children;
 }
 
-// Admin route handler: renders dashboard if authenticated, else shows login form
-function AdminRoute() {
+// Route guard — redirects to login if no token found, or to correct dashboard if role mismatch
+function PrivateRoute({ children, allowedRole, redirectTo = "/" }) {
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
-  if (token) {
-    if (role === "ADMIN") {
-      return <AdminDashboard />;
-    } else {
-      // Clear unauthorized student/faculty session trying to access admin route
-      localStorage.clear();
-      return <Navigate to="/" replace />;
-    }
+  
+  console.log(`[PrivateRoute] Checking route... allowedRole=${allowedRole}, currentRole=${role}, hasToken=${!!token}, path=${window.location.pathname}`);
+  
+  if (!token) {
+    console.log(`[PrivateRoute] No token, redirecting to ${redirectTo}`);
+    return <Navigate to={redirectTo} replace />;
   }
-  return <Login />;
+  
+  if (allowedRole && role !== allowedRole) {
+    console.log(`[PrivateRoute] Role mismatch! allowedRole=${allowedRole}, currentRole=${role}. Redirecting to correct dashboard.`);
+    // Redirect unauthorized session instead of clearing it
+    if (role === "ADMIN") return <Navigate to="/admin/dashboard" replace />;
+    if (role === "STUDENT") return <Navigate to="/student/dashboard" replace />;
+    if (role === "FACULTY") return <Navigate to="/faculty" replace />;
+    
+    // Fallback for corrupted sessions
+    console.log(`[PrivateRoute] Corrupted role ${role}. Clearing localStorage and redirecting to /.`);
+    localStorage.clear();
+    return <Navigate to="/" replace />;
+  }
+  
+  console.log(`[PrivateRoute] Access granted. Rendering children.`);
+  return children;
 }
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<PortalLogin />} />
-        <Route path="/admin" element={<AdminRoute />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<PublicRoute><PortalLogin /></PublicRoute>} />
+        <Route path="/admin" element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/admin/dashboard" element={<PrivateRoute allowedRole="ADMIN" redirectTo="/admin"><AdminDashboard /></PrivateRoute>} />
+        <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
         <Route path="/portal" element={<Navigate to="/" replace />} />
+        <Route path="/admin-login" element={<Navigate to="/admin" replace />} />
         <Route path="/login" element={<Navigate to="/admin" replace />} />
+        
+        {/* Classroom Routes wrapped in ClassroomPortalLayout */}
+        <Route path="/classroom" element={<PrivateRoute><ClassroomPortalLayout /></PrivateRoute>}>
+          <Route index element={<ClassroomDashboard />} />
+          <Route path=":id" element={<ClassroomDetail />} />
+        </Route>
+
         <Route path="/student/coding-workspace" element={<PrivateRoute allowedRole="STUDENT"><CodingWorkspacePage /></PrivateRoute>} />
         <Route path="/student" element={<PrivateRoute allowedRole="STUDENT"><StudentPortalLayout /></PrivateRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<StudentDashboardHome />} />
+          <Route path="classroom" element={<ClassroomDashboard />} />
+          <Route path="classroom/:id" element={<ClassroomDetail />} />
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="timetable" element={<TimetablePage />} />
           <Route path="coding" element={<CodingDashboard />} />
@@ -68,6 +87,7 @@ function App() {
           <Route path="leave" element={<LeavePage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
+        
         <Route path="/faculty" element={<PrivateRoute allowedRole="FACULTY"><FacultyDashboard /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -48,6 +48,38 @@ function StatCard({ title, value, status, icon, caption, progress, color }) {
   );
 }
 
+const formatDeptSemSec = (department, semester, section) => {
+  const sem = Number(semester) || 1;
+  const romanMap = {
+    1: "I", 2: "II", 3: "III", 4: "IV",
+    5: "V", 6: "VI", 7: "VII", 8: "VIII",
+    9: "IX", 10: "X"
+  };
+  const romanSem = romanMap[sem] || `${sem}`;
+
+  const rawDept = (department || "").trim();
+  const upper = rawDept.toUpperCase();
+  let shortDept = "Dept";
+  if (upper.includes("MTECH") || upper.includes("M.TECH")) shortDept = "M.Tech CSE";
+  else if (upper.includes("ARTIFICIAL INTELLIGENCE") || upper.includes("AI & DATA") || upper.includes("AIDS") || upper.includes("AI&DS")) shortDept = "AI&DS";
+  else if (upper.includes("BUSINESS SYSTEMS") || upper.includes("CSBS")) shortDept = "CSBS";
+  else if (upper.includes("CYBER SECURITY") || upper.includes("CSY")) shortDept = "CSY";
+  else if (upper.includes("DESIGN") || upper.includes("CSD")) shortDept = "CSD";
+  else if (upper.includes("MECHANICAL") || upper.includes("MECH")) shortDept = "Mech";
+  else if (upper.includes("CIVIL")) shortDept = "Civil";
+  else if (upper.includes("ELECTRICAL AND ELECTRONICS") || upper.includes("EEE")) shortDept = "EEE";
+  else if (upper.includes("ELECTRONICS") || upper.includes("ECE")) shortDept = "ECE";
+  else if (upper.includes("INFORMATION TECH") || upper.includes("IT")) shortDept = "IT";
+  else if (upper.includes("COMPUTER SCIENCE") || upper.includes("CSE")) shortDept = "CSE";
+  else if (upper.includes("MANAGEMENT") || upper.includes("MBA")) shortDept = "MBA";
+  else {
+    shortDept = rawDept.replace(/Department of\s*/i, "").trim();
+  }
+
+  const sec = (section && section.trim() !== "") ? section.trim().toUpperCase() : "A";
+  return `${romanSem} ${shortDept} ${sec}`;
+};
+
 function FacultyOverviewView({ facultyAnalytics, facultyAnalyticsLoading, currentClassStatus, timetableLoading, sessions }) {
   // Extract real metrics if loaded, else use defaults
   const totalStudents = facultyAnalytics?.totalStudents !== undefined ? `${(facultyAnalytics.totalStudents * 1.0).toFixed(1)}%` : "63.0%";
@@ -136,12 +168,25 @@ function FacultyOverviewView({ facultyAnalytics, facultyAnalyticsLoading, curren
                           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                             {session.time}
                           </span>
+                          {(session.department || session.semester) && (
+                            <span style={{
+                              fontSize: "0.7rem",
+                              fontWeight: "800",
+                              color: "#38bdf8",
+                              background: "rgba(56, 189, 248, 0.12)",
+                              border: "1px solid rgba(56, 189, 248, 0.3)",
+                              padding: "2px 6px",
+                              borderRadius: "4px"
+                            }}>
+                              {formatDeptSemSec(session.department, session.semester, session.section)}
+                            </span>
+                          )}
                         </div>
                         <h4 style={{ margin: "0.35rem 0 0 0", color: "var(--text-main)", fontSize: "0.95rem", fontWeight: "700" }}>
-                          {session.subject}
+                          {session.subjectCode ? `${session.subjectCode} — ` : ""}{session.subject}
                         </h4>
                         <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                          <i className="fa-solid fa-location-dot" style={{ color: "var(--primary)" }}></i> Room: {session.room || "Lab 2"} · CSE Department
+                          <i className="fa-solid fa-location-dot" style={{ color: "var(--primary)" }}></i> Room: {session.room || "Classroom"} · {session.department ? session.department.replace(/Department of\s*/i, "") : "Department"}
                         </span>
                       </div>
                       <span style={{

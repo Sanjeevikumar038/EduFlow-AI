@@ -169,32 +169,43 @@ function StudentDashboard() {
   const [leaveForm, setLeaveForm] = useState({ type: "OD", fromDate: "", toDate: "", reason: "" });
   const [leaveFormError, setLeaveFormError] = useState("");
 
-  // Calculate unique subjects for reference panel
-  const subjectMappingInfo = {
-    "AGAI": { code: "AGAI", name: "Agentic AI", staff: "Mrs. Divya" },
-    "SE": { code: "SE", name: "Software Engineering", staff: "Mr. Vimit Varghesse" },
-    "DTF": { code: "DTF", name: "Design Thinking Fundamentals", staff: "Mr. Sreeraj" },
-    "DCN": { code: "DCN", name: "Data Communication Networks", staff: "Mr. Pradeep" },
+  const getSubjectFullName = (code) => {
+    if (!code) return "Elective Course";
+    const cleanCode = code.trim().toUpperCase();
+    const map = {
+      "25CS1701": "Advanced Cloud Computing & Virtualization",
+      "25CSI701": "Cyber Security & Information Assurance",
+      "25IOC01": "Internet of Things & Connected Systems",
+      "25IOC02": "Industrial Optimization & Embedded Systems",
+      "25XXXX": "Professional Elective — Advanced Deep Learning",
+      "AGAI": "Agentic AI & Autonomous Systems",
+      "SE": "Software Engineering & Clean Architecture",
+      "DTF": "Design Thinking Fundamentals",
+      "DCN": "Data Communication Networks",
+      "OS": "Operating Systems & Kernels",
+      "DSA": "Data Structures & Algorithms",
+      "DBMS": "Database Management Systems",
+      "COA": "Computer Organization & Architecture",
+      "OOPS": "Object Oriented Programming",
+      "WEBTECH": "Full Stack Web Technology"
+    };
+    return map[cleanCode] || cleanCode;
   };
 
   const uniqueSubjects = [];
   const seen = new Set();
   if (timetableData && Array.isArray(timetableData)) {
     timetableData.forEach(entry => {
-      if (entry.subject && !seen.has(entry.subject)) {
+      if (entry.subject && entry.subject !== "FREE_ACTIVITY" && !seen.has(entry.subject)) {
         seen.add(entry.subject);
-        const codeUpper = entry.subject.toUpperCase().trim();
-        const details = subjectMappingInfo[codeUpper] || {
-          code: entry.subject,
-          name: entry.subject === "OS" ? "Operating Systems" :
-            entry.subject === "DSA" ? "Data Structures & Algorithms" :
-              entry.subject === "DBMS" ? "Database Management Systems" :
-                entry.subject === "COA" ? "Computer Organization & Architecture" :
-                  entry.subject === "OOPs" ? "Object Oriented Programming" :
-                    entry.subject === "WebTech" ? "Web Technology" : entry.subject,
-          staff: entry.faculty?.name || "Unassigned"
-        };
-        uniqueSubjects.push(details);
+        const subCode = entry.subject.trim();
+        const subName = entry.subjectName || getSubjectFullName(subCode);
+        const facName = entry.faculty?.name || entry.facultyName || "Course Instructor";
+        uniqueSubjects.push({
+          code: subCode,
+          name: subName,
+          staff: facName
+        });
       }
     });
     uniqueSubjects.sort((a, b) => a.code.localeCompare(b.code));
@@ -730,6 +741,37 @@ function StudentDashboard() {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
+  const getSubjectAbbreviation = (code, name) => {
+    if (!code && !name) return "";
+    const cleanName = (name || code).trim();
+    const cleanCode = (code || name).trim();
+
+    const lowerName = cleanName.toLowerCase();
+    if (lowerName.includes("operating system")) return "OS";
+    if (lowerName.includes("relational database") || lowerName.includes("rdbms") || lowerName.includes("database")) return "RDBMS";
+    if (lowerName.includes("artificial intelligence") || lowerName.includes("ai")) return "AI";
+    if (lowerName.includes("compiler")) return "CI";
+    if (lowerName.includes("computer network") || lowerName.includes("networking")) return "CN";
+    if (lowerName.includes("data structure") || lowerName.includes("dsa")) return "DSA";
+    if (lowerName.includes("universal human") || lowerName.includes("uhv")) return "UHV";
+    if (lowerName.includes("java")) return "JAVA";
+    if (lowerName.includes("python")) return "PYTHON";
+    if (lowerName.includes("web technology") || lowerName.includes("web tech")) return "WT";
+    if (lowerName.includes("machine learning") || lowerName.includes("ml")) return "ML";
+    if (lowerName.includes("software engineering")) return "SE";
+    if (lowerName.includes("mathematics") || lowerName.includes("maths")) return "MATH";
+
+    if (cleanCode.length <= 5 && !/\d{3,}/.test(cleanCode)) {
+      return cleanCode.toUpperCase();
+    }
+
+    const words = cleanName.split(/[\s_\-]+/).filter(w => w.length > 0 && !/^(and|of|for|in|the|with|to)$/i.test(w));
+    if (words.length >= 2) {
+      return words.map(w => w[0].toUpperCase()).join("");
+    }
+    return cleanCode;
+  };
+
   const renderGridCell = (day, period) => {
     const entry = timetableData.find(e => e.dayOfWeek === day && e.period === period);
     const isActiveCell = currentClassStatus &&
@@ -741,29 +783,68 @@ function StudentDashboard() {
 
     const hasClass = entry && entry.subject && entry.subject.trim() !== "";
     const isFreeActivity = entry && entry.subject === "FREE_ACTIVITY";
-    
-    let subject = "Free Hour";
-    let faculty = "";
-    if (isFreeActivity) {
-      subject = entry.activityName ? `Free Activity Period (${entry.activityName})` : "Free Activity Period";
-    } else if (hasClass) {
-      subject = entry.subject;
-      faculty = entry.faculty ? entry.faculty.name : "";
-    }
 
     let cellBg = "rgba(30, 41, 59, 0.1)";
     let borderStyle = "1px solid rgba(255, 255, 255, 0.06)";
     if (isFreeActivity) {
       cellBg = "rgba(16, 185, 129, 0.08)";
       borderStyle = "1px dashed rgba(16, 185, 129, 0.3)";
+    } else if (hasClass) {
+      cellBg = isActiveCell ? "rgba(99, 102, 241, 0.25)" : "rgba(30, 41, 59, 0.5)";
+      borderStyle = isActiveCell ? "2px solid #818cf8" : "1px solid rgba(99, 102, 241, 0.25)";
     }
 
-    return (
-      <td key={period} className={`grid-class-cell ${isActiveCell ? "active-cell" : ""} ${(!hasClass && !isFreeActivity) ? "free-cell" : ""}`} style={{ background: cellBg, border: borderStyle }}>
-        <div className="cell-subject" style={{ color: isFreeActivity ? "var(--success)" : undefined, fontWeight: isFreeActivity ? "600" : undefined }}>{subject}</div>
-        {faculty && <div className="cell-faculty">{faculty}</div>}
-      </td>
-    );
+    if (isFreeActivity) {
+      const displayVal = entry.activityName ? `Free Activity (${entry.activityName})` : "Free Activity Period";
+      return (
+        <td key={period} style={{ padding: "10px 8px", height: "78px", minWidth: "120px", verticalAlign: "middle", textAlign: "center", background: cellBg, border: borderStyle }}>
+          <div style={{ color: "#10b981", fontWeight: "700", fontSize: "0.8rem" }}>{displayVal}</div>
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "2px" }}>Self-Directed</div>
+        </td>
+      );
+    } else if (hasClass) {
+      const subCode = entry.subject;
+      const facName = entry.faculty?.name || entry.facultyName || "Course Instructor";
+      const roomInfo = entry.room ? (entry.room.roomCode || entry.room.roomName || "Classroom") : "Classroom";
+      const subAbbr = getSubjectAbbreviation(subCode, subCode);
+
+      const tooltipText = `Course: ${subCode}\nFaculty: ${facName}\nRoom/Lab: ${roomInfo}`;
+
+      return (
+        <td
+          key={period}
+          title={tooltipText}
+          style={{ padding: "10px 8px", height: "78px", minWidth: "120px", verticalAlign: "middle", textAlign: "center", background: cellBg, border: borderStyle, borderRadius: "8px" }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
+            <span style={{
+              fontWeight: "800",
+              fontSize: "0.9rem",
+              color: "#818cf8",
+              background: "rgba(99, 102, 241, 0.15)",
+              border: "1px solid rgba(99, 102, 241, 0.3)",
+              padding: "2px 8px",
+              borderRadius: "6px"
+            }}>
+              {subAbbr}
+            </span>
+            <span style={{ fontSize: "0.72rem", color: "#cbd5e1", fontWeight: "500", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "110px" }}>
+              <i className="fa-solid fa-user-tie" style={{ fontSize: "0.65rem", marginRight: "4px", color: "var(--success)" }}></i>
+              {facName}
+            </span>
+            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>
+              <i className="fa-solid fa-door-open" style={{ marginRight: "3px" }}></i>{roomInfo}
+            </span>
+          </div>
+        </td>
+      );
+    } else {
+      return (
+        <td key={period} style={{ padding: "10px 8px", height: "78px", minWidth: "120px", verticalAlign: "middle", textAlign: "center", background: "rgba(15, 23, 42, 0.2)", border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic", opacity: 0.6 }}>Free</span>
+        </td>
+      );
+    }
   };
 
   return (

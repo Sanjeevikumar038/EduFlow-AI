@@ -15,4 +15,9 @@ public class StartSessionRequest {
 
     @Min(value = 1, message = "Duration must be at least 1 minute")
     private int durationMinutes;
+
+    public String getSubject() { return subject; }
+    public void setSubject(String subject) { this.subject = subject; }
+    public int getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(int durationMinutes) { this.durationMinutes = durationMinutes; }
 }

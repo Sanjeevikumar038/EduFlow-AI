@@ -4,7 +4,11 @@ const API_BASE = `http://${window.location.hostname}:8080`;
 const ADMIN_API = `${API_BASE}/api/admin`;
 const TIMETABLE_API = `${API_BASE}/api/timetable`;
 
-const authHeaders = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
+const getToken = (t) => (t && t !== "undefined" && t !== "null" ? t : localStorage.getItem("token"));
+const authHeaders = (token) => {
+  const t = getToken(token);
+  return t ? { headers: { Authorization: `Bearer ${t}` } } : {};
+};
 
 // ── Subject Master ──────────────────────────────────────
 export const getSubjects = (token, department) =>
@@ -16,11 +20,17 @@ export const getActiveSubjects = (token) =>
 export const createSubject = (data, token) =>
   axios.post(`${ADMIN_API}/subjects`, data, authHeaders(token));
 
+export const bulkCreateSubjects = (dataList, token) =>
+  axios.post(`${ADMIN_API}/subjects/bulk`, dataList, authHeaders(token));
+
 export const updateSubject = (id, data, token) =>
   axios.put(`${ADMIN_API}/subjects/${id}`, data, authHeaders(token));
 
 export const deleteSubject = (id, token) =>
   axios.delete(`${ADMIN_API}/subjects/${id}`, authHeaders(token));
+
+export const deleteAllSubjects = (token) =>
+  axios.delete(`${ADMIN_API}/subjects/all`, authHeaders(token));
 
 // ── Faculty Expertise ───────────────────────────────────
 export const getAllExpertise = (token) =>
@@ -50,6 +60,29 @@ export const deleteAvailability = (id, token) =>
 // ── Faculty Workload ─────────────────────────────────────
 export const getFacultyWorkload = (token) =>
   axios.get(`${ADMIN_API}/faculty-workload`, authHeaders(token));
+
+export const generateAiSmartWorkloadAllocation = (data, token) =>
+  axios.post(`${ADMIN_API}/ai-smart-workload-allocation/generate`, data || {}, authHeaders(token));
+
+export const approveAllocationVersion = (versionName, token) =>
+  axios.post(`${ADMIN_API}/ai-smart-workload-allocation/approve/${encodeURIComponent(versionName)}`, {}, authHeaders(token));
+
+export const getAvailableVersionNames = (token) =>
+  axios.get(`${ADMIN_API}/ai-smart-workload-allocation/versions`, authHeaders(token));
+
+export const getResultByVersionName = (versionName, token) =>
+  axios.get(`${ADMIN_API}/ai-smart-workload-allocation/version/${encodeURIComponent(versionName)}`, authHeaders(token));
+
+export const getFacultyWorkloadAllocations = (department, version, token, semester) => {
+  let url = `${ADMIN_API}/faculty-workload-allocations?`;
+  if (department) url += `department=${encodeURIComponent(department)}&`;
+  if (version) url += `version=${encodeURIComponent(version)}&`;
+  if (semester) url += `semester=${encodeURIComponent(semester)}&`;
+  return axios.get(url, authHeaders(token));
+};
+
+export const clearFacultyWorkloadAllocations = (token) =>
+  axios.delete(`${ADMIN_API}/faculty-workload-allocations`, authHeaders(token));
 
 // ── Classrooms ───────────────────────────────────────────
 export const getClassrooms = (token) =>

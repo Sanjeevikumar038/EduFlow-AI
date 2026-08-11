@@ -1,5 +1,6 @@
 package com.eduflow.config;
 
+import com.eduflow.controller.AdminController;
 import com.eduflow.entity.*;
 import com.eduflow.repository.*;
 import com.eduflow.service.AuthService;
@@ -42,31 +43,66 @@ public class DatabaseInitializer implements CommandLineRunner {
     @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     @Autowired private CodingChallengeRepository codingChallengeRepository;
     @Autowired private CodingQuestionBankRepository codingQuestionBankRepository;
+    @Autowired private FacultyWorkloadAllocationRepository allocationRepository;
+    @Autowired private com.eduflow.service.AiWorkloadOptimizerService aiWorkloadOptimizerService;
+
+    private boolean tableExists(String tableName) {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ?",
+                Integer.class, tableName
+            );
+            return count != null && count > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void safeExecuteIfTableExists(String tableName, String sql) {
+        if (tableExists(tableName)) {
+            try {
+                jdbcTemplate.execute(sql);
+            } catch (Exception ignored) {}
+        }
+    }
 
     private void ensureColumnsExist() {
-        try {
-            jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS active boolean DEFAULT true");
-        } catch (Exception e) {
+        if (tableExists("subject_master")) {
             try {
-                jdbcTemplate.execute("ALTER TABLE users ADD COLUMN active boolean DEFAULT true");
-            } catch (Exception ex) {
-                // Ignore if it already exists or on other DB dialects
-            }
+                jdbcTemplate.execute("ALTER TABLE subject_master DROP CONSTRAINT IF EXISTS subject_master_subject_code_key");
+                jdbcTemplate.execute("ALTER TABLE subject_master DROP CONSTRAINT IF EXISTS uk_subject_code");
+                jdbcTemplate.execute("ALTER TABLE subject_master DROP CONSTRAINT IF EXISTS uk_subject_master_subject_code");
+            } catch (Exception ignored) {}
         }
-        try {
-            jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS class_advisor boolean DEFAULT false");
-        } catch (Exception e) {
+        if (tableExists("users")) {
             try {
-                jdbcTemplate.execute("ALTER TABLE users ADD COLUMN class_advisor boolean DEFAULT false");
-            } catch (Exception ex) {
-                // Ignore if it already exists or on other DB dialects
+                jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS active boolean DEFAULT true");
+            } catch (Exception e) {
+                try {
+                    jdbcTemplate.execute("ALTER TABLE users ADD COLUMN active boolean DEFAULT true");
+                } catch (Exception ex) {
+                    // Ignore if it already exists or on other DB dialects
+                }
+            }
+            try {
+                jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS class_advisor boolean DEFAULT false");
+            } catch (Exception e) {
+                try {
+                    jdbcTemplate.execute("ALTER TABLE users ADD COLUMN class_advisor boolean DEFAULT false");
+                } catch (Exception ex) {
+                    // Ignore if it already exists or on other DB dialects
+                }
             }
         }
     }
 
+
     @Override
     @Transactional
     public void run(String... args) throws Exception {
+        try {
+            jdbcTemplate.execute("ALTER TABLE faculty_workload_allocations DROP CONSTRAINT IF EXISTS uk1q4uutb0v2hc7r5wr4cwdidre;");
+        } catch (Exception ignored) {}
         // Extract 100 questions JSON from logs if not exists
         try {
             File jsonFile = new File("src/main/resources/coding_questions_bank.json");
@@ -125,6 +161,35 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         ensureColumnsExist();
         
+        // ── Safe Cascade Purge for all legacy mock faculty & demo subjects ──
+        try {
+            System.out.println("--- EXECUTING CASCADE PURGE OF ALL MOCK FACULTY & DEMO ACADEMIC DATA ---");
+            List<String> mockEmails = List.of("vimit@skcet.ac.in", "sreeraj@skcet.ac.in", "divya@skcet.ac.in", "pradeep@skcet.ac.in");
+            for (String email : mockEmails) {
+                userRepository.findByEmail(email).ifPresent(u -> {
+                    Long uId = u.getId();
+                    safeExecuteIfTableExists("classroom_announcements", "DELETE FROM classroom_announcements WHERE classroom_id IN (SELECT id FROM course_classrooms WHERE faculty_id = " + uId + ")");
+                    safeExecuteIfTableExists("classroom_materials", "DELETE FROM classroom_materials WHERE classroom_id IN (SELECT id FROM course_classrooms WHERE faculty_id = " + uId + ")");
+                    safeExecuteIfTableExists("classroom_assignments", "DELETE FROM classroom_assignments WHERE classroom_id IN (SELECT id FROM course_classrooms WHERE faculty_id = " + uId + ")");
+                    safeExecuteIfTableExists("classroom_assessments", "DELETE FROM classroom_assessments WHERE classroom_id IN (SELECT id FROM course_classrooms WHERE faculty_id = " + uId + ")");
+                    safeExecuteIfTableExists("classroom_lecture_history", "DELETE FROM classroom_lecture_history WHERE classroom_id IN (SELECT id FROM course_classrooms WHERE faculty_id = " + uId + ")");
+                    safeExecuteIfTableExists("course_classrooms", "DELETE FROM course_classrooms WHERE faculty_id = " + uId);
+                    safeExecuteIfTableExists("timetable_entries", "UPDATE timetable_entries SET faculty_id = NULL WHERE faculty_id = " + uId);
+                    try { facultyExpertiseRepository.deleteByFacultyId(uId); } catch (Exception ignored) {}
+                    try { userRepository.delete(u); } catch (Exception ignored) {}
+                });
+            }
+            List<String> mockCodes = List.of("AGAI", "DTF", "SE", "DCN");
+            for (String code : mockCodes) {
+                try {
+                    subjectMasterRepository.findBySubjectCodeIgnoreCase(code).ifPresent(subjectMasterRepository::delete);
+                } catch (Exception ignored) {}
+            }
+            System.out.println("--- PURGE OF MOCK FACULTY & DEMO ACADEMIC DATA COMPLETED SUCCESSFULLY ---");
+        } catch (Exception e) {
+            System.out.println("--- Purge Info: " + e.getMessage() + " ---");
+        }
+
         // ─── Custom M.Tech CSE Role/Workflow Seeding ──────────────
         initializeMtechCseRoleWorkflow();
 
@@ -142,7 +207,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         String standardPassword = passwordEncoder.encode("123456");
 
         String[][] facultyNames = {
-            {"Dr. Suresh Babu", "Dr. Meenakshi S", "Dr. Rajesh K", "Dr. Divya N", "Dr. Hariharan P"},
+            {"Dr. Suresh Babu", "Dr. Meenakshi S", "Dr. Rajesh K", "Dr. Deepak N", "Dr. Hariharan P"},
             {"Dr. Venkatesh R", "Dr. Lakshmi Priya", "Dr. Saravanan M", "Dr. Kavitha B", "Dr. Dinesh Kumar"},
             {"Dr. Ravichandran S", "Dr. Anuradha K", "Dr. Murugan T", "Dr. Gayathri R", "Dr. Senthil Kumar"}
         };
@@ -153,36 +218,76 @@ public class DatabaseInitializer implements CommandLineRunner {
             {"Manoj Kumar", "Nisha Dev", "Oviya Murthy", "Pranav R", "Ramya Krishnan"}
         };
 
-        for (int d = 0; d < depts.length; d++) {
-            String dept = depts[d];
-            String deptPrefix = dept.toLowerCase().replaceAll("[^a-z]", "");
-            for (int i = 1; i <= 5; i++) {
-                String email = deptPrefix + "_fac" + i + "@eduflow.com";
-                User faculty = userRepository.findByEmail(email).orElse(null);
-                if (faculty == null) {
-                    faculty = User.builder().name(facultyNames[d][i - 1]).email(email)
-                            .password(standardPassword).role(Role.FACULTY).department(dept).build();
-                } else {
-                    faculty.setName(facultyNames[d][i - 1]);
-                    faculty.setPassword(standardPassword);
-                }
-                userRepository.save(faculty);
-            }
-            for (int i = 1; i <= 5; i++) {
-                String email = deptPrefix + "_stud" + i + "@eduflow.com";
-                User student = userRepository.findByEmail(email).orElse(null);
-                if (student == null) {
-                    student = User.builder().name(studentNames[d][i - 1]).email(email)
-                            .password(standardPassword).role(Role.STUDENT).department(dept).build();
-                } else {
-                    student.setName(studentNames[d][i - 1]);
-                    student.setPassword(standardPassword);
-                }
-                userRepository.save(student);
+        // Seed students if no student accounts exist in database
+        System.out.println("--- Student Module Planning: Using in-memory 60 students/section assumption (Zero DB mock student records created) ---");
+
+        // Seed real SKCET faculty members if missing
+        List<User> seedFacultyList = List.of(
+            User.builder().name("Dr. Emmanuel Joy").email("emmanuel@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of MTech Computer Science and Engineering").active(true).build(),
+            User.builder().name("Ms Evangelin Arockiya Sherly C").email("evangelinarockiyashe@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of Artificial Intelligence and Data Science").active(true).build(),
+            User.builder().name("Dr.VIMALA K").email("vimalak@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of Artificial Intelligence and Data Science").active(true).build(),
+            User.builder().name("Dr ARUN KUMAR RAJENDRAN").email("arunkumarrajenan@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of Artificial Intelligence and Data Science").active(true).build(),
+            User.builder().name("Mr VIMIT VARGHESE M").email("vimvarghesem@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of MTech Computer Science and Engineering").active(true).build(),
+            User.builder().name("Dr. SREERAJ R").email("sreerajr@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of MTech Computer Science and Engineering").active(true).build(),
+            User.builder().name("Dr. DIVYA P").email("divyap@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of MTech Computer Science and Engineering").active(true).build(),
+            User.builder().name("Mr. PRADEEP KUMAR R").email("pradeepkumarr@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of MTech Computer Science and Engineering").active(true).build(),
+            User.builder().name("Dr. MEENAKSHI S").email("meenakshis@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of Computer Science and Engineering").active(true).build(),
+            User.builder().name("Dr. SURESH BABU K").email("sureshbabuk@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of Computer Science and Engineering").active(true).build(),
+            User.builder().name("Dr. RAJESH K").email("rajeshk@skcet.ac.in").password(standardPassword).role(Role.FACULTY).department("Department of Information Technology").active(true).build()
+        );
+
+        for (User f : seedFacultyList) {
+            if (userRepository.findByEmail(f.getEmail()).isEmpty()) {
+                userRepository.save(f);
             }
         }
+
+
+
+        // Identify and mark non-teaching Department HODs
+        Set<String> hodIds = Set.of(
+            "AIDS001", "CIVIL001", "CSE001", "GEN001", "GEN007",
+            "GEN015", "EEE001", "ECE001", "IT001", "MECH001",
+            "GEN022", "CSE040", "SH001", "MBA001", "GEN050"
+        );
+
+        Set<String> hodNames = Set.of(
+            "arun kumar rajendran", "maruthachalam", "kousalya", "ramesh kumar", "sanmuga priya",
+            "palani subramanian", "ramya", "sharmila", "senthilnathan", "sundararaj",
+            "lydia", "reshma v k", "indhuleka", "jaisankar", "jinsha"
+        );
+
+        String pwd123456 = passwordEncoder.encode("123456");
+
+        userRepository.findAll().forEach(u -> {
+            boolean changed = false;
+            if (u.getRole() == Role.FACULTY || u.getRole() == Role.STUDENT) {
+                u.setPassword(pwd123456);
+                changed = true;
+            }
+            if (u.getDepartment() != null) {
+                String norm = AdminController.normalizeDepartment(u.getDepartment());
+                if (!norm.equals(u.getDepartment())) {
+                    u.setDepartment(norm);
+                    changed = true;
+                }
+            }
+            if (u.getRole() == Role.FACULTY) {
+                String reg = u.getRegisterNumber() != null ? u.getRegisterNumber().toUpperCase() : "";
+                String nameLower = u.getName() != null ? u.getName().toLowerCase() : "";
+                boolean isHodMatch = hodIds.contains(reg) || hodNames.stream().anyMatch(nameLower::contains);
+                if (isHodMatch && !u.isHod()) {
+                    u.setHod(true);
+                    changed = true;
+                }
+            }
+            if (changed) {
+                userRepository.save(u);
+            }
+        });
+
         authService.initializeEmptyRegisterNumbers();
-        System.out.println("--- Faculty, Students & Register Numbers Initialized ---");
+        System.out.println("--- Faculty, Students, HODs & Register Numbers Initialized (Passwords set to 123456) ---");
 
         // ─── Classrooms ──────────────────────────────────────────
         if (classroomRepository.count() == 0) {
@@ -201,57 +306,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             System.out.println("--- Classrooms Initialized ---");
         }
 
-        // ─── Subject Master ───────────────────────────────────────
-        if (subjectMasterRepository.count() == 0) {
-            List<SubjectMaster> subjects = new ArrayList<>();
-            // CSE
-            subjects.add(SubjectMaster.builder().subjectCode("DSA").subjectName("Data Structures & Algorithms").department("CSE").semester(3).academicYear("2024-25").credits(4).weeklyHours(4).subjectCategory(SubjectCategory.THEORY).build());
-            subjects.add(SubjectMaster.builder().subjectCode("COA").subjectName("Computer Organization & Architecture").department("CSE").semester(3).academicYear("2024-25").credits(4).weeklyHours(4).subjectCategory(SubjectCategory.THEORY).build());
-            subjects.add(SubjectMaster.builder().subjectCode("DBMS").subjectName("Database Management Systems").department("CSE").semester(3).academicYear("2024-25").credits(3).weeklyHours(3).subjectCategory(SubjectCategory.THEORY).build());
-            subjects.add(SubjectMaster.builder().subjectCode("TOC").subjectName("Theory of Computation").department("CSE").semester(3).academicYear("2024-25").credits(3).weeklyHours(3).subjectCategory(SubjectCategory.THEORY).build());
-            subjects.add(SubjectMaster.builder().subjectCode("Java Lab").subjectName("Java Programming Lab").department("CSE").semester(3).academicYear("2024-25").credits(2).weeklyHours(4).subjectCategory(SubjectCategory.LAB).build());
-            // IT
-            subjects.add(SubjectMaster.builder().subjectCode("OOPs").subjectName("Object Oriented Programming").department("IT").semester(3).academicYear("2024-25").credits(4).weeklyHours(4).subjectCategory(SubjectCategory.THEORY).build());
-            subjects.add(SubjectMaster.builder().subjectCode("WebTech").subjectName("Web Technologies").department("IT").semester(3).academicYear("2024-25").credits(3).weeklyHours(3).subjectCategory(SubjectCategory.THEORY).build());
-            subjects.add(SubjectMaster.builder().subjectCode("Cloud").subjectName("Cloud Computing").department("IT").semester(3).academicYear("2024-25").credits(3).weeklyHours(3).subjectCategory(SubjectCategory.THEORY).build());
-            subjects.add(SubjectMaster.builder().subjectCode("Web Lab").subjectName("Web Development Lab").department("IT").semester(3).academicYear("2024-25").credits(2).weeklyHours(4).subjectCategory(SubjectCategory.LAB).build());
-            // ECE
-            subjects.add(SubjectMaster.builder().subjectCode("EDC").subjectName("Electronic Devices & Circuits").department("ECE").semester(3).academicYear("2024-25").credits(4).weeklyHours(4).subjectCategory(SubjectCategory.THEORY).build());
-            subjects.add(SubjectMaster.builder().subjectCode("DSP").subjectName("Digital Signal Processing").department("ECE").semester(3).academicYear("2024-25").credits(4).weeklyHours(4).subjectCategory(SubjectCategory.THEORY).build());
-            subjects.add(SubjectMaster.builder().subjectCode("VLSI").subjectName("VLSI Design").department("ECE").semester(3).academicYear("2024-25").credits(3).weeklyHours(3).subjectCategory(SubjectCategory.THEORY).build());
-            subjects.add(SubjectMaster.builder().subjectCode("Embedded Lab").subjectName("Embedded Systems Lab").department("ECE").semester(3).academicYear("2024-25").credits(2).weeklyHours(4).subjectCategory(SubjectCategory.LAB).build());
-            subjectMasterRepository.saveAll(subjects);
-            System.out.println("--- Subject Master Initialized ---");
-        }
-
-        // ─── Faculty Expertise ───────────────────────────────────
-        if (facultyExpertiseRepository.count() == 0) {
-            // Map subjects by code for easy lookup
-            Map<String, SubjectMaster> subjectMap = new HashMap<>();
-            subjectMasterRepository.findAll().forEach(s -> subjectMap.put(s.getSubjectCode(), s));
-
-            // CSE faculty
-            String csePrefix = "cse_fac";
-            assignExpertise(csePrefix + "1@eduflow.com", List.of("DSA","COA"), ExpertiseLevel.PRIMARY, subjectMap);
-            assignExpertise(csePrefix + "2@eduflow.com", List.of("DBMS","TOC"), ExpertiseLevel.PRIMARY, subjectMap);
-            assignExpertise(csePrefix + "3@eduflow.com", List.of("Java Lab","DSA"), ExpertiseLevel.PRIMARY, subjectMap);
-            // Cross-dept: CSE faculty also know OS, DCN (common subjects)
-            assignExpertise(csePrefix + "4@eduflow.com", List.of("OS","DCN"), ExpertiseLevel.SECONDARY, subjectMap);
-
-            // IT faculty
-            String itPrefix = "it_fac";
-            assignExpertise(itPrefix + "1@eduflow.com", List.of("OOPs","WebTech"), ExpertiseLevel.PRIMARY, subjectMap);
-            assignExpertise(itPrefix + "2@eduflow.com", List.of("Cloud","Web Lab"), ExpertiseLevel.PRIMARY, subjectMap);
-            assignExpertise(itPrefix + "3@eduflow.com", List.of("Cloud","OOPs"), ExpertiseLevel.SECONDARY, subjectMap);
-
-            // ECE faculty
-            String ecePrefix = "ece_fac";
-            assignExpertise(ecePrefix + "1@eduflow.com", List.of("EDC","DSP"), ExpertiseLevel.PRIMARY, subjectMap);
-            assignExpertise(ecePrefix + "2@eduflow.com", List.of("VLSI","Embedded Lab"), ExpertiseLevel.PRIMARY, subjectMap);
-            assignExpertise(ecePrefix + "3@eduflow.com", List.of("DSP","VLSI"), ExpertiseLevel.SECONDARY, subjectMap);
-
-            System.out.println("--- Faculty Expertise Initialized ---");
-        }
+        // ─── Startup Data Preservation Notice ───
+        // Automatic database purge of subject_master removed to preserve user-imported subject master records across server restarts.
 
         // ─── Timetable Versions & Timetables ─────────────────────
         if (timetableVersionRepository.count() == 0) {
@@ -271,7 +327,20 @@ public class DatabaseInitializer implements CommandLineRunner {
             System.out.println("--- Timetable Versions & Entries Initialized ---");
         }
 
-        // ─── Only Master Data Seeded (User activity like Attendance/Interviews/Coding removed for realism) ───
+        // Trigger Initial Live Workload Generation Pass
+        try {
+            if (allocationRepository.count() == 0) {
+                System.out.println("--- Triggering Initial Live Workload Generation Pass ---");
+                com.eduflow.dto.AiSmartAllocationRequest req = new com.eduflow.dto.AiSmartAllocationRequest();
+                req.setAcademicYear("2026-2027");
+                req.setSemesterType("Odd");
+                req.setVersionName("v1");
+                aiWorkloadOptimizerService.generateSmartWorkloadAllocation(req);
+                System.out.println("--- Initial Live Workload Draft 'v1' Generated Successfully ---");
+            }
+        } catch (Exception e) {
+            System.err.println("--- Initial Workload Generation Note: " + e.getMessage() + " ---");
+        }
     }
 
     private void assignExpertise(String email, List<String> subjectCodes,
@@ -349,93 +418,7 @@ public class DatabaseInitializer implements CommandLineRunner {
 
     @Transactional
     public void initializeMtechCseRoleWorkflow() throws Exception {
-        // Cascade delete M.Tech CSE students & faculties to prevent referential integrity errors
-        List<User> allUsers = userRepository.findAll();
-        for (User u : allUsers) {
-            boolean isMtechCse = u.getDepartment() != null && (
-                "M.Tech CSE".equalsIgnoreCase(u.getDepartment().trim()) ||
-                "MTech CSE".equalsIgnoreCase(u.getDepartment().trim())
-            );
-
-            if (isMtechCse) {
-                if (u.getRole() == Role.FACULTY) {
-                    facultyExpertiseRepository.deleteByFacultyId(u.getId());
-                    facultyAvailabilityRepository.deleteAll(facultyAvailabilityRepository.findByFacultyId(u.getId()));
-
-                    List<TimetableEntry> entries = timetableEntryRepository.findByFacultyId(u.getId());
-                    for (TimetableEntry entry : entries) {
-                        entry.setFaculty(null);
-                        timetableEntryRepository.save(entry);
-                    }
-
-                    List<AttendanceSession> sessions = attendanceSessionRepository.findByFacultyId(u.getId());
-                    for (AttendanceSession s : sessions) {
-                        attendanceRepository.deleteAll(attendanceRepository.findBySessionId(s.getId()));
-                        attendanceSessionRepository.delete(s);
-                    }
-
-                    List<LeaveRequest> reviews = leaveRequestRepository.findAll().stream()
-                        .filter(lr -> u.getId().equals(lr.getFacultyApproverId()))
-                        .toList();
-                    for (LeaveRequest lr : reviews) {
-                        lr.setFacultyApproverId(null);
-                        leaveRequestRepository.save(lr);
-                    }
-
-                    notificationRepository.deleteAll(notificationRepository.findByUserOrderByTimestampDesc(u));
-                    userRepository.delete(u);
-                }
-            }
-        }
-
-        // Create the 4 subjects for M.Tech CSE: AGAI, SE, DTF, DCN
-        List<SubjectMaster> oldSubjects = subjectMasterRepository.findByDepartmentIgnoreCase("M.Tech CSE");
-        oldSubjects.addAll(subjectMasterRepository.findByDepartmentIgnoreCase("MTech CSE"));
-        for (SubjectMaster sub : oldSubjects) {
-            facultyExpertiseRepository.deleteBySubjectId(sub.getId());
-            subjectMasterRepository.delete(sub);
-        }
-
-        // Use helper to ensure subjects are not duplicated on repeated runs
-        SubjectMaster subAgai = getOrCreateSubject("AGAI", "Agentic AI", "M.Tech CSE");
-        SubjectMaster subSe   = getOrCreateSubject("SE",   "Software Engineering", "M.Tech CSE");
-        SubjectMaster subDtf  = getOrCreateSubject("DTF",  "Design Thinking Fundamentals", "M.Tech CSE");
-        SubjectMaster subDcn  = getOrCreateSubject("DCN",  "Data Communication Networks", "M.Tech CSE");
-
-        // Create the 4 faculties
         String standardPassword = passwordEncoder.encode("123456");
-
-        // 1. Mrs. Divya
-        User divya = userRepository.save(User.builder()
-                .name("Mrs. Divya").email("divya@skcet.ac.in")
-                .password(standardPassword).role(Role.FACULTY).department("M.Tech CSE")
-                .classAdvisor(false).build());
-        facultyExpertiseRepository.save(FacultyExpertise.builder()
-                .faculty(divya).subject(subAgai).expertiseLevel(ExpertiseLevel.PRIMARY).build());
-
-        // 2. Mr. Vimit Varghesse (Class Advisor)
-        User vimit = userRepository.save(User.builder()
-                .name("Mr. Vimit Varghesse").email("vimit@skcet.ac.in")
-                .password(standardPassword).role(Role.FACULTY).department("M.Tech CSE")
-                .classAdvisor(true).build());
-        facultyExpertiseRepository.save(FacultyExpertise.builder()
-                .faculty(vimit).subject(subSe).expertiseLevel(ExpertiseLevel.PRIMARY).build());
-
-        // 3. Mr. Sreeraj
-        User sreeraj = userRepository.save(User.builder()
-                .name("Mr. Sreeraj").email("sreeraj@skcet.ac.in")
-                .password(standardPassword).role(Role.FACULTY).department("M.Tech CSE")
-                .classAdvisor(false).build());
-        facultyExpertiseRepository.save(FacultyExpertise.builder()
-                .faculty(sreeraj).subject(subDtf).expertiseLevel(ExpertiseLevel.PRIMARY).build());
-
-        // 4. Mr. Pradeep
-        User pradeep = userRepository.save(User.builder()
-                .name("Mr. Pradeep").email("pradeep@skcet.ac.in")
-                .password(standardPassword).role(Role.FACULTY).department("M.Tech CSE")
-                .classAdvisor(false).build());
-        facultyExpertiseRepository.save(FacultyExpertise.builder()
-                .faculty(pradeep).subject(subDcn).expertiseLevel(ExpertiseLevel.PRIMARY).build());
 
         // Parse and seed the 63 students from mtech_cse_students.json
         ObjectMapper mapper = new ObjectMapper();
@@ -470,7 +453,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                     student.setPhone(phone);
                     student.setBatch(batch);
                     student.setSection(section);
-                    student.setSemester(8);
+                    student.setSemester(7);
                     student.setYear("4");
                     student.setDateOfBirth(dob);
                     student.setGender(gender);
@@ -486,7 +469,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                             .phone(phone)
                             .batch(batch)
                             .section(section)
-                            .semester(8)
+                            .semester(7)
                             .year("4")
                             .dateOfBirth(dob)
                             .gender(gender)
@@ -497,21 +480,23 @@ public class DatabaseInitializer implements CommandLineRunner {
 
                 userRepository.save(student);
 
-                final User finalStudent = student;
-                StudentProfile profile = studentProfileRepository.findByUserId(student.getId())
-                        .orElseGet(() -> StudentProfile.builder().user(finalStudent).build());
-
-                Map<String, Object> parent = (Map<String, Object>) data.get("parent_contact");
-                if (parent != null) {
-                    profile.setFatherName((String) parent.get("father_name"));
-                    profile.setFatherPhone((String) parent.get("father_phone"));
-                    profile.setMotherName((String) parent.get("mother_name"));
-                    profile.setMotherPhone((String) parent.get("mother_phone"));
-                    profile.setGuardianEmail((String) parent.get("guardian_email"));
+                if (studentProfileRepository.findByUserId(student.getId()).isEmpty()) {
+                    StudentProfile profile = StudentProfile.builder().user(student).build();
+                    studentProfileRepository.save(profile);
                 }
-                studentProfileRepository.save(profile);
             }
-            System.out.println("--- Imported " + studentList.size() + " real M.Tech CSE students ---");
+
+            // Ensure all 727723EUCI students are updated to Semester 7 & Year 4
+            List<User> cseStudents = userRepository.findAll().stream()
+                    .filter(u -> u.getRole() == Role.STUDENT && u.getRegisterNumber() != null && u.getRegisterNumber().toUpperCase().startsWith("727723EUCI"))
+                    .collect(java.util.stream.Collectors.toList());
+            for (User u : cseStudents) {
+                u.setSemester(7);
+                u.setYear("4");
+                userRepository.save(u);
+            }
+
+            System.out.println("--- Imported & updated " + cseStudents.size() + " M.Tech CSE (727723EUCI) 4th Year students to Semester 7 ---");
         } else {
             System.out.println("--- ERROR: mtech_cse_students.json file not found! ---");
         }
@@ -523,6 +508,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             existingUser.setRegisterNumber("727723EUCI045");
             existingUser.setName("SANJEEVIKUMAR D");
             existingUser.setDepartment("M.Tech CSE");
+            existingUser.setSemester(7);
+            existingUser.setYear("4");
             existingUser.setRole(Role.STUDENT);
             userRepository.save(existingUser);
             // Ensure student profile exists too
@@ -541,7 +528,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                     .phone("9965522570")
                     .batch("2023-2025")
                     .section("A")
-                    .semester(8)
+                    .semester(7)
                     .year("4")
                     .dateOfBirth("2005-12-12")
                     .gender("Male")
@@ -553,75 +540,17 @@ public class DatabaseInitializer implements CommandLineRunner {
             studentProfileRepository.save(profile);
         }
 
-        // Generate active timetable for M.Tech CSE ONLY if no active version with entries exists
-        // (Skip re-seeding if admin has already configured a timetable)
-        List<TimetableVersion> existingVersions = timetableVersionRepository.findByDepartmentIgnoreCase("M.Tech CSE");
-        existingVersions.addAll(timetableVersionRepository.findByDepartmentIgnoreCase("MTech CSE"));
-        boolean hasActiveVersionWithEntries = existingVersions.stream().anyMatch(v ->
-            v.isActive() && !timetableEntryRepository.findByVersionId(v.getId()).isEmpty()
-        );
-
-        if (hasActiveVersionWithEntries) {
-            System.out.println("--- Active M.Tech CSE timetable already exists, skipping re-seed. ---");
-            // Re-assign faculty to existing timetable entries (faculty objects were just re-created above)
-            Map<String, User> subjectFacultyMap = Map.of(
-                "AGAI", divya, "SE", vimit, "DTF", sreeraj, "DCN", pradeep
+        if (interviewDomainRepository.count() == 0) {
+            List<InterviewDomain> domains = List.of(
+                InterviewDomain.builder().name("Software Engineering").description("Core OOP, Data Structures, Algorithms & Clean Architecture").isActive(true).build(),
+                InterviewDomain.builder().name("Full Stack Web Development").description("React, Node.js, Spring Boot, REST APIs & Databases").isActive(true).build(),
+                InterviewDomain.builder().name("Data Science & AI").description("Python, Machine Learning, Neural Networks & Data Analytics").isActive(true).build(),
+                InterviewDomain.builder().name("Cloud & DevOps Engineering").description("Docker, Kubernetes, AWS Services & CI/CD Pipelines").isActive(true).build(),
+                InterviewDomain.builder().name("System Design & Architecture").description("Scalable Architectures, Microservices, Caching & Load Balancing").isActive(true).build()
             );
-            existingVersions.stream().filter(TimetableVersion::isActive).findFirst().ifPresent(activeVer -> {
-                List<TimetableEntry> entries = timetableEntryRepository.findByVersionId(activeVer.getId());
-                for (TimetableEntry entry : entries) {
-                    if (entry.getSubject() != null && subjectFacultyMap.containsKey(entry.getSubject())) {
-                        entry.setFaculty(subjectFacultyMap.get(entry.getSubject()));
-                        timetableEntryRepository.save(entry);
-                    }
-                }
-                System.out.println("--- Re-assigned faculty to " + entries.size() + " existing timetable entries. ---");
-            });
-        } else {
-            // Clear any stale empty versions
-            for (TimetableVersion v : existingVersions) {
-                timetableEntryRepository.deleteByVersionId(v.getId());
-                timetableVersionRepository.delete(v);
-            }
-
-            TimetableVersion activeVersion = timetableVersionRepository.save(TimetableVersion.builder()
-                    .department("M.Tech CSE").semester(8).academicYear("2024-25")
-                    .versionName("Semester 8 Timetable").active(true).build());
-
-            String[] days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday"};
-            String[] subjects = {"AGAI", "SE", "DTF", "DCN"};
-            Map<String, User> subjectFaculties = Map.of(
-                "AGAI", divya,
-                "SE", vimit,
-                "DTF", sreeraj,
-                "DCN", pradeep
-            );
-
-            Random random = new Random(42);
-            for (String day : days) {
-                for (int p = 1; p <= 6; p++) {
-                    if (p == 6) {
-                        timetableEntryRepository.save(TimetableEntry.builder()
-                                .department("M.Tech CSE")
-                                .dayOfWeek(day).period(p).subject("FREE_ACTIVITY")
-                                .activityName("Coding Practice")
-                                .faculty(null).version(activeVersion)
-                                .semester(8).academicYear("2024-25")
-                                .build());
-                    } else {
-                        String sub = subjects[random.nextInt(subjects.length)];
-                        User faculty = subjectFaculties.get(sub);
-                        timetableEntryRepository.save(TimetableEntry.builder()
-                                .department("M.Tech CSE")
-                                .dayOfWeek(day).period(p).subject(sub)
-                                .faculty(faculty).version(activeVersion)
-                                .semester(8).academicYear("2024-25")
-                                .build());
-                    }
-                }
-            }
-            System.out.println("--- M.Tech CSE default timetable seeded. ---");
-        } // end timetable guard
+            interviewDomainRepository.saveAll(domains);
+            System.out.println("--- Seeded 5 AI Interview Domains ---");
+        }
 
 
 

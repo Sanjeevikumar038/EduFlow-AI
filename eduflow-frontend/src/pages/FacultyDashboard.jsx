@@ -3,7 +3,7 @@ import { getStudents, createStudent, deleteStudent, getStudentsPaged, getStudent
 import { startSession, endSession, getActiveSession, getSessionRecords, getAllSessions, getSessionReport, getFacultyAnalytics, exportSessionCsv, exportSessionPdfData, getLowAttendanceStudents, getSessionStudents, markManualAttendance, closeSession, getMySubjects, saveBulkAttendance, saveManualAttendanceSession } from "../services/attendanceService";
 import { useNavigate } from "react-router-dom";
 import AnalyticsCard from "../components/AnalyticsCard";
-import { getDepartmentTimetable, getCurrentClassStatus, getSuggestedSubject, assignFreeActivityPeriod, getFreeActivitySubmissions, overrideFreeActivityAttendance, getCodingProblems } from "../services/timetableService";
+import { getFacultyTimetable, getDepartmentTimetable, getCurrentClassStatus, getSuggestedSubject, assignFreeActivityPeriod, getFreeActivitySubmissions, overrideFreeActivityAttendance, getCodingProblems } from "../services/timetableService";
 import SimulationControl from "../components/SimulationControl";
 import { getDepartmentLeaveRequests, approveLeaveRequest, rejectLeaveRequest } from "../services/leaveService";
 import CareerDashboardFaculty from "../components/career/CareerDashboardFaculty";
@@ -30,17 +30,26 @@ function FacultyDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("eduflow-theme");
-    return saved ? saved === "dark" : false;
+    return saved ? saved === "dark" : true;
   });
   useEffect(() => {
     const html = document.documentElement;
     if (isDark) {
-      html.removeAttribute("data-theme");
+      html.setAttribute("data-theme", "dark");
     } else {
       html.setAttribute("data-theme", "light");
     }
     localStorage.setItem("eduflow-theme", isDark ? "dark" : "light");
+    window.dispatchEvent(new CustomEvent("eduflow-theme-changed", { detail: isDark ? "dark" : "light" }));
   }, [isDark]);
+
+  useEffect(() => {
+    const handleThemeChange = (e) => {
+      setIsDark(e.detail === "dark");
+    };
+    window.addEventListener("eduflow-theme-changed", handleThemeChange);
+    return () => window.removeEventListener("eduflow-theme-changed", handleThemeChange);
+  }, []);
 
   // Student directory states
   const [students, setStudents] = useState([]);
@@ -150,8 +159,7 @@ function FacultyDashboard() {
     if (!token) return;
     setTimetableLoading(true);
     try {
-      const dept = localStorage.getItem("department") || "M.Tech CSE";
-      const timetableRes = await getDepartmentTimetable(dept, token);
+      const timetableRes = await getFacultyTimetable(token);
       setTimetableData(timetableRes.data || []);
       const statusRes = await getCurrentClassStatus(simParams, token);
       setCurrentClassStatus(statusRes.data);
@@ -912,18 +920,7 @@ function FacultyDashboard() {
   if (isAdvisor) {
     subtitle = `Class Advisor • ${department}`;
   } else {
-    let assignedSubject = "";
-    if (email.toLowerCase() === "divya@skcet.ac.in") {
-      assignedSubject = "Agentic AI";
-    } else if (email.toLowerCase() === "sreeraj@skcet.ac.in") {
-      assignedSubject = "Design Thinking Fundamentals";
-    } else if (email.toLowerCase() === "pradeep@skcet.ac.in") {
-      assignedSubject = "Data Communication Networks";
-    } else if (email.toLowerCase() === "vimit@skcet.ac.in") {
-      assignedSubject = "Software Engineering";
-    } else {
-      assignedSubject = "M.Tech CSE";
-    }
+    let assignedSubject = department || "Department Faculty";
     subtitle = `Subject Faculty • ${assignedSubject}`;
   }
 
@@ -1077,6 +1074,7 @@ function FacultyDashboard() {
               currentClassStatus={currentClassStatus}
               timetableLoading={timetableLoading}
               simParams={simParams}
+              facultySubjects={facultySubjects}
             />
           )}
 
@@ -1262,7 +1260,7 @@ function FacultyDashboard() {
                   <span>•</span>
                   <span>Section {selectedStudentProfile.student.section || "A"}</span>
                   <span>•</span>
-                  <span>Semester {selectedStudentProfile.student.semester || "8"}</span>
+                  <span>Semester {selectedStudentProfile.student.semester || "7"}</span>
                 </div>
               </div>
             </div>

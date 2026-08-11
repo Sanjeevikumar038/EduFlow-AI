@@ -178,7 +178,7 @@ function StudentPortalLayout() {
 
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("eduflow-theme");
-    return saved ? saved === "dark" : false;
+    return saved ? saved === "dark" : true;
   });
 
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -189,11 +189,12 @@ function StudentPortalLayout() {
   useEffect(() => {
     const html = document.documentElement;
     if (isDark) {
-      html.removeAttribute("data-theme");
+      html.setAttribute("data-theme", "dark");
     } else {
       html.setAttribute("data-theme", "light");
     }
     localStorage.setItem("eduflow-theme", isDark ? "dark" : "light");
+    window.dispatchEvent(new CustomEvent("eduflow-theme-changed", { detail: isDark ? "dark" : "light" }));
   }, [isDark]);
 
   useEffect(() => {
@@ -232,6 +233,7 @@ function StudentPortalLayout() {
 
   const menuItems = [
     { path: "/student/dashboard", icon: <i className="fa-solid fa-house"></i>, label: "Dashboard" },
+    { path: "/student/classroom", icon: <i className="fa-solid fa-chalkboard-user"></i>, label: "Mini Classroom" },
     { path: "/student/attendance", icon: <i className="fa-solid fa-calendar-check"></i>, label: "Attendance" },
     { path: "/student/timetable", icon: <i className="fa-solid fa-calendar-days"></i>, label: "Timetable" },
     { path: "/student/coding", icon: <i className="fa-solid fa-laptop-code"></i>, label: "Coding" },

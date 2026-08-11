@@ -7,7 +7,11 @@ import {
   getStudents,
   deleteStudent,
   getStudentsPaged,
-  getStudentProfile
+  getStudentProfile,
+  bulkCreateFaculty,
+  bulkCreateStudents,
+  deleteAllFaculty,
+  purgeMockData
 } from "../services/authService";
 import { getAdminAnalytics, exportSessionCsv, exportSessionPdfData, getLowAttendanceStudents } from "../services/attendanceService";
 import { getAllLeaveRequests } from "../services/leaveService";
@@ -18,14 +22,15 @@ import AnalyticsControlView from "../components/admin/AnalyticsControlView";
 import FacultyManagementView from "../components/admin/FacultyManagementView";
 import StudentManagementView from "../components/admin/StudentManagementView";
 import TimetableManagerView from "../components/admin/TimetableManagerView";
+import InstitutionalClassesView from "../components/admin/InstitutionalClassesView";
 import SubjectMasterView from "../components/admin/SubjectMasterView";
 import FacultyExpertiseView from "../components/admin/FacultyExpertiseView";
 import FacultyLeavesView from "../components/admin/FacultyLeavesView";
 import StudentLeavesView from "../components/admin/StudentLeavesView";
 import WorkloadView from "../components/admin/WorkloadView";
-import { getDepartmentTimetable, saveDepartmentTimetable, autoGenerateTimetable, getTimetableVersions, activateTimetableVersion } from "../services/timetableService";
+import { getDepartmentTimetable, saveDepartmentTimetable, autoGenerateTimetable, generateInstitutionalTimetable, randomizeClassTimetable, getTimetableVersions, activateTimetableVersion } from "../services/timetableService";
 import {
-  getSubjects, createSubject, deleteSubject,
+  getSubjects, createSubject, deleteSubject, deleteAllSubjects,
   getAllExpertise, allocateExpertise, removeExpertise,
   getAvailability, setAvailability, deleteAvailability,
   getFacultyWorkload,
@@ -147,18 +152,27 @@ function AdminDashboard() {
 
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("eduflow-theme");
-    return saved ? saved === "dark" : false;
+    return saved ? saved === "dark" : true;
   });
 
   useEffect(() => {
     const html = document.documentElement;
     if (isDark) {
-      html.removeAttribute("data-theme");
+      html.setAttribute("data-theme", "dark");
     } else {
       html.setAttribute("data-theme", "light");
     }
     localStorage.setItem("eduflow-theme", isDark ? "dark" : "light");
+    window.dispatchEvent(new CustomEvent("eduflow-theme-changed", { detail: isDark ? "dark" : "light" }));
   }, [isDark]);
+
+  useEffect(() => {
+    const handleThemeChange = (e) => {
+      setIsDark(e.detail === "dark");
+    };
+    window.addEventListener("eduflow-theme-changed", handleThemeChange);
+    return () => window.removeEventListener("eduflow-theme-changed", handleThemeChange);
+  }, []);
 
   // Admin Analytics States
   const [adminAnalytics, setAdminAnalytics] = useState(null);
@@ -175,7 +189,11 @@ function AdminDashboard() {
   const [exportingId, setExportingId] = useState(null);
 
   // Timetable Manager States
-  const [selectedDept, setSelectedDept] = useState("M.Tech CSE");
+  const [selectedDept, setSelectedDept] = useState("Department of Artificial Intelligence and Data Science");
+  const [selectedSem, setSelectedSem] = useState(3);
+  const [selectedSection, setSelectedSection] = useState("ALL");
+  const [availableSections, setAvailableSections] = useState(["A", "B", "C"]);
+  const [allSectionMatrices, setAllSectionMatrices] = useState({});
   const [timetableMatrix, setTimetableMatrix] = useState({});
   const [timetableLoading, setTimetableLoading] = useState(false);
   const [savingTimetable, setSavingTimetable] = useState(false);
@@ -183,10 +201,11 @@ function AdminDashboard() {
   const [selectedSwapCell, setSelectedSwapCell] = useState(null);
   const [autoGenerating, setAutoGenerating] = useState(false);
   const [timetableVersions, setTimetableVersions] = useState([]);
+  const [validationReport, setValidationReport] = useState(null);
 
   // Subject Master States
   const [subjects, setSubjects] = useState([]);
-  const [subjectForm, setSubjectForm] = useState({ subjectCode: "", subjectName: "", department: "M.Tech CSE", semester: 1, academicYear: "2024-25", credits: 3, weeklyHours: 3, subjectCategory: "THEORY" });
+  const [subjectForm, setSubjectForm] = useState({ subjectCode: "", subjectName: "", department: "Department of Artificial Intelligence and Data Science", semester: 1, academicYear: "2024-25", credits: 3, weeklyHours: 3, subjectCategory: "THEORY" });
   const [subjectLoading, setSubjectLoading] = useState(false);
   const [subjectFilter, setSubjectFilter] = useState("");
 
@@ -208,7 +227,20 @@ function AdminDashboard() {
   const [classrooms, setClassrooms] = useState([]);
   const [classroomForm, setClassroomForm] = useState({ roomCode: "", roomName: "", capacity: 60, roomType: "LECTURE" });
 
-  const DEPT_OPTIONS = ["M.Tech CSE", "CSE", "IT", "ECE"];
+  const DEPT_OPTIONS = ["Department of Artificial Intelligence and Data Science", "Department of Computer Science and Engineering", "Department of Information Technology", "Department of Electronics and Communication Engineering"];
+  const ALL_DEPTS = [
+    "All",
+    "Department of Artificial Intelligence and Data Science",
+    "Department of Computer Science and Engineering",
+    "Department of Information Technology",
+    "Department of Electronics and Communication Engineering",
+    "Department of Electrical and Electronics Engineering",
+    "Department of Mechanical Engineering",
+    "Department of Mechatronics",
+    "Department of Computer Science and Business Systems",
+    "Department of Civil Engineering",
+    "Department of MTech Computer Science and Engineering"
+  ];
 
   const loadSubjects = async () => {
     try { const res = await getSubjects(token); setSubjects(res.data); } catch (e) { console.error(e); }
@@ -244,6 +276,22 @@ function AdminDashboard() {
   const handleDeleteSubject = async (id) => {
     try { await deleteSubject(id, token); showFeedback("Subject deleted/deactivated!"); loadSubjects(); }
     catch (e) { showFeedback(e.response?.data || "Failed to delete subject", "error"); }
+  };
+  const handleDeleteAllSubjects = async () => {
+    if (!window.confirm("Are you sure you want to purge ALL subjects from Subject Master?")) return;
+    try {
+      await deleteAllSubjects(token);
+      showFeedback("All subjects purged successfully!");
+      loadSubjects();
+    } catch (e) {
+      try {
+        await Promise.all((subjects || []).map(s => deleteSubject(s.id, token)));
+        showFeedback("All subjects purged successfully!");
+        loadSubjects();
+      } catch (err) {
+        showFeedback(e.response?.data?.message || "Failed to delete subjects", "error");
+      }
+    }
   };
   const handleAllocateExpertise = async (e) => {
     e.preventDefault();
@@ -368,32 +416,126 @@ function AdminDashboard() {
     }
   };
 
-  const loadTimetable = async (dept) => {
-    if (!token) return;
+  const loadTimetable = async (dept, sem = selectedSem, sec = selectedSection) => {
+    const targetDept = dept || selectedDept || "Department of Artificial Intelligence and Data Science";
+    const currentSec = (sec || selectedSection || "ALL").trim().toUpperCase();
+    console.log("[loadTimetable] Function invoked. Input dept:", dept, "| selectedDept state:", selectedDept, "| targetDept to load:", targetDept, "| sem:", sem, "| sec:", currentSec);
+    if (!token || !targetDept) return;
     setTimetableLoading(true);
     try {
-      const res = await getDepartmentTimetable(dept, token);
-      const entries = res.data || [];
+      console.log("[loadTimetable] Executing API Request: GET /api/admin/timetable/department?department=" + encodeURIComponent(targetDept) + "&semester=" + sem);
+      const res = await getDepartmentTimetable(targetDept, token, sem);
+      const allEntries = Array.isArray(res.data) ? res.data : [];
 
+      // 1. Discover all unique sections that exist for this department & semester
+      const foundSections = Array.from(new Set(
+        allEntries.map(e => e.section ? e.section.trim().toUpperCase() : "").filter(s => s !== "")
+      )).sort();
+      const discoveredSections = foundSections.length > 0 ? foundSections : ["A", "B", "C"];
+      setAvailableSections(discoveredSections);
+
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      const matricesObj = {};
+
+      // 2. Build full timetable grid matrix for every discovered section
+      discoveredSections.forEach(sName => {
+        const sMatrix = {};
+        days.forEach(day => {
+          for (let p = 1; p <= 6; p++) {
+            sMatrix[`${day}-${p}`] = {
+              subject: "",
+              subjectCode: "",
+              subjectName: "",
+              facultyId: "",
+              facultyName: "",
+              courseDepartment: targetDept,
+              facultyDepartment: targetDept,
+              department: targetDept,
+              semester: sem,
+              section: sName,
+              weeklyHours: 3
+            };
+          }
+        });
+
+        const secEntries = allEntries.filter(e => {
+          if (!e) return false;
+          const eSec = e.section ? e.section.trim().toUpperCase() : "A";
+          return eSec === sName;
+        });
+
+        secEntries.forEach(e => {
+          if (e && e.dayOfWeek && e.period) {
+            const rawDay = String(e.dayOfWeek).trim();
+            const dayTitle = rawDay.charAt(0).toUpperCase() + rawDay.slice(1).toLowerCase();
+            const subCode = e.subject ? e.subject.trim() : "";
+            const facName = e.faculty?.name || (e.faculty?.id ? `Faculty #${e.faculty.id}` : "Unassigned");
+            const courseDept = e.department || targetDept;
+            const facDept = e.faculty?.department || courseDept;
+
+            sMatrix[`${dayTitle}-${e.period}`] = {
+              subject: subCode,
+              subjectCode: subCode,
+              subjectName: e.subjectName || subCode,
+              facultyId: e.faculty?.id || "",
+              facultyName: facName,
+              courseDepartment: courseDept,
+              facultyDepartment: facDept,
+              department: courseDept,
+              semester: e.semester || sem,
+              section: sName,
+              weeklyHours: 3
+            };
+          }
+        });
+
+        if (subjects && subjects.length > 0) {
+          Object.values(sMatrix).forEach(cell => {
+            if (cell.subjectCode) {
+              const subMatch = subjects.find(s =>
+                s.subjectCode && s.subjectCode.trim().toLowerCase() === cell.subjectCode.toLowerCase()
+              );
+              if (subMatch) {
+                cell.subjectName = subMatch.subjectName || cell.subjectCode;
+                if (subMatch.weeklyHours) cell.weeklyHours = subMatch.weeklyHours;
+              }
+            }
+          });
+        }
+
+        matricesObj[sName] = sMatrix;
+      });
+
+      setAllSectionMatrices(matricesObj);
+
+      // 3. Set active matrix based on selected section
+      const activeSecKey = currentSec === "ALL" ? discoveredSections[0] : currentSec;
+      setTimetableMatrix(matricesObj[activeSecKey] || matricesObj[discoveredSections[0]] || {});
+
+      console.log("[loadTimetable] Successfully loaded sections:", discoveredSections, "| Total Entries:", allEntries.length);
+    } catch (err) {
+      console.error("Error loading timetable:", err);
       const newMatrix = {};
       const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
       days.forEach(day => {
-        for (let p = 1; p <= 8; p++) {
-          newMatrix[`${day}-${p}`] = { subject: "", facultyId: "" };
+        for (let p = 1; p <= 6; p++) {
+          newMatrix[`${day}-${p}`] = {
+            subject: "",
+            subjectCode: "",
+            subjectName: "",
+            facultyId: "",
+            facultyName: "",
+            courseDepartment: targetDept,
+            facultyDepartment: targetDept,
+            department: targetDept,
+            semester: sem,
+            section: "A",
+            weeklyHours: 3
+          };
         }
       });
-
-      entries.forEach(e => {
-        newMatrix[`${e.dayOfWeek}-${e.period}`] = {
-          subject: e.subject || "",
-          facultyId: e.faculty?.id || ""
-        };
-      });
-
       setTimetableMatrix(newMatrix);
-    } catch (err) {
-      console.error("Error loading timetable:", err);
-      showFeedback("Failed to load timetable for department.", "error");
+      setAllSectionMatrices({ A: newMatrix });
     } finally {
       setTimetableLoading(false);
     }
@@ -414,12 +556,12 @@ function AdminDashboard() {
 
   useEffect(() => {
     if (activeTab === "timetable") {
-      loadTimetable(selectedDept);
+      loadTimetable(selectedDept, selectedSem, selectedSection);
     }
     if (activeTab === "leave") {
       fetchAdminLeaveRequests();
     }
-  }, [activeTab, selectedDept, leaveFilterDept, leaveFilterStatus, token]);
+  }, [activeTab, selectedDept, selectedSem, selectedSection, leaveFilterDept, leaveFilterStatus, token]);
 
   const handleSaveTimetable = async () => {
     setSavingTimetable(true);
@@ -440,9 +582,9 @@ function AdminDashboard() {
         }
       });
 
-      await saveDepartmentTimetable(selectedDept, entriesToSave, token);
-      showFeedback("Timetable saved successfully!");
-      loadTimetable(selectedDept);
+      await saveDepartmentTimetable(selectedDept, entriesToSave, token, null, selectedSem);
+      showFeedback(`Timetable saved successfully for ${selectedDept} (Sem ${selectedSem})!`);
+      loadTimetable(selectedDept, selectedSem);
     } catch (err) {
       console.error("Error saving timetable:", err);
       showFeedback(err.response?.data || "Failed to save timetable.", "error");
@@ -451,36 +593,63 @@ function AdminDashboard() {
     }
   };
 
-  const handleRandomizeTimetable = () => {
-    let deptSubjects = [];
-    if (selectedDept === "M.Tech CSE") {
-      deptSubjects = ["OS", "DCN", "PCD", "AGAI"];
-    } else if (selectedDept === "CSE") {
-      deptSubjects = ["DSA", "COA", "DBMS", "Java Lab"];
-    } else if (selectedDept === "IT") {
-      deptSubjects = ["OOPs", "SE", "OS", "WebTech"];
-    } else if (selectedDept === "ECE") {
-      deptSubjects = ["EDC", "SS", "LIC", "MPMC"];
-    } else {
-      deptSubjects = ["SUB1", "SUB2", "SUB3", "SUB4"];
-    }
+  const handleRandomizeTimetable = async () => {
+    setTimetableLoading(true);
+    try {
+      const res = await randomizeClassTimetable({
+        department: selectedDept,
+        semester: selectedSem
+      }, token);
 
-    const newMatrix = {};
-    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-    days.forEach(day => {
-      for (let p = 1; p <= 6; p++) {
-        const randomSub = deptSubjects[Math.floor(Math.random() * deptSubjects.length)];
-        let randomFacId = "";
-        if (faculty.length > 0 && Math.random() > 0.15) {
-          const randomFac = faculty[Math.floor(Math.random() * faculty.length)];
-          randomFacId = randomFac.id;
+      const entries = res.data || [];
+      const newMatrix = {};
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      days.forEach(day => {
+        for (let p = 1; p <= 6; p++) {
+          newMatrix[`${day}-${p}`] = { subject: "", facultyId: "" };
         }
-        newMatrix[`${day}-${p}`] = { subject: randomSub, facultyId: randomFacId };
-      }
-    });
+      });
 
-    setTimetableMatrix(newMatrix);
-    showFeedback(`Randomized timetable grid compiled for ${selectedDept}! Click Save to apply.`);
+      entries.forEach(e => {
+        if (e.dayOfWeek && e.period) {
+          const rawDay = String(e.dayOfWeek).trim();
+          const dayTitle = rawDay.charAt(0).toUpperCase() + rawDay.slice(1).toLowerCase();
+          newMatrix[`${dayTitle}-${e.period}`] = {
+            subject: e.subject || "",
+            facultyId: e.faculty?.id || ""
+          };
+        }
+      });
+
+      setTimetableMatrix(newMatrix);
+      showFeedback(`🎲 Reshuffled grid for ${selectedDept} (Semester ${selectedSem}) without violating institutional master timetable or creating faculty conflicts!`);
+    } catch (err) {
+      console.error("Error randomizing grid:", err);
+      showFeedback(err.response?.data?.message || err.response?.data || "Failed to randomize grid.", "error");
+    } finally {
+      setTimetableLoading(false);
+    }
+  };
+
+  const handleGenerateInstitutional = async (academicYear = "2026-2027", semesterCycle = "ODD") => {
+    setAutoGenerating(true);
+    setValidationReport(null);
+    try {
+      const res = await generateInstitutionalTimetable({
+        academicYear,
+        semesterCycle
+      }, token);
+      
+      const report = res.data || {};
+      setValidationReport(report);
+      showFeedback(`🌐 Institution Master Timetable generated (${semesterCycle} Cycle, ${academicYear})! Status: ${report.overallStatus} (${report.subjectsScheduled || 0} entries scheduled)`);
+      loadTimetable(selectedDept, selectedSem);
+    } catch (err) {
+      console.error("Error generating institutional timetable:", err);
+      showFeedback(err.response?.data?.message || err.response?.data || "Failed to generate institution master timetable.", "error");
+    } finally {
+      setAutoGenerating(false);
+    }
   };
 
   const handleCellChange = (day, period, field, value) => {
@@ -521,15 +690,180 @@ function AdminDashboard() {
   const [studentName, setStudentName] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
-  const [studentDepartment, setStudentDepartment] = useState("");
+  const [studentDepartment, setStudentDepartment] = useState("M.Tech CSE");
+  const [studentRegisterNumber, setStudentRegisterNumber] = useState("");
+  const [studentSection, setStudentSection] = useState("A");
+  const [studentSemester, setStudentSemester] = useState("8");
+  const [studentBatch, setStudentBatch] = useState("2023 - 2028");
 
-  // UI States
+  // UI & Modal States
+  const [showBulkImportFacultyModal, setShowBulkImportFacultyModal] = useState(false);
+  const [showBulkImportStudentModal, setShowBulkImportStudentModal] = useState(false);
+  const [bulkImportText, setBulkImportText] = useState("");
+  const [bulkImportParsed, setBulkImportParsed] = useState([]);
+  const [bulkImportLoading, setBulkImportLoading] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [deptFilter, setDeptFilter] = useState("All");
   const [deletingId, setDeletingId] = useState(null);
   const [feedback, setFeedback] = useState({ message: "", type: "" });
+
+  // Helper to split CSV line while respecting quoted strings
+  const parseCSVLine = (line) => {
+    if (!line) return [];
+    if (line.includes("\t")) {
+      return line.split("\t").map(p => p.trim().replace(/^["']|["']$/g, ""));
+    }
+    const regex = /(?:^|,)(?:"([^"]*)"|([^,]*))/g;
+    const parts = [];
+    let match;
+    while ((match = regex.exec(line)) !== null) {
+      let val = match[1] !== undefined ? match[1] : match[2];
+      if (val !== undefined) parts.push(val.trim());
+    }
+    return parts;
+  };
+
+  // Smart Bulk Import Helper (handles any column order, missing emails, quoted fields, and long department names)
+  const parseBulkInput = (text, roleType) => {
+    if (!text || !text.trim()) return [];
+    const lines = text.trim().split(/\r?\n/);
+    const result = [];
+
+    lines.forEach((line, lineIdx) => {
+      if (!line.trim()) return;
+      const parts = parseCSVLine(line);
+      if (parts.length < 2) return;
+
+      const firstLower = parts[0].toLowerCase();
+      if (firstLower.includes("id") && (parts[1].toLowerCase().includes("name") || parts[1].toLowerCase().includes("faculty"))) return;
+      if (firstLower === "name" || firstLower === "faculty name" || firstLower === "student name" || firstLower === "email") return;
+
+      let id = "";
+      let name = "";
+      let email = "";
+      let password = "123456";
+      let department = "CSE";
+
+      parts.forEach(part => {
+        if (!part) return;
+        const partLower = part.toLowerCase();
+
+        if (part.includes("@")) {
+          email = part;
+        } else if (
+          partLower.includes("department") || 
+          partLower.includes("departement") || 
+          partLower.includes("engineering") || 
+          partLower.includes("school") || 
+          partLower.includes("science") || 
+          ["cse", "it", "ece", "eee", "civil", "mechanical", "mechatronics", "csbs", "m.tech cse", "ai & ds", "aids", "mba", "sh"].includes(partLower)
+        ) {
+          department = part;
+        } else if (/^[A-Z0-9_-]{3,12}$/i.test(part) && !name && !partLower.includes("dr") && !partLower.includes("mr") && !partLower.includes("mrs") && !partLower.includes("prof")) {
+          id = part;
+        } else if (!name) {
+          name = part;
+        }
+      });
+
+      if (!name && id) name = id;
+      if (!name) return;
+
+      // Clean name of leftover quotes or odd formatting
+      name = name.replace(/^["']|["']$/g, "").trim();
+
+      // Preserve exact department string directly from Excel spreadsheet
+      department = department.replace(/^["']|["']$/g, "").trim();
+      if (department.toLowerCase().includes("departement")) {
+        department = department.replace(/departement/gi, "Department");
+      }
+
+      // Auto-generate college email if missing in spreadsheet
+      if (!email) {
+        let cleanName = name.toLowerCase()
+          .replace(/dr\.?|mr\.?|mrs\.?|ms\.?|prof\.?/gi, "")
+          .replace(/asst\.?|assoc\.?|professor|hod|cse|ece|eee|it|mct/gi, "")
+          .replace(/[^a-z0-9]/g, "");
+        
+        if (cleanName.length >= 3) {
+          if (cleanName.length > 20) cleanName = cleanName.substring(0, 20);
+          email = `${cleanName}@skcet.ac.in`;
+        } else if (id) {
+          email = `${id.toLowerCase().replace(/[^a-z0-9]/g, "")}@skcet.ac.in`;
+        } else {
+          email = `faculty${lineIdx + 1}@skcet.ac.in`;
+        }
+      }
+
+      result.push({ name, email, password, department });
+    });
+
+    return result;
+  };
+
+  // Bulk Import File Handler (supports .xlsx, .xls, .csv, .tsv)
+  const handleFileUpload = (file, roleType) => {
+    if (!file) return;
+    const isBinary = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+    const reader = new FileReader();
+
+    if (isBinary && window.XLSX) {
+      reader.onload = (evt) => {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = window.XLSX.read(data, { type: "array" });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const csvText = window.XLSX.utils.sheet_to_csv(worksheet);
+          setBulkImportText(csvText);
+          setBulkImportParsed(parseBulkInput(csvText, roleType));
+        } catch (err) {
+          console.error("Error reading binary excel file:", err);
+          showFeedback("Failed to parse binary Excel file.", "error");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = (evt) => {
+        const text = evt.target?.result || "";
+        setBulkImportText(text);
+        setBulkImportParsed(parseBulkInput(text, roleType));
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleBulkImportSubmit = async (roleType) => {
+    if (!bulkImportParsed || bulkImportParsed.length === 0) {
+      showFeedback("No valid records found to import.", "error");
+      return;
+    }
+    setBulkImportLoading(true);
+    try {
+      if (roleType === "FACULTY") {
+        const res = await bulkCreateFaculty(bulkImportParsed, token);
+        showFeedback(`✅ Bulk Import Completed! Created: ${res.data.created}, Updated: ${res.data.updated || 0}, Skipped: ${res.data.skipped}`);
+        setShowBulkImportFacultyModal(false);
+        fetchData();
+      } else {
+        const res = await bulkCreateStudents(bulkImportParsed, token);
+        showFeedback(`✅ Bulk Import Completed! Created: ${res.data.created}, Skipped (Existing): ${res.data.skipped}`);
+        setShowBulkImportStudentModal(false);
+        fetchStudentsList();
+      }
+      setBulkImportText("");
+      setBulkImportParsed([]);
+    } catch (err) {
+      console.error("Bulk import error:", err);
+      const errMsg = err.response?.data?.message || (typeof err.response?.data === "string" ? err.response?.data : "") || err.message;
+      showFeedback(`Failed to complete bulk import: ${errMsg}`, "error");
+    } finally {
+      setBulkImportLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.clear();
@@ -672,7 +1006,7 @@ function AdminDashboard() {
   const handleCreateStudent = async (e) => {
     e.preventDefault();
     if (!studentName || !studentEmail || !studentPassword || !studentDepartment) {
-      showFeedback("Please fill in all fields", "error");
+      showFeedback("Please fill in required fields", "error");
       return;
     }
     setLoading(true);
@@ -682,7 +1016,11 @@ function AdminDashboard() {
           name: studentName,
           email: studentEmail,
           password: studentPassword,
-          department: studentDepartment
+          department: studentDepartment,
+          registerNumber: studentRegisterNumber,
+          section: studentSection,
+          semester: Number(studentSemester),
+          batch: studentBatch
         },
         token
       );
@@ -690,8 +1028,13 @@ function AdminDashboard() {
       setStudentName("");
       setStudentEmail("");
       setStudentPassword("");
-      setStudentDepartment("");
+      setStudentRegisterNumber("");
+      setStudentDepartment("M.Tech CSE");
+      setStudentSection("A");
+      setStudentSemester("8");
+      setStudentBatch("2023 - 2028");
       fetchData();
+      if (activeTab === "students") fetchStudentsList();
     } catch (error) {
       showFeedback(error.response?.data || "Failed to create student account.", "error");
     } finally {
@@ -713,11 +1056,110 @@ function AdminDashboard() {
     }
   };
 
-  // Filter lists
-  const ALL_DEPTS = ["All", "M.Tech CSE", "CSE", "IT", "ECE"];
+  const handleClearAllFaculty = async () => {
+    if (!window.confirm("⚠️ Are you sure you want to delete ALL faculty members from the database? This action cannot be undone.")) {
+      return;
+    }
+    setLoading(true);
+    try {
+      try {
+        const res = await deleteAllFaculty(token);
+        showFeedback(`✅ Cleared all faculty accounts! Deleted: ${res.data.deleted || 0}`);
+      } catch (backendErr) {
+        console.warn("Bulk delete endpoint unavailable, running batch deletion fallback:", backendErr);
+        let deletedCount = 0;
+        await Promise.allSettled(
+          faculty.map(async (f) => {
+            try {
+              await deleteFaculty(f.id, token);
+              deletedCount++;
+            } catch (e) {}
+          })
+        );
+        showFeedback(`✅ Cleared all faculty accounts! Deleted: ${deletedCount}`);
+      }
+      fetchData();
+    } catch (err) {
+      console.error("Clear faculty error:", err);
+      showFeedback("Failed to clear faculty accounts.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePurgeMockData = async () => {
+    try {
+      const res = await purgeMockData(token);
+      showFeedback(res.data?.message || "✅ Legacy mock faculty & demo subjects purged successfully!");
+      fetchData();
+      loadSubjects();
+    } catch (err) {
+      console.error("Purge error:", err);
+      const msg = typeof err.response?.data === "string"
+        ? err.response.data
+        : err.response?.data?.message || err.message || "Failed to purge mock data.";
+      showFeedback(msg, "error");
+    }
+  };
+
+  // Department canonical alias map & deduplication
+  const DEPT_ALIASES = {
+    "ECE": "Department of Electronics and Communication Engineering",
+    "ELECTRONICS AND COMMUNICATION ENGINEERING": "Department of Electronics and Communication Engineering",
+    "IT": "Department of Information Technology",
+    "INFORMATION TECHNOLOGY": "Department of Information Technology",
+    "CSE": "Department of Computer Science and Engineering",
+    "COMPUTER SCIENCE AND ENGINEERING": "Department of Computer Science and Engineering",
+    "M.TECH CSE": "Department of MTech Computer Science and Engineering",
+    "MTECH CSE": "Department of MTech Computer Science and Engineering",
+    "M.TECH": "Department of MTech Computer Science and Engineering",
+    "MTECH": "Department of MTech Computer Science and Engineering",
+    "EEE": "Department of Electrical and Electronics Engineering",
+    "ELECTRICAL AND ELECTRONICS ENGINEERING": "Department of Electrical and Electronics Engineering",
+    "MECH": "Department of Mechanical Engineering",
+    "MECHANICAL": "Department of Mechanical Engineering",
+    "MECHANICAL ENGINEERING": "Department of Mechanical Engineering",
+    "MECHATRONICS": "Department of Mechatronics",
+    "CIVIL": "Department of Civil Engineering",
+    "CIVIL ENGINEERING": "Department of Civil Engineering",
+    "AI & DATA SCIENCE": "Department of Artificial Intelligence and Data Science",
+    "AI & DS": "Department of Artificial Intelligence and Data Science",
+    "AIDS": "Department of Artificial Intelligence and Data Science",
+    "ARTIFICIAL INTELLIGENCE AND DATA SCIENCE": "Department of Artificial Intelligence and Data Science",
+    "CSE (AI & ML/CYBER SECURITY)": "Department of Computer Science and Engineering (AI & ML / Cyber Security)",
+    "CSBS": "Department of Computer Science and Business Systems",
+    "CS & BUSINESS SYSTEMS": "Department of Computer Science and Business Systems"
+  };
+
+  const getCanonicalDept = (deptStr, availableDepts = []) => {
+    if (!deptStr) return "";
+    const trimmed = deptStr.trim();
+    const upper = trimmed.toUpperCase();
+    const targetFull = DEPT_ALIASES[upper];
+
+    if (targetFull) {
+      return targetFull;
+    }
+    return trimmed;
+  };
+
+  const rawDeptsList = [
+    ...faculty.map((f) => f.department).filter(Boolean),
+    ...students.map((s) => s.department).filter(Boolean)
+  ];
+
+  const allDepts = Array.from(
+    new Set(rawDeptsList.map((d) => getCanonicalDept(d, rawDeptsList)))
+  ).sort();
+
+  const facultyDepts = Array.from(
+    new Set(faculty.map((f) => getCanonicalDept(f.department, rawDeptsList)).filter(Boolean))
+  ).sort();
 
   const filteredFaculty = faculty.filter((f) => {
-    const matchesDept = deptFilter === "All" || f.department === deptFilter;
+    const canonicalFDept = getCanonicalDept(f.department, rawDeptsList);
+    const canonicalFilter = getCanonicalDept(deptFilter, rawDeptsList);
+    const matchesDept = deptFilter === "All" || canonicalFDept === canonicalFilter || f.department === deptFilter;
     const matchesSearch =
       f.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       f.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -812,6 +1254,8 @@ function AdminDashboard() {
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
   const [showAssignExpertiseModal, setShowAssignExpertiseModal] = useState(false);
+  const [modalFacultySearch, setModalFacultySearch] = useState("");
+  const [modalSubjectSearch, setModalSubjectSearch] = useState("");
   const [showRecordLeaveModal, setShowRecordLeaveModal] = useState(false);
 
   // Faculty Leaves Mock Pending Requests
@@ -895,14 +1339,12 @@ function AdminDashboard() {
     return (
       <div style={{
         position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-        background: "rgba(5, 7, 17, 0.85)", backdropFilter: "blur(8px)",
+        background: "rgba(5, 7, 17, 0.75)", backdropFilter: "blur(8px)",
         display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999,
         padding: "1.5rem"
       }}>
-        <div style={{
-          background: "#0c0f24", border: "1px solid var(--card-border)",
+        <div className="modal-card-dialog" style={{
           borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "2rem",
-          boxShadow: "0 20px 25px -5px rgba(0,0,0,0.5), 0 10px 10px -5px rgba(0,0,0,0.5)",
           position: "relative",
           animation: "fadeIn 0.3s ease"
         }}>
@@ -913,12 +1355,10 @@ function AdminDashboard() {
               background: "transparent", border: "none", color: "var(--text-muted)",
               fontSize: "1.2rem", cursor: "pointer", transition: "color 0.2s"
             }}
-            onMouseEnter={e => e.currentTarget.style.color = "#fff"}
-            onMouseLeave={e => e.currentTarget.style.color = "var(--text-muted)"}
           >
             ✕
           </button>
-          <h3 style={{ margin: "0 0 1.5rem 0", color: "#fff", fontSize: "1.25rem", fontWeight: "700", fontFamily: "var(--font-heading)" }}>
+          <h3 style={{ margin: "0 0 1.5rem 0", fontSize: "1.25rem", fontWeight: "700", fontFamily: "var(--font-heading)" }}>
             {title}
           </h3>
           {children}
@@ -1000,9 +1440,15 @@ function AdminDashboard() {
               filteredFaculty={filteredFaculty}
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
+              deptFilter={deptFilter}
+              setDeptFilter={setDeptFilter}
+              facultyDepts={facultyDepts}
               handleDeleteFaculty={handleDeleteFaculty}
+              handleClearAllFaculty={handleClearAllFaculty}
+              handlePurgeMockData={handlePurgeMockData}
               deletingId={deletingId}
               setShowAddFacultyModal={setShowAddFacultyModal}
+              setShowBulkImportFacultyModal={setShowBulkImportFacultyModal}
               getFacultySubjects={getFacultySubjects}
               availability={availability}
             />
@@ -1033,6 +1479,7 @@ function AdminDashboard() {
               deletingId={deletingId}
               handleViewProfile={handleViewProfile}
               setShowAddStudentModal={setShowAddStudentModal}
+              setShowBulkImportStudentModal={setShowBulkImportStudentModal}
               ALL_DEPTS={ALL_DEPTS}
             />
           )}
@@ -1041,6 +1488,13 @@ function AdminDashboard() {
             <TimetableManagerView
               selectedDept={selectedDept}
               setSelectedDept={setSelectedDept}
+              selectedSem={selectedSem}
+              setSelectedSem={setSelectedSem}
+              selectedSection={selectedSection}
+              setSelectedSection={setSelectedSection}
+              availableSections={availableSections}
+              allSectionMatrices={allSectionMatrices}
+              allDepts={allDepts}
               timetableMatrix={timetableMatrix}
               timetableLoading={timetableLoading}
               savingTimetable={savingTimetable}
@@ -1050,11 +1504,22 @@ function AdminDashboard() {
               setSelectedSwapCell={setSelectedSwapCell}
               autoGenerating={autoGenerating}
               handleAutoGenerate={handleAutoGenerate}
+              handleGenerateInstitutional={handleGenerateInstitutional}
+              validationReport={validationReport}
               handleSaveTimetable={handleSaveTimetable}
               handleRandomizeTimetable={handleRandomizeTimetable}
               handleCellChange={handleCellChange}
               faculty={faculty}
+              subjects={subjects}
               setTimetableMatrix={setTimetableMatrix}
+              showFeedback={showFeedback}
+            />
+          )}
+
+          {activeTab === "classes" && (
+            <InstitutionalClassesView
+              token={token}
+              allDepts={ALL_DEPTS}
               showFeedback={showFeedback}
             />
           )}
@@ -1066,7 +1531,12 @@ function AdminDashboard() {
               setSubjectFilter={setSubjectFilter}
               setShowAddSubjectModal={setShowAddSubjectModal}
               handleDeleteSubject={handleDeleteSubject}
+              handleDeleteAllSubjects={handleDeleteAllSubjects}
               getSubjectFaculty={getSubjectFaculty}
+              token={token}
+              loadSubjects={loadSubjects}
+              showFeedback={showFeedback}
+              ALL_DEPTS={ALL_DEPTS}
             />
           )}
 
@@ -1076,6 +1546,7 @@ function AdminDashboard() {
               expertise={expertise}
               setShowAssignExpertiseModal={setShowAssignExpertiseModal}
               handleRemoveExpertise={handleRemoveExpertise}
+              token={token}
             />
           )}
 
@@ -1112,6 +1583,9 @@ function AdminDashboard() {
               workload={workload}
               workloadLoading={workloadLoading}
               loadWorkload={loadWorkload}
+              token={token}
+              showFeedback={showFeedback}
+              facultyDepts={facultyDepts}
             />
           )}
 
@@ -1127,139 +1601,358 @@ function AdminDashboard() {
       {/* 1. Add Faculty Modal */}
       {renderModal(showAddFacultyModal, () => setShowAddFacultyModal(false), "👤 Add New Faculty Profile", (
         <form className="auth-form" onSubmit={async (e) => { await handleCreateFaculty(e); setShowAddFacultyModal(false); }}>
-          <div className="form-group">
-            <label>Faculty Name</label>
+          <div className="form-group" style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.88rem" }}>Faculty Name</label>
             <input
               className="input-field"
               type="text"
-              placeholder="Enter full name"
+              placeholder="e.g. Dr. Ananya Sharma"
               value={facultyName}
               onChange={(e) => setFacultyName(e.target.value)}
               required
+              style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "10px" }}
             />
           </div>
 
-          <div className="form-group">
-            <label>College Email</label>
+          <div className="form-group" style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.88rem" }}>College Email</label>
             <input
               className="input-field"
               type="email"
-              placeholder="faculty@college.edu"
+              placeholder="faculty@skcet.ac.in"
               value={facultyEmail}
               onChange={(e) => setFacultyEmail(e.target.value)}
               required
+              style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "10px" }}
             />
           </div>
 
-          <div className="form-group">
-            <label>Temporary Password</label>
+          <div className="form-group" style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.88rem" }}>Temporary Password</label>
             <input
               className="input-field"
               type="password"
-              placeholder="Enter initial password"
+              placeholder="Initial password"
               value={facultyPassword}
               onChange={(e) => setFacultyPassword(e.target.value)}
               required
+              style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "10px" }}
             />
           </div>
 
-          <div className="form-group">
-            <label>Department</label>
+          <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+            <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.88rem" }}>Department</label>
             <select
               className="input-field"
               value={facultyDepartment}
               onChange={(e) => setFacultyDepartment(e.target.value)}
               required
-              style={{ appearance: "auto" }}
+              style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "10px", appearance: "auto" }}
             >
               <option value="" disabled>-- Select Department --</option>
-              <option value="Civil">Civil</option>
-              <option value="CSE">CSE</option>
-              <option value="CSE (AI & ML/Cyber Security)">CSE (AI & ML/Cyber Security)</option>
-              <option value="EEE">EEE</option>
-              <option value="ECE">ECE</option>
-              <option value="Mechanical">Mechanical</option>
-              <option value="Mechatronics">Mechatronics</option>
-              <option value="IT">IT</option>
-              <option value="AI & Data Science">AI & Data Science</option>
-              <option value="CSBS">CS & Business Systems</option>
-              <option value="M.Tech CSE">mtech cse 5 years</option>
+              <option value="Department of Artificial Intelligence and Data Science">Department of Artificial Intelligence and Data Science (AI & DS)</option>
+              <option value="Department of Computer Science and Engineering">Department of Computer Science and Engineering (CSE)</option>
+              <option value="Department of Computer Science and Engineering (AI & ML / Cyber Security)">Department of Computer Science and Engineering (AI & ML / Cyber Security)</option>
+              <option value="Department of Computer Science and Business Systems">Department of Computer Science and Business Systems (CSBS)</option>
+              <option value="Department of Information Technology">Department of Information Technology (IT)</option>
+              <option value="Department of MTech Computer Science and Engineering">Department of MTech Computer Science and Engineering (M.Tech CSE)</option>
+              <option value="Department of Electronics and Communication Engineering">Department of Electronics and Communication Engineering (ECE)</option>
+              <option value="Department of Electrical and Electronics Engineering">Department of Electrical and Electronics Engineering (EEE)</option>
+              <option value="Department of Mechanical Engineering">Department of Mechanical Engineering (Mech)</option>
+              <option value="Department of Mechatronics">Department of Mechatronics</option>
+              <option value="Department of Civil Engineering">Department of Civil Engineering</option>
             </select>
           </div>
 
-          <button className="auth-btn" type="submit" disabled={loading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)", marginTop: "1rem" }}>
-            {loading ? "Creating..." : "Create Faculty Account"}
+          <button className="auth-btn" type="submit" disabled={loading} style={{ width: "100%", background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)", padding: "0.85rem", borderRadius: "12px", border: "none", color: "#fff", fontWeight: "700", cursor: "pointer" }}>
+            {loading ? "Creating Account..." : "Create Faculty Account"}
           </button>
         </form>
       ))}
 
       {/* 2. Add Student Modal */}
-      {renderModal(showAddStudentModal, () => setShowAddStudentModal(false), <><i className="fa-solid fa-user-graduate"></i> Add New Student Profile</>, (
+      {renderModal(showAddStudentModal, () => setShowAddStudentModal(false), "🎓 Add New Student Profile", (
         <form className="auth-form" onSubmit={async (e) => { await handleCreateStudent(e); setShowAddStudentModal(false); }}>
-          <div className="form-group">
-            <label>Student Name</label>
-            <input
-              className="input-field"
-              type="text"
-              placeholder="Enter full name"
-              value={studentName}
-              onChange={(e) => setStudentName(e.target.value)}
-              required
-            />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+            <div className="form-group">
+              <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.85rem" }}>Student Name *</label>
+              <input
+                className="input-field"
+                type="text"
+                placeholder="e.g. Sanjeevkumar D"
+                value={studentName}
+                onChange={(e) => setStudentName(e.target.value)}
+                required
+                style={{ width: "100%", padding: "0.65rem 0.85rem", borderRadius: "10px" }}
+              />
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.85rem" }}>Email Address *</label>
+              <input
+                className="input-field"
+                type="email"
+                placeholder="727723euci045@skcet.ac.in"
+                value={studentEmail}
+                onChange={(e) => setStudentEmail(e.target.value)}
+                required
+                style={{ width: "100%", padding: "0.65rem 0.85rem", borderRadius: "10px" }}
+              />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label>Email Address</label>
-            <input
-              className="input-field"
-              type="email"
-              placeholder="student@college.edu"
-              value={studentEmail}
-              onChange={(e) => setStudentEmail(e.target.value)}
-              required
-            />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+            <div className="form-group">
+              <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.85rem" }}>Reg No. (Auto-gen if empty)</label>
+              <input
+                className="input-field"
+                type="text"
+                placeholder="727723EUCI045"
+                value={studentRegisterNumber}
+                onChange={(e) => setStudentRegisterNumber(e.target.value)}
+                style={{ width: "100%", padding: "0.65rem 0.85rem", borderRadius: "10px" }}
+              />
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.85rem" }}>Department *</label>
+              <select
+                className="input-field"
+                value={studentDepartment}
+                onChange={(e) => setStudentDepartment(e.target.value)}
+                required
+                style={{ width: "100%", padding: "0.65rem 0.85rem", borderRadius: "10px", appearance: "auto" }}
+              >
+                <option value="Department of MTech Computer Science and Engineering">Department of MTech Computer Science and Engineering (Integrated 5-Yr)</option>
+                <option value="Department of Computer Science and Engineering">Department of Computer Science and Engineering (B.E. 4-Yr)</option>
+                <option value="Department of Information Technology">Department of Information Technology (B.Tech 4-Yr)</option>
+                <option value="Department of Electronics and Communication Engineering">Department of Electronics and Communication Engineering (B.E. 4-Yr)</option>
+                <option value="Department of Electrical and Electronics Engineering">Department of Electrical and Electronics Engineering (B.E. 4-Yr)</option>
+                <option value="Department of Mechanical Engineering">Department of Mechanical Engineering (B.E. 4-Yr)</option>
+                <option value="Department of Mechatronics">Department of Mechatronics (B.E. 4-Yr)</option>
+                <option value="Department of Artificial Intelligence and Data Science">Department of Artificial Intelligence and Data Science (B.Tech 4-Yr)</option>
+                <option value="Department of Computer Science and Business Systems">Department of Computer Science and Business Systems (B.Tech 4-Yr)</option>
+                <option value="Department of Civil Engineering">Department of Civil Engineering (B.E. 4-Yr)</option>
+              </select>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label>Password</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+            <div className="form-group">
+              <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.85rem" }}>Section</label>
+              <select
+                className="input-field"
+                value={studentSection}
+                onChange={(e) => setStudentSection(e.target.value)}
+                style={{ width: "100%", padding: "0.65rem 0.85rem", borderRadius: "10px", appearance: "auto" }}
+              >
+                <option value="A">Section A</option>
+                <option value="B">Section B</option>
+                <option value="C">Section C</option>
+                <option value="D">Section D</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.85rem" }}>Semester</label>
+              <select
+                className="input-field"
+                value={studentSemester}
+                onChange={(e) => setStudentSemester(e.target.value)}
+                style={{ width: "100%", padding: "0.65rem 0.85rem", borderRadius: "10px", appearance: "auto" }}
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => (
+                  <option key={s} value={s}>Semester {s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.85rem" }}>Batch</label>
+              <input
+                className="input-field"
+                type="text"
+                placeholder="2023 - 2028"
+                value={studentBatch}
+                onChange={(e) => setStudentBatch(e.target.value)}
+                style={{ width: "100%", padding: "0.65rem 0.85rem", borderRadius: "10px" }}
+              />
+            </div>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+            <label style={{ display: "block", marginBottom: "0.35rem", fontWeight: "600", fontSize: "0.85rem" }}>Initial Password *</label>
             <input
               className="input-field"
               type="password"
-              placeholder="Enter password"
+              placeholder="123456"
               value={studentPassword}
               onChange={(e) => setStudentPassword(e.target.value)}
               required
+              style={{ width: "100%", padding: "0.65rem 0.85rem", borderRadius: "10px" }}
             />
           </div>
 
-          <div className="form-group">
-            <label>Department</label>
-            <select
-              className="input-field"
-              value={studentDepartment}
-              onChange={(e) => setStudentDepartment(e.target.value)}
-              required
-              style={{ appearance: "auto" }}
-            >
-              <option value="" disabled>-- Select Department --</option>
-              <option value="Civil">Civil</option>
-              <option value="CSE">CSE</option>
-              <option value="CSE (AI & ML/Cyber Security)">CSE (AI & ML/Cyber Security)</option>
-              <option value="EEE">EEE</option>
-              <option value="ECE">ECE</option>
-              <option value="Mechanical">Mechanical</option>
-              <option value="Mechatronics">Mechatronics</option>
-              <option value="IT">IT</option>
-              <option value="AI & Data Science">AI & Data Science</option>
-              <option value="CSBS">CS & Business Systems</option>
-              <option value="M.Tech CSE">M.Tech CSE</option>
-            </select>
-          </div>
-
-          <button className="auth-btn" type="submit" disabled={loading} style={{ background: "linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)", marginTop: "1rem" }}>
-            {loading ? "Creating..." : "Create Student Account"}
+          <button className="auth-btn" type="submit" disabled={loading} style={{ width: "100%", background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)", padding: "0.85rem", borderRadius: "12px", border: "none", color: "#fff", fontWeight: "700", cursor: "pointer" }}>
+            {loading ? "Creating Student Profile..." : "Create Student Profile"}
           </button>
         </form>
+      ))}
+
+      {/* 3. Bulk Import Faculty Modal */}
+      {renderModal(showBulkImportFacultyModal, () => { setShowBulkImportFacultyModal(false); setBulkImportText(""); setBulkImportParsed([]); }, "📥 Bulk Import Faculty (Excel / CSV)", (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>
+            Upload an <b>Excel (.xlsx, .xls)</b> or <b>.csv</b> file, or paste rows copied directly from Excel.<br />
+            Expected format: <code>Name, Email, Password, Department</code>
+          </p>
+
+          <div className="bulk-import-dropzone" onClick={() => document.getElementById("faculty-csv-input")?.click()}>
+            <input
+              id="faculty-csv-input"
+              type="file"
+              accept=".xlsx,.xls,.csv,.txt,.tsv"
+              style={{ display: "none" }}
+              onChange={(e) => handleFileUpload(e.target.files?.[0], "FACULTY")}
+            />
+            <div style={{ fontSize: "1.5rem", marginBottom: "0.25rem" }}>📊</div>
+            <div style={{ fontWeight: "600", fontSize: "0.9rem", color: "var(--primary)" }}>Click to Browse Excel / CSV File</div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Supports .xlsx, .xls, .csv files</div>
+          </div>
+
+          <textarea
+            className="input-field"
+            rows="4"
+            placeholder="Or paste Excel rows here:&#10;Dr. Faculty Name, faculty@skcet.ac.in, Pass123, M.Tech CSE"
+            value={bulkImportText}
+            onChange={(e) => {
+              setBulkImportText(e.target.value);
+              setBulkImportParsed(parseBulkInput(e.target.value, "FACULTY"));
+            }}
+            style={{ width: "100%", fontSize: "0.85rem", padding: "0.75rem", borderRadius: "10px", fontFamily: "monospace" }}
+          />
+
+          {bulkImportParsed.length > 0 && (
+            <div style={{ maxHeight: "160px", overflowY: "auto", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }}>
+              <table className="bulk-preview-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Dept</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkImportParsed.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{idx + 1}</td>
+                      <td>{row.name}</td>
+                      <td>{row.email}</td>
+                      <td>{row.department}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--primary)" }}>
+              {bulkImportParsed.length} records ready to import
+            </span>
+            <button
+              onClick={() => handleBulkImportSubmit("FACULTY")}
+              disabled={bulkImportLoading || bulkImportParsed.length === 0}
+              style={{
+                background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
+                border: "none", color: "#fff", borderRadius: "10px", padding: "0.65rem 1.25rem",
+                fontWeight: "700", fontSize: "0.85rem", cursor: bulkImportParsed.length > 0 ? "pointer" : "not-allowed",
+                opacity: bulkImportParsed.length > 0 ? 1 : 0.5
+              }}
+            >
+              {bulkImportLoading ? "Importing..." : `Import ${bulkImportParsed.length} Faculty`}
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {/* 4. Bulk Import Student Modal */}
+      {renderModal(showBulkImportStudentModal, () => { setShowBulkImportStudentModal(false); setBulkImportText(""); setBulkImportParsed([]); }, "📥 Bulk Import Students (Excel / CSV)", (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>
+            Upload an <b>Excel (.xlsx, .xls)</b> or <b>.csv</b> file, or paste rows copied directly from Excel.<br />
+            Expected format: <code>Name, Email, Password, Department</code>
+          </p>
+
+          <div className="bulk-import-dropzone" onClick={() => document.getElementById("student-csv-input")?.click()}>
+            <input
+              id="student-csv-input"
+              type="file"
+              accept=".xlsx,.xls,.csv,.txt,.tsv"
+              style={{ display: "none" }}
+              onChange={(e) => handleFileUpload(e.target.files?.[0], "STUDENT")}
+            />
+            <div style={{ fontSize: "1.5rem", marginBottom: "0.25rem" }}>📊</div>
+            <div style={{ fontWeight: "600", fontSize: "0.9rem", color: "var(--primary)" }}>Click to Browse Excel / CSV File</div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Supports .xlsx, .xls, .csv files</div>
+          </div>
+
+          <textarea
+            className="input-field"
+            rows="4"
+            placeholder="Or paste Excel rows here:&#10;Sanjeev Kumar, sanjeev@skcet.ac.in, Pass123, CSE&#10;Priya Dharshini, priya@skcet.ac.in, Pass123, IT"
+            value={bulkImportText}
+            onChange={(e) => {
+              setBulkImportText(e.target.value);
+              setBulkImportParsed(parseBulkInput(e.target.value, "STUDENT"));
+            }}
+            style={{ width: "100%", fontSize: "0.85rem", padding: "0.75rem", borderRadius: "10px", fontFamily: "monospace" }}
+          />
+
+          {bulkImportParsed.length > 0 && (
+            <div style={{ maxHeight: "160px", overflowY: "auto", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px" }}>
+              <table className="bulk-preview-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Dept</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkImportParsed.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{idx + 1}</td>
+                      <td>{row.name}</td>
+                      <td>{row.email}</td>
+                      <td>{row.department}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--primary)" }}>
+              {bulkImportParsed.length} records ready to import
+            </span>
+            <button
+              onClick={() => handleBulkImportSubmit("STUDENT")}
+              disabled={bulkImportLoading || bulkImportParsed.length === 0}
+              style={{
+                background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)",
+                border: "none", color: "#fff", borderRadius: "10px", padding: "0.65rem 1.25rem",
+                fontWeight: "700", fontSize: "0.85rem", cursor: bulkImportParsed.length > 0 ? "pointer" : "not-allowed",
+                opacity: bulkImportParsed.length > 0 ? 1 : 0.5
+              }}
+            >
+              {bulkImportLoading ? "Importing..." : `Import ${bulkImportParsed.length} Students`}
+            </button>
+          </div>
+        </div>
       ))}
 
       {/* 3. Add Subject Modal */}
@@ -1308,20 +2001,45 @@ function AdminDashboard() {
       ))}
 
       {/* 4. Assign Expertise Modal */}
-      {renderModal(showAssignExpertiseModal, () => setShowAssignExpertiseModal(false), "🎯 Assign Expertise Level", (
-        <form onSubmit={async (e) => { await handleAllocateExpertise(e); setShowAssignExpertiseModal(false); }} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {renderModal(showAssignExpertiseModal, () => {
+        setShowAssignExpertiseModal(false);
+        setModalFacultySearch("");
+        setModalSubjectSearch("");
+      }, "🎯 Assign Expertise Level", (
+        <form onSubmit={async (e) => { await handleAllocateExpertise(e); setShowAssignExpertiseModal(false); setModalFacultySearch(""); setModalSubjectSearch(""); }} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div className="form-group">
             <label>Faculty member</label>
+            <input
+              type="text"
+              className="input-field"
+              placeholder="Search faculty name or department..."
+              value={modalFacultySearch}
+              onChange={e => setModalFacultySearch(e.target.value)}
+              style={{ marginBottom: "6px" }}
+            />
             <select className="input-field" style={{ appearance: "auto" }} value={expertiseForm.facultyId} onChange={e => setExpertiseForm(p => ({ ...p, facultyId: e.target.value }))} required>
-              <option value="">-- Select Faculty --</option>
-              {faculty.map(f => <option key={f.id} value={f.id}>{f.name} ({f.department})</option>)}
+              <option value="">-- Select Faculty ({faculty.filter(f => !modalFacultySearch.trim() || f.name?.toLowerCase().includes(modalFacultySearch.toLowerCase()) || f.department?.toLowerCase().includes(modalFacultySearch.toLowerCase())).length}) --</option>
+              {faculty
+                .filter(f => !modalFacultySearch.trim() || f.name?.toLowerCase().includes(modalFacultySearch.toLowerCase()) || f.department?.toLowerCase().includes(modalFacultySearch.toLowerCase()))
+                .map(f => <option key={f.id} value={f.id}>{f.name} ({f.department})</option>)}
             </select>
           </div>
           <div className="form-group">
             <label>Subject</label>
+            <input
+              type="text"
+              className="input-field"
+              placeholder="Search subject code or name..."
+              value={modalSubjectSearch}
+              onChange={e => setModalSubjectSearch(e.target.value)}
+              style={{ marginBottom: "6px" }}
+            />
             <select className="input-field" style={{ appearance: "auto" }} value={expertiseForm.subjectId} onChange={e => setExpertiseForm(p => ({ ...p, subjectId: e.target.value }))} required>
-              <option value="">-- Select Subject --</option>
-              {subjects.filter(s => s.active).map(s => <option key={s.id} value={s.id}>{s.subjectCode} – {s.subjectName} ({s.department})</option>)}
+              <option value="">-- Select Subject ({subjects.filter(s => s.active).filter(s => !modalSubjectSearch.trim() || s.subjectCode?.toLowerCase().includes(modalSubjectSearch.toLowerCase()) || s.subjectName?.toLowerCase().includes(modalSubjectSearch.toLowerCase())).length}) --</option>
+              {subjects
+                .filter(s => s.active)
+                .filter(s => !modalSubjectSearch.trim() || s.subjectCode?.toLowerCase().includes(modalSubjectSearch.toLowerCase()) || s.subjectName?.toLowerCase().includes(modalSubjectSearch.toLowerCase()))
+                .map(s => <option key={s.id} value={s.id}>{s.subjectCode} – {s.subjectName} ({s.department})</option>)}
             </select>
           </div>
           <div className="form-group">
@@ -1480,7 +2198,7 @@ function AdminDashboard() {
                   <span>•</span>
                   <span>Section {selectedStudentProfile.student.section || "A"}</span>
                   <span>•</span>
-                  <span>Semester {selectedStudentProfile.student.semester || "8"}</span>
+                  <span>Semester {selectedStudentProfile.student.semester || "7"}</span>
                 </div>
               </div>
             </div>

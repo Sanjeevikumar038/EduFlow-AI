@@ -1,8 +1,12 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 function FacultySidebar({ activeTab, setActiveTab, handleLogout, name, subtitle, mobileMenuOpen, setMobileMenuOpen }) {
+  const navigate = useNavigate();
+
   const menuItems = [
     { id: "overview", label: "Dashboard Overview", icon: <i className="fa-solid fa-chart-pie"></i> },
+    { id: "classroom", label: "Mini Classroom", icon: <i className="fa-solid fa-chalkboard-user"></i> },
     { id: "qr-session", label: "QR Session", icon: <i className="fa-solid fa-qrcode"></i> },
     { id: "register", label: "Manual Attendance", icon: <i className="fa-solid fa-pen-to-square"></i> },
     { id: "analytics", label: "Attendance Analytics", icon: <i className="fa-solid fa-chart-line"></i> },
@@ -72,7 +76,14 @@ function FacultySidebar({ activeTab, setActiveTab, handleLogout, name, subtitle,
               return (
                 <button
                   key={item.id}
-                  onClick={() => { setActiveTab(item.id); if (setMobileMenuOpen) setMobileMenuOpen(false); }}
+                  onClick={() => {
+                    if (item.id === "classroom") {
+                      navigate("/classroom");
+                    } else {
+                      setActiveTab(item.id);
+                    }
+                    if (setMobileMenuOpen) setMobileMenuOpen(false);
+                  }}
                   style={{
                     display: "flex",
                     alignItems: "center",

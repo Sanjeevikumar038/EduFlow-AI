@@ -60,7 +60,7 @@ function PortalLogin() {
       if (role === "ADMIN") {
         showFeedback("Admin authenticated. Redirecting to Admin Panel...", false);
         setTimeout(() => {
-          navigate("/admin");
+          navigate("/admin/dashboard");
         }, 400);
         return;
       }

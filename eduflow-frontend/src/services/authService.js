@@ -4,6 +4,12 @@ const API_BASE = `http://${window.location.hostname}:8080`;
 const AUTH_API = `${API_BASE}/auth`;
 const ADMIN_API = `${API_BASE}/api/admin`;
 
+const getToken = (t) => (t && t !== "undefined" && t !== "null" ? t : localStorage.getItem("token"));
+const authHeaders = (token) => {
+  const t = getToken(token);
+  return t ? { headers: { Authorization: `Bearer ${t}` } } : {};
+};
+
 export const login = (data) => {
   return axios.post(`${AUTH_API}/login`, data);
 };
@@ -14,6 +20,14 @@ export const register = (data) => {
 
 export const createFaculty = (data, token) => {
   return axios.post(`${ADMIN_API}/create-faculty`, data, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+export const bulkCreateFaculty = (data, token) => {
+  return axios.post(`${ADMIN_API}/bulk-create-faculty`, data, {
     headers: {
       Authorization: `Bearer ${token}`
     }
@@ -36,6 +50,14 @@ export const createStudent = (data, token) => {
   });
 };
 
+export const bulkCreateStudents = (data, token) => {
+  return axios.post(`${ADMIN_API}/bulk-create-students`, data, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
 export const deleteStudent = (id, token) => {
   return axios.delete(`${ADMIN_API}/students/${id}`, {
     headers: {
@@ -45,15 +67,19 @@ export const deleteStudent = (id, token) => {
 };
 
 export const getFaculty = (token) => {
-  return axios.get(`${ADMIN_API}/faculty`, {
+  return axios.get(`${ADMIN_API}/faculty`, authHeaders(token));
+};
+
+export const deleteFaculty = (id, token) => {
+  return axios.delete(`${ADMIN_API}/faculty/${id}`, {
     headers: {
       Authorization: `Bearer ${token}`
     }
   });
 };
 
-export const deleteFaculty = (id, token) => {
-  return axios.delete(`${ADMIN_API}/faculty/${id}`, {
+export const deleteAllFaculty = (token) => {
+  return axios.delete(`${ADMIN_API}/faculty/all`, {
     headers: {
       Authorization: `Bearer ${token}`
     }
@@ -82,6 +108,14 @@ export const getStudentProfile = (id, token) => {
 export const searchStudents = (query, token) => {
   return axios.get(`${API_BASE}/api/students/search`, {
     params: { query },
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+export const purgeMockData = (token) => {
+  return axios.post(`${ADMIN_API}/purge-mock-data`, {}, {
     headers: {
       Authorization: `Bearer ${token}`
     }

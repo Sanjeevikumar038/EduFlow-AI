@@ -12,7 +12,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/career")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class CareerController {
 
     private final CareerService careerService;

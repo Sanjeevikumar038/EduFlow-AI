@@ -84,10 +84,14 @@ const ResumeManagement = () => {
         const token = localStorage.getItem('token');
         const formData = new FormData();
         formData.append('file', file);
+        const headers = {};
+        if (token && token !== 'null' && token !== 'undefined') {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
         try {
             const res = await fetch(`${API_BASE}/api/resume/upload`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
+                headers,
                 body: formData
             });
             console.log("Upload response status:", res.status);

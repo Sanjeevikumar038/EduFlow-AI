@@ -13,7 +13,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/interview")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class InterviewController {
 
     private final InterviewService interviewService;
