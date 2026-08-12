@@ -136,14 +136,26 @@ function FacultyQrSessionView({
               <label>Select Subject</label>
               <select
                 className="input-field"
+                style={{ 
+                  height: "44px", 
+                  minHeight: "44px", 
+                  padding: "0 12px", 
+                  fontSize: "0.88rem", 
+                  lineHeight: "normal", 
+                  color: "var(--text-main)", 
+                  backgroundColor: "var(--bg-card, #ffffff)", 
+                  border: "1px solid var(--card-border, #cbd5e1)", 
+                  borderRadius: "8px", 
+                  cursor: "pointer" 
+                }}
                 value={sessionSubject}
                 onChange={(e) => setSessionSubject(e.target.value)}
                 required
               >
                 <option value="">-- Choose Subject --</option>
                 {facultySubjects.map(sub => (
-                  <option key={sub.id} value={sub.subjectCode}>
-                    {sub.subjectCode} - {sub.subjectName}
+                  <option key={sub.id || sub.subjectCode} value={sub.subjectCode}>
+                    {sub.subjectCode} - {sub.subjectName} {sub.department ? `(${sub.department.replace("Department of ", "")} · Sem ${sub.semester || 1}${sub.section ? ` ${sub.section}` : ""})` : ""}
                   </option>
                 ))}
                 {isAdvisor && (

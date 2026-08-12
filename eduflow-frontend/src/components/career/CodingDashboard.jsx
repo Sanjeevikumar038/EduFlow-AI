@@ -52,7 +52,7 @@ const CodingDashboard = () => {
     } else if (elem.msRequestFullscreen) { /* IE11 */
       elem.msRequestFullscreen();
     }
-    setCountdown(5);
+    setCountdown(3);
   };
 
   useEffect(() => {
@@ -390,7 +390,7 @@ const CodingDashboard = () => {
 
       </div>
 
-      {/* Countdown Fullscreen Overlay Overlay */}
+      {/* Simple, Clean 3-Second Loading Overlay */}
       {countdown !== null && (
         <div style={{
           position: "fixed",
@@ -398,27 +398,62 @@ const CodingDashboard = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: "#030712",
+          background: "rgba(10, 15, 29, 0.82)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           zIndex: 99999,
-          color: "#fff",
           fontFamily: "Inter, system-ui, sans-serif"
         }}>
           <div style={{
-            fontSize: "7rem",
-            fontWeight: "900",
-            background: "linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            animation: "pulse 1s infinite"
+            background: "rgba(15, 23, 42, 0.95)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
+            borderRadius: "20px",
+            padding: "2.25rem 3rem",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.5)",
+            textAlign: "center",
+            maxWidth: "360px"
           }}>
-            {countdown}
-          </div>
-          <div style={{ fontSize: "1.2rem", fontWeight: "600", marginTop: "1.5rem", color: "#94a3b8", letterSpacing: "1.5px", textTransform: "uppercase" }}>
-            Entering Focused Testing Environment...
+            {/* Simple Circular Countdown Ring */}
+            <div style={{
+              width: "64px",
+              height: "64px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "1.8rem",
+              fontWeight: "800",
+              color: "#ffffff",
+              boxShadow: "0 0 20px rgba(79, 70, 229, 0.45)",
+              marginBottom: "1.25rem"
+            }}>
+              {countdown}
+            </div>
+
+            <h3 style={{
+              margin: "0 0 0.35rem 0",
+              fontSize: "1.1rem",
+              fontWeight: "700",
+              color: "#f8fafc"
+            }}>
+              Launching Assessment
+            </h3>
+
+            <p style={{
+              margin: 0,
+              fontSize: "0.85rem",
+              color: "#94a3b8",
+              lineHeight: 1.4
+            }}>
+              Setting up fullscreen workspace in {countdown}s...
+            </p>
           </div>
         </div>
       )}

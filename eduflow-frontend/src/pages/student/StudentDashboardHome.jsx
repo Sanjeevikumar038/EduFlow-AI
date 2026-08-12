@@ -108,11 +108,12 @@ function StudentDashboardHome() {
           }}
         >
           {[
-            { label: "Email ID", value: email || "727723euci045@skcet.ac.in" },
-            { label: "Reg No.", value: registerNumber || "727723EUCI045" },
-            { label: "Department", value: department || "M.Tech CSE" },
-            { label: "Semester", value: localStorage.getItem("semester") || "7" },
-            { label: "Batch", value: "2023 – 2028" },
+            { label: "Email ID", value: email || "727723eume001@skcet.ac.in" },
+            { label: "Reg No.", value: registerNumber || "727723EUME001" },
+            { label: "Department", value: department || "Department of Mechanical Engineering" },
+            { label: "Semester", value: localStorage.getItem("semester") || "3" },
+            { label: "Section", value: localStorage.getItem("section") || "A" },
+            { label: "Batch", value: localStorage.getItem("batch") || "2023 – 2027" },
           ].map((item, idx) => (
             <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
               <span style={{ fontSize: "0.65rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>

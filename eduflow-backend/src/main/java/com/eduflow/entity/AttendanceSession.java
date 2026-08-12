@@ -21,6 +21,12 @@ public class AttendanceSession {
 
     private Long facultyId;
 
+    private String department;
+
+    private Integer semester;
+
+    private String section;
+
     private LocalDateTime startTime;
 
     private LocalDateTime expiryTime;
@@ -39,6 +45,12 @@ public class AttendanceSession {
     public void setSubject(String subject) { this.subject = subject; }
     public Long getFacultyId() { return facultyId; }
     public void setFacultyId(Long facultyId) { this.facultyId = facultyId; }
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+    public Integer getSemester() { return semester; }
+    public void setSemester(Integer semester) { this.semester = semester; }
+    public String getSection() { return section; }
+    public void setSection(String section) { this.section = section; }
     public LocalDateTime getStartTime() { return startTime; }
     public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
     public LocalDateTime getExpiryTime() { return expiryTime; }
@@ -55,6 +67,9 @@ public class AttendanceSession {
         private Long id;
         private String subject;
         private Long facultyId;
+        private String department;
+        private Integer semester;
+        private String section;
         private LocalDateTime startTime;
         private LocalDateTime expiryTime;
         private boolean active;
@@ -64,6 +79,9 @@ public class AttendanceSession {
         public AttendanceSessionBuilder id(Long id) { this.id = id; return this; }
         public AttendanceSessionBuilder subject(String subject) { this.subject = subject; return this; }
         public AttendanceSessionBuilder facultyId(Long facultyId) { this.facultyId = facultyId; return this; }
+        public AttendanceSessionBuilder department(String department) { this.department = department; return this; }
+        public AttendanceSessionBuilder semester(Integer semester) { this.semester = semester; return this; }
+        public AttendanceSessionBuilder section(String section) { this.section = section; return this; }
         public AttendanceSessionBuilder startTime(LocalDateTime startTime) { this.startTime = startTime; return this; }
         public AttendanceSessionBuilder expiryTime(LocalDateTime expiryTime) { this.expiryTime = expiryTime; return this; }
         public AttendanceSessionBuilder active(boolean active) { this.active = active; return this; }
@@ -73,6 +91,7 @@ public class AttendanceSession {
         public AttendanceSession build() {
             AttendanceSession s = new AttendanceSession();
             s.setId(id); s.setSubject(subject); s.setFacultyId(facultyId);
+            s.setDepartment(department); s.setSemester(semester); s.setSection(section);
             s.setStartTime(startTime); s.setExpiryTime(expiryTime); s.setActive(active);
             s.setCurrentOtp(currentOtp); s.setFacultyName(facultyName);
             return s;

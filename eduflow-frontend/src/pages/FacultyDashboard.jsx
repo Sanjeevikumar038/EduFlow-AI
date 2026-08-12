@@ -18,6 +18,41 @@ import FacultyAdvisorStudentsView from "../components/faculty/FacultyAdvisorStud
 import FacultyAdvisorLeavesView from "../components/faculty/FacultyAdvisorLeavesView";
 import FacultyAdvisorAnalyticsView from "../components/faculty/FacultyAdvisorAnalyticsView";
 
+const normalizeDepartment = (dept) => {
+  if (!dept) return "";
+  const upper = String(dept).trim().toUpperCase();
+  if (upper.includes("MTECH") || upper.includes("M.TECH") || upper.includes("M.TECH. CSE") || upper.includes("EUCI")) {
+    return "Department of MTech Computer Science and Engineering";
+  }
+  if (upper.includes("ARTIFICIAL INTELLIGENCE") || upper.includes("AI & DATA") || upper.includes("AI & DS") || upper === "AIDS" || upper.includes("AI AND DATA") || upper.includes("EUAI") || upper.includes("EUAD")) {
+    return "Department of Artificial Intelligence and Data Science";
+  }
+  if (upper.includes("BUSINESS SYSTEMS") || upper === "CSBS" || upper.includes("EUBS") || upper.includes("EUCB")) {
+    return "Department of Computer Science and Business Systems";
+  }
+  if (upper === "CSE" || upper.includes("COMPUTER SCIENCE AND ENGINEERING") || (upper.includes("COMPUTER SCIENCE") && !upper.includes("BUSINESS")) || upper.includes("EUCS")) {
+    return "Department of Computer Science and Engineering";
+  }
+  if (upper === "IT" || upper.includes("INFORMATION TECH") || upper.includes("INFORMATION TECHNOLOGY") || upper.includes("EUIT")) {
+    return "Department of Information Technology";
+  }
+  if (upper === "ECE" || upper.includes("ELECTRONICS AND COMMUNICATION") || upper.includes("ELECTRONICS & COMMUNICATION") || upper.includes("ELECTRONICS") || upper.includes("EUEC")) {
+    return "Department of Electronics and Communication Engineering";
+  }
+  if (upper === "EEE" || upper.includes("ELECTRICAL AND ELECTRONICS") || upper.includes("ELECTRICAL & ELECTRONICS") || upper.includes("EUEE")) {
+    return "Department of Electrical and Electronics Engineering";
+  }
+  if (upper.includes("MECH") || upper.includes("MECHANICAL") || upper.includes("EUME")) {
+    return "Department of Mechanical Engineering";
+  }
+  if (upper.includes("CIVIL") || upper.includes("EUCE") || upper.includes("EUCV")) {
+    return "Department of Civil Engineering";
+  }
+  if (upper.includes("MECHATRONICS") || upper.includes("EUMT")) {
+    return "Department of Mechatronics Engineering";
+  }
+  return dept.trim();
+};
 
 function FacultyDashboard() {
   const navigate = useNavigate();
@@ -732,11 +767,19 @@ function FacultyDashboard() {
     }
     setRegisterLoading(true);
     try {
+      const selectedCourse = facultySubjects.find(s => 
+        s.subjectCode?.toLowerCase() === manualSubject?.toLowerCase() || 
+        s.id === manualSubject
+      );
+
       const payload = {
         date: manualDate,
         startTime: manualStartTime,
         endTime: manualEndTime,
         subject: manualSubject,
+        department: selectedCourse?.department || localStorage.getItem("department"),
+        semester: selectedCourse?.semester,
+        section: selectedCourse?.section || "A",
         records: localRegisterRecords.map(r => ({
           studentId: r.studentId,
           status: r.status === "PENDING" ? "ABSENT" : r.status,
@@ -783,9 +826,38 @@ function FacultyDashboard() {
 
   useEffect(() => {
     if (activeTab === "register" && registerMode === "manual" && students.length > 0) {
-      const dept = localStorage.getItem("department") || "M.Tech CSE";
-      const deptStudents = students.filter(s => s.department && s.department.toLowerCase() === dept.toLowerCase());
-      const initialRecords = deptStudents.map(s => ({
+      // Find selected course details from facultySubjects
+      const selectedCourse = facultySubjects.find(s => 
+        s.subjectCode?.toLowerCase() === manualSubject?.toLowerCase() || 
+        s.id === manualSubject
+      );
+
+      const targetDept = selectedCourse?.department || localStorage.getItem("department") || "";
+      const targetSem = selectedCourse?.semester;
+      const targetSec = selectedCourse?.section;
+
+      const normTarget = normalizeDepartment(targetDept).toLowerCase();
+
+      let matchedStudents = students.filter(s => {
+        if (!targetDept) return true;
+        const normStudentDept = normalizeDepartment(s.department).toLowerCase();
+        const normRegDept = s.registerNumber ? normalizeDepartment(s.registerNumber).toLowerCase() : "";
+        const deptMatch = (normStudentDept && normStudentDept === normTarget) || (normRegDept && normRegDept === normTarget);
+        const semMatch = !targetSem || s.semester == targetSem;
+        const secMatch = !targetSec || !s.section || s.section.toUpperCase() === targetSec.toUpperCase();
+        return deptMatch && semMatch && secMatch;
+      });
+
+      // Fallback: match by department only (if semester/section is not yet partitioned)
+      if (matchedStudents.length === 0 && targetDept) {
+        matchedStudents = students.filter(s => {
+          const normStudentDept = normalizeDepartment(s.department).toLowerCase();
+          const normRegDept = s.registerNumber ? normalizeDepartment(s.registerNumber).toLowerCase() : "";
+          return (normStudentDept && normStudentDept === normTarget) || (normRegDept && normRegDept === normTarget);
+        });
+      }
+
+      const initialRecords = matchedStudents.map(s => ({
         studentId: s.id,
         registerNumber: s.registerNumber,
         name: s.name,
@@ -795,7 +867,7 @@ function FacultyDashboard() {
       setLocalRegisterRecords(initialRecords);
       setHasUnsavedChanges(true);
     }
-  }, [activeTab, registerMode, students]);
+  }, [activeTab, registerMode, students, manualSubject, facultySubjects]);
 
   useEffect(() => {
     if (activeTab === "register" && registerMode === "manual" && manualDate && manualStartTime && manualSubject && sessions.length > 0) {
@@ -869,10 +941,18 @@ function FacultyDashboard() {
     }
     setSessionLoading(true);
     try {
+      const selectedCourse = facultySubjects.find(s => 
+        s.subjectCode?.toLowerCase() === finalSubject?.toLowerCase() || 
+        s.id === finalSubject
+      );
+
       const res = await startSession(
         {
           subject: finalSubject,
-          durationMinutes: parseInt(sessionDuration, 10)
+          durationMinutes: parseInt(sessionDuration, 10),
+          department: selectedCourse?.department || localStorage.getItem("department"),
+          semester: selectedCourse?.semester,
+          section: selectedCourse?.section || "A"
         },
         token
       );

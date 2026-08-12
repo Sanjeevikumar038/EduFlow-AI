@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
+import NotificationBell from "../career/NotificationBell";
 
 const calendarOverrides = {
   "June-4": { wd: "W1", do: "I", act: "Reopening II, III, IV Years", isS: true },
@@ -187,8 +188,8 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
       zIndex: 10,
     }}>
 
-      {/* Left: Mobile hamburger menu toggle + Search bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: "1rem", flex: 1 }}>
+      {/* Left: Mobile hamburger menu toggle */}
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
         <button 
           onClick={() => setMobileMenuOpen(true)}
           style={{
@@ -204,20 +205,6 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
         >
           <i className="fa-solid fa-bars"></i>
         </button>
-
-        {/* Search Input Row with Magnifying-Glass */}
-        <div className="search-container-input hidden sm:block">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input 
-            type="text" 
-            placeholder="Search students, faculty, departments..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
       </div>
 
       {/* Right: Icons row + Profile chip */}
@@ -252,16 +239,8 @@ function AdminTopbar({ searchTerm, setSearchTerm, setMobileMenuOpen, isDark, set
             {isDark ? <i className="fa-solid fa-moon"></i> : <i className="fa-solid fa-sun"></i>}
           </button>
 
-          {/* Notification Bell Icon with Badge */}
-          <div style={{ position: "relative" }}>
-            <button 
-              style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--box-bg)", border: "1px solid var(--divider)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "1.05rem" }} 
-              title="Notifications"
-            >
-              <i className="fa-solid fa-bell"></i>
-              <span style={{ position: "absolute", top: "-2px", right: "-2px", width: "8px", height: "8px", backgroundColor: "#f43f5e", borderRadius: "50%" }} />
-            </button>
-          </div>
+          {/* Notification Bell */}
+          <NotificationBell />
         </div>
 
         {/* Vertical Divider */}

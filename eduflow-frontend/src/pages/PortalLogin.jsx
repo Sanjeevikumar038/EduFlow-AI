@@ -55,6 +55,22 @@ function PortalLogin() {
       if (department) {
         localStorage.setItem("department", department);
       }
+      if (response.data.section) {
+        localStorage.setItem("section", response.data.section);
+      } else {
+        localStorage.setItem("section", "A");
+      }
+      if (response.data.semester) {
+        localStorage.setItem("semester", String(response.data.semester));
+      } else {
+        localStorage.setItem("semester", "3");
+      }
+      if (response.data.year) {
+        localStorage.setItem("year", String(response.data.year));
+      }
+      if (response.data.batch) {
+        localStorage.setItem("batch", response.data.batch);
+      }
       localStorage.setItem("classAdvisor", classAdvisor ? "true" : "false");
 
       if (role === "ADMIN") {
@@ -80,8 +96,13 @@ function PortalLogin() {
   return (
     <div className="erp-page-wrapper">
       <div className="erp-login-card">
-        {/* Left Panel (Form Side) */}
-        <div className="erp-left-form-panel">
+        {/* Left Panel (Showcase Image Side) */}
+        <div className="erp-left-image-panel">
+          <img src={loginIllustration} alt="EduFlow Campus Showcase" className="erp-showcase-img" />
+        </div>
+
+        {/* Right Panel (Form Side) */}
+        <div className="erp-right-form-panel">
           <div className="erp-logo-section">
             <div className="erp-logo-row">
               <div className="erp-logo-box">E</div>
@@ -92,8 +113,8 @@ function PortalLogin() {
 
           <div className="erp-form-content">
             <div className="erp-heading-section">
-              <h2>Login</h2>
-              <p>Enter your account details</p>
+              <h2>Sign In</h2>
+              <p>The key to happiness is to sign in.</p>
             </div>
 
             {/* Toast Notification */}
@@ -185,20 +206,19 @@ function PortalLogin() {
                     <span>Signing In...</span>
                   </>
                 ) : (
-                  "Login"
+                  "Next"
                 )}
               </button>
             </form>
 
             <div className="erp-footer-notice">
-              Don't have an account?{" "}
               <button
                 type="button"
                 className="erp-link"
                 style={{ fontWeight: "600" }}
                 onClick={() => setShowHelpModal(true)}
               >
-                Contact your Administrator
+                System Compatibility Check?
               </button>
             </div>
           </div>
@@ -206,11 +226,6 @@ function PortalLogin() {
           <div className="erp-footer">
             © 2026 EduFlow · Version 1.0
           </div>
-        </div>
-
-        {/* Right Panel (Illustration Side) */}
-        <div className="erp-right-illustration-panel">
-          <img src={loginIllustration} alt="Workspace Illustration" className="erp-full-right-img" />
         </div>
       </div>
 

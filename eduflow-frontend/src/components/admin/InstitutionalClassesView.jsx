@@ -639,7 +639,7 @@ function InstitutionalClassesView({ token, allDepts = [], showFeedback }) {
         >
           <div 
             style={{
-              background: "rgba(15, 23, 42, 0.98)",
+              background: "var(--bg-modal, var(--card-bg))",
               border: "1px solid var(--card-border)",
               borderRadius: "20px",
               padding: "2rem",
@@ -831,7 +831,7 @@ function InstitutionalClassesView({ token, allDepts = [], showFeedback }) {
         >
           <div 
             style={{
-              background: "rgba(30, 41, 59, 0.95)",
+              background: "var(--bg-modal, var(--card-bg))",
               border: "1px solid var(--card-border)",
               borderRadius: "20px",
               padding: "2rem",

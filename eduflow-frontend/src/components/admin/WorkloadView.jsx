@@ -658,9 +658,9 @@ function WorkloadView({
       {/* ── Modal 1: AI Smart Workload Config Modal ───────────────────────── */}
       {showAiModal && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-          <div style={{ background: "#1e293b", border: "1px solid var(--card-border)", borderRadius: "16px", width: "100%", maxWidth: "540px", padding: "1.75rem", color: "#fff", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", animation: "scaleUp 0.25s ease" }}>
+          <div style={{ background: "var(--bg-modal, var(--card-bg))", border: "1px solid var(--card-border)", borderRadius: "16px", width: "100%", maxWidth: "540px", padding: "1.75rem", color: "var(--text-main)", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", animation: "scaleUp 0.25s ease" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px", color: "var(--text-main)" }}>
                 <span>✨</span> Generate AI Workload Allocation Draft
               </h3>
               <button onClick={() => setShowAiModal(false)} style={{ background: "transparent", border: "none", color: "var(--text-muted)", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
@@ -794,12 +794,12 @@ function WorkloadView({
       {/* ── Modal 2: AI Review, Explanations & Failure Report ─────────────── */}
       {showAllocationsModal && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.82)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
-          <div style={{ background: "#0f172a", border: "1px solid var(--card-border)", borderRadius: "18px", width: "100%", maxWidth: "1180px", maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden", color: "#fff", boxShadow: "0 25px 50px rgba(0,0,0,0.6)", animation: "scaleUp 0.25s ease" }}>
+          <div style={{ background: "var(--bg-modal, var(--card-bg))", border: "1px solid var(--card-border)", borderRadius: "18px", width: "100%", maxWidth: "1180px", maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden", color: "var(--text-main)", boxShadow: "0 25px 50px rgba(0,0,0,0.6)", animation: "scaleUp 0.25s ease" }}>
             
             {/* Modal Header */}
-            <div style={{ padding: "1.25rem 1.75rem", borderBottom: "1px solid var(--card-border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(30, 41, 59, 0.4)" }}>
+            <div style={{ padding: "1.25rem 1.75rem", borderBottom: "1px solid var(--card-border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-secondary)" }}>
               <div>
-                <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "10px" }}>
+                <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "10px", color: "var(--text-main)" }}>
                   <span>🤖</span> AI Smart Workload Allocation Master & AI Explanations
                 </h3>
                 <span style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "4px", display: "block" }}>
@@ -1301,25 +1301,25 @@ function WorkloadView({
       {/* ── Modal 3: AI Explanation Card Popup (Judge-Impressing Feature!) ── */}
       {selectedAllocationForAi && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-          <div style={{ background: "linear-gradient(145deg, #1e293b 0%, #0f172a 100%)", border: "1px solid rgba(99, 102, 241, 0.5)", borderRadius: "20px", width: "100%", maxWidth: "520px", padding: "1.75rem", color: "#fff", boxShadow: "0 25px 50px rgba(99, 102, 241, 0.25)", animation: "scaleUp 0.25s ease" }}>
+          <div style={{ background: "var(--bg-modal, var(--card-bg))", border: "1px solid var(--card-border)", borderRadius: "20px", width: "100%", maxWidth: "520px", padding: "1.75rem", color: "var(--text-main)", boxShadow: "0 25px 50px rgba(0,0,0,0.4)", animation: "scaleUp 0.25s ease" }}>
             
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <span style={{ background: "rgba(99, 102, 241, 0.2)", border: "1px solid rgba(99, 102, 241, 0.4)", color: "#818cf8", padding: "4px 12px", borderRadius: "999px", fontSize: "0.8rem", fontWeight: "800" }}>
+              <span style={{ background: "rgba(99, 102, 241, 0.15)", border: "1px solid rgba(99, 102, 241, 0.3)", color: "var(--primary)", padding: "4px 12px", borderRadius: "999px", fontSize: "0.8rem", fontWeight: "800" }}>
                 💡 AI Allocation Reasoning
               </span>
               <button onClick={() => setSelectedAllocationForAi(null)} style={{ background: "transparent", border: "none", color: "var(--text-muted)", fontSize: "1.3rem", cursor: "pointer" }}>✕</button>
             </div>
 
-            <h3 style={{ margin: "0 0 0.25rem 0", color: "#fff", fontSize: "1.15rem" }}>
+            <h3 style={{ margin: "0 0 0.25rem 0", color: "var(--text-main)", fontSize: "1.15rem" }}>
               {selectedAllocationForAi.courseCode} - {selectedAllocationForAi.subjectName}
             </h3>
             <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>
               {selectedAllocationForAi.department} · {selectedAllocationForAi.year} (Sem {selectedAllocationForAi.semester}) · Section {selectedAllocationForAi.section}
             </div>
 
-            <div style={{ background: "rgba(30, 41, 59, 0.8)", border: "1px solid var(--card-border)", borderRadius: "12px", padding: "1rem", marginBottom: "1.25rem" }}>
+            <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--card-border)", borderRadius: "12px", padding: "1rem", marginBottom: "1.25rem" }}>
               <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: "0.25rem" }}>Assigned Faculty Member:</div>
-              <div style={{ fontSize: "1rem", fontWeight: "700", color: "#34d399" }}>{selectedAllocationForAi.facultyName}</div>
+              <div style={{ fontSize: "1rem", fontWeight: "700", color: "#10b981" }}>{selectedAllocationForAi.facultyName}</div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{selectedAllocationForAi.facultyEmail}</div>
             </div>
 
@@ -1328,8 +1328,8 @@ function WorkloadView({
               <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "0.88rem", background: "rgba(16, 185, 129, 0.1)", padding: "0.65rem 0.85rem", borderRadius: "8px", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
                 <span>🧠</span>
                 <div>
-                  <strong style={{ color: "#34d399" }}>AI Decision Justification:</strong>
-                  <p style={{ margin: "3px 0 0 0", color: "rgba(255,255,255,0.9)", fontSize: "0.85rem" }}>{selectedAllocationForAi.aiExplanation}</p>
+                  <strong style={{ color: "#10b981" }}>AI Decision Justification:</strong>
+                  <p style={{ margin: "3px 0 0 0", color: "var(--text-main)", fontSize: "0.85rem" }}>{selectedAllocationForAi.aiExplanation}</p>
                 </div>
               </div>
 

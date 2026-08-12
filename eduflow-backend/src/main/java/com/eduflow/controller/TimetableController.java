@@ -63,34 +63,34 @@ public class TimetableController {
         if (dept == null || dept.trim().isEmpty()) return "Department of Computer Science and Engineering";
         String upper = dept.trim().toUpperCase();
 
-        if (upper.contains("MTECH") || upper.contains("M.TECH") || upper.contains("M.TECH. CSE")) {
+        if (upper.contains("MTECH") || upper.contains("M.TECH") || upper.contains("M.TECH. CSE") || upper.contains("EUCI")) {
             return "Department of MTech Computer Science and Engineering";
         }
-        if (upper.contains("ARTIFICIAL INTELLIGENCE") || upper.contains("AI & DATA") || upper.contains("AI & DS") || upper.equals("AIDS") || upper.contains("AI AND DATA")) {
+        if (upper.contains("ARTIFICIAL INTELLIGENCE") || upper.contains("AI & DATA") || upper.contains("AI & DS") || upper.equals("AIDS") || upper.contains("AI AND DATA") || upper.contains("EUAI") || upper.contains("EUAD")) {
             return "Department of Artificial Intelligence and Data Science";
         }
-        if (upper.contains("BUSINESS SYSTEMS") || upper.equals("CSBS")) {
+        if (upper.contains("BUSINESS SYSTEMS") || upper.equals("CSBS") || upper.contains("EUBS") || upper.contains("EUCB")) {
             return "Department of Computer Science and Business Systems";
         }
-        if (upper.equals("CSE") || upper.equals("COMPUTER SCIENCE") || upper.contains("COMPUTER SCIENCE AND ENGINEERING")) {
+        if (upper.equals("CSE") || upper.equals("COMPUTER SCIENCE") || upper.contains("COMPUTER SCIENCE AND ENGINEERING") || upper.contains("EUCS")) {
             return "Department of Computer Science and Engineering";
         }
-        if (upper.equals("IT") || upper.contains("INFORMATION TECH") || upper.contains("INFORMATION TECHNOLOGY")) {
+        if (upper.equals("IT") || upper.contains("INFORMATION TECH") || upper.contains("INFORMATION TECHNOLOGY") || upper.contains("EUIT")) {
             return "Department of Information Technology";
         }
-        if (upper.equals("ECE") || upper.contains("ELECTRONICS AND COMMUNICATION") || upper.contains("ELECTRONICS & COMMUNICATION") || upper.contains("ELECTRONICS")) {
+        if (upper.equals("ECE") || upper.contains("ELECTRONICS AND COMMUNICATION") || upper.contains("ELECTRONICS & COMMUNICATION") || upper.contains("ELECTRONICS") || upper.contains("EUEC")) {
             return "Department of Electronics and Communication Engineering";
         }
-        if (upper.equals("EEE") || upper.contains("ELECTRICAL AND ELECTRONICS") || upper.contains("ELECTRICAL & ELECTRONICS")) {
+        if (upper.equals("EEE") || upper.contains("ELECTRICAL AND ELECTRONICS") || upper.contains("ELECTRICAL & ELECTRONICS") || upper.contains("EUEE")) {
             return "Department of Electrical and Electronics Engineering";
         }
-        if (upper.contains("MECH") || upper.contains("MECHANICAL")) {
+        if (upper.contains("MECH") || upper.contains("MECHANICAL") || upper.contains("EUME")) {
             return "Department of Mechanical Engineering";
         }
-        if (upper.contains("CIVIL")) {
+        if (upper.contains("CIVIL") || upper.contains("EUCE") || upper.contains("EUCV")) {
             return "Department of Civil Engineering";
         }
-        if (upper.contains("MECHATRONICS")) {
+        if (upper.contains("MECHATRONICS") || upper.contains("EUMT")) {
             return "Department of Mechatronics Engineering";
         }
         return dept.trim();

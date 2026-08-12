@@ -366,8 +366,8 @@ function StudentPortalLayout() {
           zIndex: 10,
         }}>
 
-          {/* Left: Mobile hamburger menu toggle + Search bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem", flex: 1 }}>
+          {/* Left: Mobile hamburger toggle */}
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
             <button 
               onClick={() => setMobileMenuOpen(true)}
               style={{
@@ -383,15 +383,6 @@ function StudentPortalLayout() {
             >
               ☰
             </button>
-
-            {/* Search Input Row with Magnifying-Glass */}
-            <div className="search-container-input hidden sm:block">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input type="text" placeholder="Search resources, tasks, courses..." />
-            </div>
           </div>
 
           {/* Right: Icons row + Profile chip */}

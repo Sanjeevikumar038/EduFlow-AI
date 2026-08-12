@@ -19,6 +19,8 @@ import com.eduflow.repository.AttendanceSessionRepository;
 import com.eduflow.repository.AttendanceRepository;
 import com.eduflow.repository.LeaveRequestRepository;
 import com.eduflow.repository.UserRepository;
+import com.eduflow.repository.CourseClassroomRepository;
+import com.eduflow.entity.CourseClassroom;
 import com.eduflow.security.SecurityUtils;
 import com.eduflow.repository.FacultyExpertiseRepository;
 import com.eduflow.entity.FacultyExpertise;
@@ -66,9 +68,19 @@ public class AttendanceController {
     @Autowired
     private SubjectMasterRepository subjectMasterRepository;
 
+    @Autowired
+    private CourseClassroomRepository classroomRepository;
+
     private boolean isFacultyAssignedToSubject(User faculty, String subjectCodeOrName) {
         if (faculty.isClassAdvisor() || faculty.getRole() == Role.ADMIN) {
             return true;
+        }
+        List<CourseClassroom> classrooms = classroomRepository.findByFacultyId(faculty.getId());
+        for (CourseClassroom c : classrooms) {
+            if (c.getSubjectCode().equalsIgnoreCase(subjectCodeOrName.trim()) ||
+                c.getSubjectName().equalsIgnoreCase(subjectCodeOrName.trim())) {
+                return true;
+            }
         }
         List<FacultyExpertise> expertises = facultyExpertiseRepository.findByFacultyId(faculty.getId());
         for (FacultyExpertise fe : expertises) {
@@ -78,6 +90,76 @@ public class AttendanceController {
             }
         }
         return false;
+    }
+
+    public List<User> getStudentsForSession(AttendanceSession session, User facultyUser) {
+        String targetDept = session.getDepartment();
+        Integer targetSem = session.getSemester();
+        String targetSec = session.getSection();
+
+        // If department is missing on session, attempt to infer from CourseClassroom or SubjectMaster
+        if (targetDept == null || targetDept.trim().isEmpty()) {
+            Optional<CourseClassroom> ccOpt = classroomRepository.findAll().stream()
+                    .filter(c -> c.getSubjectCode().equalsIgnoreCase(session.getSubject().trim()) ||
+                                 c.getSubjectName().equalsIgnoreCase(session.getSubject().trim()))
+                    .findFirst();
+            if (ccOpt.isPresent()) {
+                targetDept = ccOpt.get().getDepartment();
+                if (targetSem == null) targetSem = ccOpt.get().getSemester();
+                if (targetSec == null) targetSec = ccOpt.get().getSection();
+            }
+            if (targetDept == null || targetDept.trim().isEmpty()) {
+                Optional<SubjectMaster> smOpt = subjectMasterRepository.findBySubjectCode(session.getSubject().trim());
+                if (smOpt.isPresent()) {
+                    targetDept = smOpt.get().getDepartment();
+                    if (targetSem == null) targetSem = smOpt.get().getSemester();
+                }
+            }
+        }
+
+        if (targetDept == null || targetDept.trim().isEmpty()) {
+            if (facultyUser != null) {
+                targetDept = facultyUser.getDepartment();
+            }
+        }
+
+        List<User> students;
+        if (targetDept != null && !targetDept.trim().isEmpty()) {
+            String normTarget = com.eduflow.controller.TimetableController.normalizeDepartment(targetDept);
+            students = userRepository.findByRole(Role.STUDENT).stream()
+                    .filter(s -> {
+                        String sDept = s.getDepartment() != null ? com.eduflow.controller.TimetableController.normalizeDepartment(s.getDepartment()) : "";
+                        String sReg = s.getRegisterNumber() != null ? com.eduflow.controller.TimetableController.normalizeDepartment(s.getRegisterNumber()) : "";
+                        return sDept.equalsIgnoreCase(normTarget) || sReg.equalsIgnoreCase(normTarget);
+                    })
+                    .collect(Collectors.toList());
+        } else {
+            students = userRepository.findByRole(Role.STUDENT);
+        }
+
+        // Filter by semester if applicable
+        if (targetSem != null) {
+            final Integer sem = targetSem;
+            List<User> semFiltered = students.stream()
+                    .filter(s -> s.getSemester() != null && s.getSemester().equals(sem))
+                    .collect(Collectors.toList());
+            if (!semFiltered.isEmpty()) {
+                students = semFiltered;
+            }
+        }
+
+        // Filter by section if applicable
+        if (targetSec != null && !targetSec.trim().isEmpty()) {
+            final String sec = targetSec.trim();
+            List<User> secFiltered = students.stream()
+                    .filter(s -> s.getSection() != null && s.getSection().equalsIgnoreCase(sec))
+                    .collect(Collectors.toList());
+            if (!secFiltered.isEmpty()) {
+                students = secFiltered;
+            }
+        }
+
+        return students;
     }
 
     private void populateOtp(AttendanceSession session) {
@@ -94,24 +176,77 @@ public class AttendanceController {
             return ResponseEntity.badRequest().body("User not found!");
         }
         User user = userOpt.get();
+        List<Map<String, Object>> result = new ArrayList<>();
+
         if (user.getRole() == Role.ADMIN) {
+            List<CourseClassroom> allClassrooms = classroomRepository.findAll();
+            if (!allClassrooms.isEmpty()) {
+                for (CourseClassroom c : allClassrooms) {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("id", c.getId());
+                    map.put("subjectCode", c.getSubjectCode());
+                    map.put("subjectName", c.getSubjectName());
+                    map.put("department", c.getDepartment());
+                    map.put("semester", c.getSemester());
+                    map.put("section", c.getSection() != null ? c.getSection() : "A");
+                    map.put("facultyName", c.getFaculty() != null ? c.getFaculty().getName() : "");
+                    result.add(map);
+                }
+                return ResponseEntity.ok(result);
+            }
             return ResponseEntity.ok(subjectMasterRepository.findByActiveTrue());
         }
+
+        // For Faculty: Prioritize allocated course classrooms!
+        List<CourseClassroom> allocatedClassrooms = classroomRepository.findByFacultyId(user.getId());
+        if (!allocatedClassrooms.isEmpty()) {
+            for (CourseClassroom c : allocatedClassrooms) {
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("id", c.getId());
+                map.put("subjectCode", c.getSubjectCode());
+                map.put("subjectName", c.getSubjectName());
+                map.put("department", c.getDepartment());
+                map.put("semester", c.getSemester());
+                map.put("section", c.getSection() != null ? c.getSection() : "A");
+                result.add(map);
+            }
+            return ResponseEntity.ok(result);
+        }
+
+        // Fallback for Class Advisor or Faculty without CourseClassrooms yet
         if (user.isClassAdvisor()) {
             String dept = user.getDepartment();
-            if (dept != null && !dept.trim().isEmpty()) {
-                return ResponseEntity.ok(subjectMasterRepository.findByDepartmentIgnoreCaseAndActiveTrue(dept));
-            } else {
-                return ResponseEntity.ok(subjectMasterRepository.findByActiveTrue());
+            List<SubjectMaster> subjects = (dept != null && !dept.trim().isEmpty())
+                    ? subjectMasterRepository.findByDepartmentIgnoreCaseAndActiveTrue(dept)
+                    : subjectMasterRepository.findByActiveTrue();
+            for (SubjectMaster sm : subjects) {
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("id", sm.getId());
+                map.put("subjectCode", sm.getSubjectCode());
+                map.put("subjectName", sm.getSubjectName());
+                map.put("department", sm.getDepartment());
+                map.put("semester", sm.getSemester());
+                map.put("section", "A");
+                result.add(map);
+            }
+            return ResponseEntity.ok(result);
+        }
+
+        List<FacultyExpertise> expertises = facultyExpertiseRepository.findByFacultyId(user.getId());
+        for (FacultyExpertise fe : expertises) {
+            SubjectMaster sm = fe.getSubject();
+            if (sm != null) {
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("id", sm.getId());
+                map.put("subjectCode", sm.getSubjectCode());
+                map.put("subjectName", sm.getSubjectName());
+                map.put("department", sm.getDepartment());
+                map.put("semester", sm.getSemester());
+                map.put("section", "A");
+                result.add(map);
             }
         }
-        // Regular faculty: get their expertises
-        List<FacultyExpertise> expertises = facultyExpertiseRepository.findByFacultyId(user.getId());
-        List<SubjectMaster> subjects = expertises.stream()
-                .map(FacultyExpertise::getSubject)
-                .filter(java.util.Objects::nonNull)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(subjects);
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/session/start")
@@ -131,6 +266,26 @@ public class AttendanceController {
 
         if (!isFacultyAssignedToSubject(user, request.getSubject())) {
             return ResponseEntity.status(403).body("You do not have permission to start attendance for subject " + request.getSubject() + "!");
+        }
+
+        // Determine target department, semester, section
+        String targetDept = request.getDepartment();
+        Integer targetSem = request.getSemester();
+        String targetSec = request.getSection();
+
+        if (targetDept == null || targetDept.trim().isEmpty()) {
+            List<CourseClassroom> fClassrooms = classroomRepository.findByFacultyId(user.getId());
+            for (CourseClassroom c : fClassrooms) {
+                if (c.getSubjectCode().equalsIgnoreCase(request.getSubject().trim())) {
+                    targetDept = c.getDepartment();
+                    targetSem = c.getSemester();
+                    targetSec = c.getSection();
+                    break;
+                }
+            }
+        }
+        if (targetDept == null || targetDept.trim().isEmpty()) {
+            targetDept = user.getDepartment();
         }
 
         // Deactivate any existing active sessions in this department to maintain a single active session per department
@@ -155,6 +310,9 @@ public class AttendanceController {
         AttendanceSession newSession = AttendanceSession.builder()
                 .subject(request.getSubject())
                 .facultyId(user.getId())
+                .department(targetDept)
+                .semester(targetSem)
+                .section(targetSec != null ? targetSec : "A")
                 .startTime(startTime)
                 .expiryTime(expiryTime)
                 .active(true)
@@ -534,20 +692,8 @@ public class AttendanceController {
             return ResponseEntity.status(403).body("You do not have permission to view this report!");
         }
 
-        // Get students based on role and department
-        List<User> students;
-        if (user.getRole() == Role.ADMIN) {
-            students = userRepository.findByRole(Role.STUDENT);
-        } else if (user.getRole() == Role.FACULTY) {
-            String dept = user.getDepartment();
-            if (dept == null || dept.trim().isEmpty()) {
-                students = List.of();
-            } else {
-                students = userRepository.findByRoleAndDepartmentIgnoreCase(Role.STUDENT, dept);
-            }
-        } else {
-            return ResponseEntity.status(403).body("Students cannot view this report!");
-        }
+        // Get students based on the session's allocated subject/cohort
+        List<User> students = getStudentsForSession(session, user);
         
         // Get all attendance check-ins for this session
         List<Attendance> checkIns = attendanceRepository.findBySessionId(sessionId);
@@ -1162,12 +1308,7 @@ public class AttendanceController {
         }
 
         Optional<User> hostOpt = userRepository.findById(session.getFacultyId());
-        if (hostOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("Host faculty not found!");
-        }
-        String dept = hostOpt.get().getDepartment();
-
-        List<User> students = userRepository.findByRoleAndDepartmentIgnoreCase(Role.STUDENT, dept);
+        List<User> students = getStudentsForSession(session, hostOpt.orElse(user));
 
         List<Attendance> attendances = attendanceRepository.findBySessionId(id);
         Map<Long, Attendance> attendanceMap = attendances.stream()
@@ -1221,13 +1362,6 @@ public class AttendanceController {
             return ResponseEntity.status(403).body("Access denied.");
         }
 
-        // Allow manual marking even for inactive/closed QR sessions
-        /*
-        if (!session.isActive()) {
-            return ResponseEntity.badRequest().body("Attendance session is closed and locked!");
-        }
-        */
-
         Optional<User> studentOpt = userRepository.findById(request.getStudentId());
         if (studentOpt.isEmpty()) return ResponseEntity.badRequest().body("Student not found!");
 
@@ -1279,13 +1413,6 @@ public class AttendanceController {
             return ResponseEntity.status(403).body("Access denied.");
         }
 
-        // Allow manual marking even for inactive/closed sessions
-        /*
-        if (!session.isActive()) {
-            return ResponseEntity.badRequest().body("Attendance session is closed and locked!");
-        }
-        */
-
         List<Attendance> existing = attendanceRepository.findBySessionId(id);
         Map<Long, Attendance> attendanceMap = existing.stream()
                 .collect(Collectors.toMap(Attendance::getStudentId, a -> a));
@@ -1336,6 +1463,26 @@ public class AttendanceController {
             return ResponseEntity.status(403).body("You do not have permission to record attendance for subject " + request.getSubject() + "!");
         }
 
+        // Determine target department, semester, section
+        String targetDept = request.getDepartment();
+        Integer targetSem = request.getSemester();
+        String targetSec = request.getSection();
+
+        if (targetDept == null || targetDept.trim().isEmpty()) {
+            List<CourseClassroom> fClassrooms = classroomRepository.findByFacultyId(user.getId());
+            for (CourseClassroom c : fClassrooms) {
+                if (c.getSubjectCode().equalsIgnoreCase(request.getSubject().trim())) {
+                    targetDept = c.getDepartment();
+                    targetSem = c.getSemester();
+                    targetSec = c.getSection();
+                    break;
+                }
+            }
+        }
+        if (targetDept == null || targetDept.trim().isEmpty()) {
+            targetDept = user.getDepartment();
+        }
+
         // Parse date and times
         LocalDate localDate = LocalDate.parse(request.getDate());
         LocalTime start = LocalTime.parse(request.getStartTime());
@@ -1369,6 +1516,9 @@ public class AttendanceController {
             sessionToUse = AttendanceSession.builder()
                     .subject(request.getSubject())
                     .facultyId(user.getId())
+                    .department(targetDept)
+                    .semester(targetSem)
+                    .section(targetSec != null ? targetSec : "A")
                     .startTime(startDateTime)
                     .expiryTime(endDateTime)
                     .active(false)

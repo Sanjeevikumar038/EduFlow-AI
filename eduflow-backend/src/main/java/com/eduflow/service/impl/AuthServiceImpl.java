@@ -62,6 +62,10 @@ public class AuthServiceImpl implements AuthService {
                 .name(user.getName())
                 .registerNumber(user.getRegisterNumber())
                 .department(user.getDepartment())
+                .section(user.getSection() != null ? user.getSection() : "A")
+                .semester(user.getSemester() != null ? user.getSemester() : 3)
+                .year(user.getYear() != null ? user.getYear() : "2")
+                .batch(user.getBatch() != null ? user.getBatch() : "2023 – 2027")
                 .classAdvisor(user.isClassAdvisor())
                 .build();
     }
@@ -100,6 +104,10 @@ public class AuthServiceImpl implements AuthService {
                 .name(user.getName())
                 .registerNumber(user.getRegisterNumber())
                 .department(user.getDepartment())
+                .section(user.getSection() != null ? user.getSection() : "A")
+                .semester(user.getSemester() != null ? user.getSemester() : 3)
+                .year(user.getYear() != null ? user.getYear() : "2")
+                .batch(user.getBatch() != null ? user.getBatch() : "2023 – 2027")
                 .classAdvisor(user.isClassAdvisor())
                 .build();
     }

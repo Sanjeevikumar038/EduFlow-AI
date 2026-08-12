@@ -69,8 +69,13 @@ function Login() {
   return (
     <div className="erp-page-wrapper">
       <div className="erp-login-card">
-        {/* Left Panel (Form Side) */}
-        <div className="erp-left-form-panel">
+        {/* Left Panel (Showcase Image Side) */}
+        <div className="erp-left-image-panel">
+          <img src={loginIllustration} alt="EduFlow Campus Showcase" className="erp-showcase-img" />
+        </div>
+
+        {/* Right Panel (Form Side) */}
+        <div className="erp-right-form-panel">
           <div className="erp-logo-section">
             <div className="erp-logo-row">
               <div className="erp-logo-box">E</div>
@@ -82,7 +87,7 @@ function Login() {
           <div className="erp-form-content">
             <div className="erp-heading-section">
               <h2>Administrator Login</h2>
-              <p>Access the EduFlow Administration Portal</p>
+              <p>The key to happiness is to sign in.</p>
             </div>
 
             {/* Toast Notification */}
@@ -174,20 +179,19 @@ function Login() {
                     <span>Signing In...</span>
                   </>
                 ) : (
-                  "Login"
+                  "Next"
                 )}
               </button>
             </form>
 
             <div className="erp-footer-notice">
-              Don't have an account?{" "}
               <button
                 type="button"
                 className="erp-link"
                 style={{ fontWeight: "600" }}
                 onClick={() => setShowHelpModal(true)}
               >
-                Contact your Administrator
+                System Compatibility Check?
               </button>
             </div>
           </div>
@@ -195,11 +199,6 @@ function Login() {
           <div className="erp-footer">
             © 2026 EduFlow · Version 1.0
           </div>
-        </div>
-
-        {/* Right Panel (Illustration Side) */}
-        <div className="erp-right-illustration-panel">
-          <img src={loginIllustration} alt="Workspace Illustration" className="erp-full-right-img" />
         </div>
       </div>
 

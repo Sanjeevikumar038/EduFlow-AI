@@ -146,6 +146,12 @@ function StudentDashboard() {
   const [aiReviewFeedback, setAiReviewFeedback] = useState("");
   const [challengeAttendanceStatus, setChallengeAttendanceStatus] = useState("PENDING");
   const [challengeLoading, setChallengeLoading] = useState(false);
+  const [codingPasteWarning, setCodingPasteWarning] = useState(null);
+
+  const triggerCodingPasteWarning = (msg = "Copying & Pasting is strictly disabled during coding activities! Please type your solution.") => {
+    setCodingPasteWarning(msg);
+    setTimeout(() => setCodingPasteWarning(null), 3500);
+  };
   const [codingHistory, setCodingHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -1335,9 +1341,35 @@ function StudentDashboard() {
                       {currentClassStatus.currentClass.activityName === "Coding Practice" ? (
                         freeActivityChallenge ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "0.5rem" }}>
-                            <div style={{ background: "rgba(99, 102, 241, 0.05)", border: "1px solid rgba(99, 102, 241, 0.2)", borderRadius: "12px", padding: "1rem" }}>
-                              <h4 style={{ margin: "0 0 0.5rem 0", color: "var(--primary)" }}><i className="fa-solid fa-code"></i> Challenge: {freeActivityChallenge.title}</h4>
-                              <p style={{ margin: 0, fontSize: "0.85rem", color: "#e2e8f0", whiteSpace: "pre-line" }}>
+                            <div 
+                              className="no-copy-zone"
+                              onCopy={(e) => {
+                                e.preventDefault();
+                                triggerCodingPasteWarning("Copying challenge descriptions is strictly prohibited!");
+                              }}
+                              onCut={(e) => {
+                                e.preventDefault();
+                              }}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                triggerCodingPasteWarning("Right-click context menu is disabled!");
+                              }}
+                              onDragStart={(e) => {
+                                e.preventDefault();
+                              }}
+                              style={{ 
+                                background: "rgba(99, 102, 241, 0.05)", 
+                                border: "1px solid rgba(99, 102, 241, 0.2)", 
+                                borderRadius: "12px", 
+                                padding: "1rem",
+                                userSelect: "none",
+                                WebkitUserSelect: "none",
+                                MozUserSelect: "none",
+                                msUserSelect: "none"
+                              }}
+                            >
+                              <h4 style={{ margin: "0 0 0.5rem 0", color: "var(--primary)", userSelect: "none" }}><i className="fa-solid fa-code"></i> Challenge: {freeActivityChallenge.title}</h4>
+                              <p style={{ margin: 0, fontSize: "0.85rem", color: "#e2e8f0", whiteSpace: "pre-line", userSelect: "none" }}>
                                 {freeActivityChallenge.description}
                               </p>
                             </div>
@@ -1378,11 +1410,71 @@ function StudentDashboard() {
                             </div>
 
                             {/* Code Editor */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Solution Editor</label>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "4px", position: "relative" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Solution Editor</label>
+                                <span style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  padding: "2px 7px",
+                                  borderRadius: "6px",
+                                  backgroundColor: "rgba(239, 68, 68, 0.12)",
+                                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                                  color: "#f87171",
+                                  fontSize: "0.68rem",
+                                  fontWeight: "700"
+                                }}>
+                                  <i className="fa-solid fa-lock" style={{ fontSize: "0.6rem" }}></i>
+                                  Anti-Cheat: Paste Disabled
+                                </span>
+                              </div>
+
+                              {codingPasteWarning && (
+                                <div style={{
+                                  background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
+                                  color: "#ffffff",
+                                  padding: "0.6rem 1rem",
+                                  borderRadius: "8px",
+                                  fontSize: "0.8rem",
+                                  fontWeight: "700",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "0.5rem",
+                                  boxShadow: "0 4px 12px rgba(239,68,68,0.35)",
+                                  border: "1px solid rgba(255,255,255,0.2)",
+                                  marginBottom: "4px"
+                                }}>
+                                  <i className="fa-solid fa-shield-halved"></i>
+                                  <span>{codingPasteWarning}</span>
+                                </div>
+                              )}
+
                               <textarea
                                 value={studentCode}
                                 onChange={(e) => setStudentCode(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) || (e.shiftKey && e.key === 'Insert')) {
+                                    e.preventDefault();
+                                    triggerCodingPasteWarning();
+                                  }
+                                }}
+                                onPaste={(e) => {
+                                  e.preventDefault();
+                                  triggerCodingPasteWarning();
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  triggerCodingPasteWarning("Drag and drop is disabled in coding challenge mode!");
+                                }}
+                                onContextMenu={(e) => {
+                                  e.preventDefault();
+                                  triggerCodingPasteWarning("Right-click menu is disabled in assessment mode!");
+                                }}
+                                spellCheck="false"
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="off"
                                 disabled={challengeAttendanceStatus === "PRESENT" || (currentClassStatus && currentClassStatus.timeRemainingMinutes <= 0)}
                                 rows={8}
                                 style={{

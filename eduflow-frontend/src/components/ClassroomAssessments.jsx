@@ -57,8 +57,13 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
   // Student Attempt State
   const [activeAttempt, setActiveAttempt] = useState(null);
   const [userAnswers, setUserAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(0);
   const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [pasteWarning, setPasteWarning] = useState(null);
+
+  const triggerPasteWarning = (msg = "Copying & Pasting is disabled during this assessment. Please enter your answer manually.") => {
+    setPasteWarning(msg);
+    setTimeout(() => setPasteWarning(null), 3500);
+  };
 
   // Faculty Grading State
   const [attemptsList, setAttemptsList] = useState([]);
@@ -908,6 +913,21 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
 
               {/* Right Column: Active Question Canvas */}
               <div
+                className="no-copy-zone"
+                onCopy={(e) => {
+                  e.preventDefault();
+                  triggerPasteWarning("Copying exam questions or choices is strictly prohibited!");
+                }}
+                onCut={(e) => {
+                  e.preventDefault();
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  triggerPasteWarning("Right-click context menu is disabled in assessment mode!");
+                }}
+                onDragStart={(e) => {
+                  e.preventDefault();
+                }}
                 style={{
                   flex: 1,
                   padding: "2.5rem 3.5rem",
@@ -915,11 +935,15 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
                   flexDirection: "column",
                   justifyContent: "space-between",
                   overflowY: "auto",
-                  backgroundColor: "var(--bg-main, #070b19)"
+                  backgroundColor: "var(--bg-main, #070b19)",
+                  userSelect: "none",
+                  WebkitUserSelect: "none",
+                  MozUserSelect: "none",
+                  msUserSelect: "none"
                 }}
               >
                 {currentQ ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", maxWidth: "880px", margin: "0 auto", width: "100%" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", maxWidth: "880px", margin: "0 auto", width: "100%", userSelect: "none", WebkitUserSelect: "none" }}>
                     {/* Question Header Meta */}
                     <div
                       style={{
@@ -927,10 +951,11 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
                         alignItems: "center",
                         justifyContent: "space-between",
                         borderBottom: "1px solid var(--divider)",
-                        paddingBottom: "1rem"
+                        paddingBottom: "1rem",
+                        userSelect: "none"
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
                         <span
                           style={{
                             padding: "0.35rem 0.8rem",
@@ -947,6 +972,23 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
                         <span className="custom-badge custom-badge-gray" style={{ fontSize: "0.75rem" }}>
                           {currentQ.questionType === "MCQ" ? "Multiple Choice Single Answer" : "Subjective / Short Answer"}
                         </span>
+                        <span
+                          style={{
+                            padding: "0.3rem 0.65rem",
+                            borderRadius: "6px",
+                            backgroundColor: "rgba(239, 68, 68, 0.12)",
+                            border: "1px solid rgba(239, 68, 68, 0.3)",
+                            color: "#f87171",
+                            fontWeight: "700",
+                            fontSize: "0.72rem",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px"
+                          }}
+                        >
+                          <i className="fa-solid fa-lock" style={{ fontSize: "0.65rem" }}></i>
+                          Paste Disabled
+                        </span>
                       </div>
                       <span
                         style={{
@@ -961,6 +1003,33 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
                         +{currentQ.marks || 10} Marks
                       </span>
                     </div>
+
+                    {/* Floating Anti-Cheat / Paste Warning Toast */}
+                    {pasteWarning && (
+                      <div
+                        style={{
+                          position: "fixed",
+                          top: "30px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
+                          color: "#ffffff",
+                          padding: "0.85rem 1.6rem",
+                          borderRadius: "12px",
+                          boxShadow: "0 10px 30px rgba(239, 68, 68, 0.45), 0 4px 10px rgba(0,0,0,0.3)",
+                          zIndex: 999999,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.85rem",
+                          fontSize: "0.9rem",
+                          fontWeight: "700",
+                          border: "1px solid rgba(255, 255, 255, 0.25)"
+                        }}
+                      >
+                        <i className="fa-solid fa-shield-halved" style={{ fontSize: "1.25rem", color: "#fef08a" }}></i>
+                        <span>{pasteWarning}</span>
+                      </div>
+                    )}
 
                     {/* Question Statement */}
                     <div>
@@ -1033,7 +1102,7 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
                                 style={{
                                   fontSize: "0.98rem",
                                   fontWeight: isSelected ? "700" : "500",
-                                  color: isSelected ? "#ffffff" : "var(--text-main)",
+                                  color: "var(--text-main)",
                                   lineHeight: "1.5",
                                   flex: 1
                                 }}
@@ -1071,6 +1140,28 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
                           placeholder="Write your answer response here..."
                           value={userAnswers[currentQ.id] || ""}
                           onChange={(e) => setUserAnswers({ ...userAnswers, [currentQ.id]: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) || (e.shiftKey && e.key === 'Insert')) {
+                              e.preventDefault();
+                              triggerPasteWarning();
+                            }
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            triggerPasteWarning();
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            triggerPasteWarning("Dragging and dropping text into answers is disabled!");
+                          }}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            triggerPasteWarning("Right-click context menu is disabled in assessment mode!");
+                          }}
+                          spellCheck="false"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
                           style={{
                             width: "100%",
                             padding: "1.1rem 1.3rem",

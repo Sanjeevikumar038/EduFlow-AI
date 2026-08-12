@@ -217,17 +217,42 @@ public class ClassroomService {
         } else if (user.getRole() == Role.STUDENT) {
             String userDept = user.getDepartment() != null ? user.getDepartment() : "";
             Integer userSem = user.getSemester() != null ? user.getSemester() : 1;
-            classrooms = new ArrayList<>(classroomRepository.findByDepartmentIgnoreCaseAndSemester(userDept, userSem));
+            String userSec = (user.getSection() != null && !user.getSection().trim().isEmpty()) 
+                    ? user.getSection().trim().toUpperCase() : "A";
+            
+            String normUserDept = com.eduflow.controller.TimetableController.normalizeDepartment(userDept);
+
+            List<CourseClassroom> allDeptClassrooms = new ArrayList<>(classroomRepository.findByDepartmentIgnoreCaseAndSemester(userDept, userSem));
+            if (allDeptClassrooms.isEmpty()) {
+                allDeptClassrooms = new ArrayList<>(classroomRepository.findByDepartment(userDept));
+            }
+            if (allDeptClassrooms.isEmpty()) {
+                autoSyncClassroomsFromERP();
+                allDeptClassrooms = new ArrayList<>(classroomRepository.findByDepartmentIgnoreCaseAndSemester(userDept, userSem));
+            }
+            if (allDeptClassrooms.isEmpty()) {
+                allDeptClassrooms = new ArrayList<>(classroomRepository.findAll());
+            }
+
+            // Filter classrooms strictly by department, semester AND the student's section (defaults to 'A')
+            classrooms = allDeptClassrooms.stream()
+                    .filter(c -> {
+                        String cDept = com.eduflow.controller.TimetableController.normalizeDepartment(c.getDepartment());
+                        int cSem = c.getSemester() != null ? c.getSemester() : 1;
+                        String cSec = (c.getSection() != null && !c.getSection().trim().isEmpty()) 
+                                ? c.getSection().trim().toUpperCase() : "A";
+
+                        boolean deptMatch = cDept.equalsIgnoreCase(normUserDept) 
+                                || (c.getDepartment() != null && c.getDepartment().equalsIgnoreCase(userDept));
+                        boolean semMatch = (cSem == userSem);
+                        boolean secMatch = cSec.equalsIgnoreCase(userSec);
+
+                        return deptMatch && semMatch && secMatch;
+                    })
+                    .collect(Collectors.toList());
 
             if (classrooms.isEmpty()) {
-                classrooms = new ArrayList<>(classroomRepository.findByDepartment(userDept));
-            }
-            if (classrooms.isEmpty()) {
-                autoSyncClassroomsFromERP();
-                classrooms = new ArrayList<>(classroomRepository.findByDepartmentIgnoreCaseAndSemester(userDept, userSem));
-            }
-            if (classrooms.isEmpty()) {
-                classrooms = new ArrayList<>(classroomRepository.findAll());
+                classrooms = allDeptClassrooms;
             }
         } else {
             // ADMIN sees all

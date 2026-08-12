@@ -1402,15 +1402,17 @@ function AdminDashboard() {
         {/* Scrollable page viewport content */}
         <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "2rem" }} className="custom-scrollbar">
           
-          {/* Welcome Dashboard Header */}
-          <div className="dashboard-title" style={{ marginBottom: "2rem" }}>
-            <h1 style={{ fontSize: "2rem", fontWeight: "800", background: "linear-gradient(135deg, #fff 0%, #a5b4fc 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              Admin Control Panel
-            </h1>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", marginTop: "0.25rem" }}>
-              Logged in as: System Administrator (ADMIN)
-            </p>
-          </div>
+          {/* Welcome Dashboard Header - Only shown on Main Analytics Control View */}
+          {activeTab === "analytics" && (
+            <div className="dashboard-title" style={{ marginBottom: "2rem" }}>
+              <h1 style={{ fontSize: "2rem", fontWeight: "800", background: "linear-gradient(135deg, #fff 0%, #a5b4fc 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                Admin Control Panel
+              </h1>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", marginTop: "0.25rem" }}>
+                Logged in as: System Administrator (ADMIN)
+              </p>
+            </div>
+          )}
 
           {/* Feedback banner */}
           {feedback.message && (

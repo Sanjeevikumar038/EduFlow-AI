@@ -71,39 +71,137 @@ function FacultyManualAttendanceView({
 
         {/* Input Configuration Row */}
         {registerMode === "manual" ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1.25rem", padding: "1.25rem", background: "rgba(255,255,255,0.02)", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.04)", marginBottom: "1.5rem" }}>
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "minmax(320px, 2fr) minmax(150px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr)", 
+            gap: "1.25rem", 
+            padding: "1.25rem", 
+            background: "var(--bg-secondary, rgba(255,255,255,0.02))", 
+            borderRadius: "14px", 
+            border: "1px solid var(--card-border, rgba(255,255,255,0.05))", 
+            marginBottom: "1.5rem" 
+          }}>
             <div className="form-group" style={{ margin: 0 }}>
-              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>Select Subject</label>
-              <select className="input-field" style={{ margin: 0 }} value={manualSubject} onChange={e => setManualSubject(e.target.value)}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "700", marginBottom: "6px" }}>Select Subject & Class</label>
+              <select 
+                className="input-field" 
+                style={{ 
+                  margin: 0, 
+                  height: "44px", 
+                  minHeight: "44px", 
+                  padding: "0 12px", 
+                  fontSize: "0.88rem", 
+                  lineHeight: "normal",
+                  color: "var(--text-main)", 
+                  backgroundColor: "var(--bg-card, #ffffff)", 
+                  border: "1px solid var(--card-border, #cbd5e1)", 
+                  borderRadius: "8px", 
+                  cursor: "pointer", 
+                  width: "100%" 
+                }} 
+                value={manualSubject} 
+                onChange={e => setManualSubject(e.target.value)}
+              >
                 <option value="">-- Choose Subject --</option>
                 {facultySubjects.map(sub => (
-                  <option key={sub.id} value={sub.subjectCode}>{sub.subjectCode} - {sub.subjectName}</option>
+                  <option key={sub.id || sub.subjectCode} value={sub.subjectCode}>
+                    {sub.subjectCode} - {sub.subjectName} {sub.department ? `(${sub.department.replace("Department of ", "")} · Sem ${sub.semester || 1}${sub.section ? ` ${sub.section}` : ""})` : ""}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div className="form-group" style={{ margin: 0 }}>
-              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>Log Date</label>
-              <input type="date" className="input-field" style={{ margin: 0 }} value={manualDate} onChange={e => setManualDate(e.target.value)} />
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "700", marginBottom: "6px" }}>Log Date</label>
+              <input 
+                type="date" 
+                className="input-field" 
+                style={{ 
+                  margin: 0, 
+                  height: "44px", 
+                  minHeight: "44px", 
+                  padding: "0 12px", 
+                  fontSize: "0.88rem", 
+                  color: "var(--text-main)", 
+                  backgroundColor: "var(--bg-card, #ffffff)", 
+                  border: "1px solid var(--card-border, #cbd5e1)", 
+                  borderRadius: "8px" 
+                }} 
+                value={manualDate} 
+                onChange={e => setManualDate(e.target.value)} 
+              />
             </div>
 
             <div className="form-group" style={{ margin: 0 }}>
-              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>Start Time</label>
-              <input type="time" className="input-field" style={{ margin: 0 }} value={manualStartTime} onChange={e => setManualStartTime(e.target.value)} />
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "700", marginBottom: "6px" }}>Start Time</label>
+              <input 
+                type="time" 
+                className="input-field" 
+                style={{ 
+                  margin: 0, 
+                  height: "44px", 
+                  minHeight: "44px", 
+                  padding: "0 12px", 
+                  fontSize: "0.88rem", 
+                  color: "var(--text-main)", 
+                  backgroundColor: "var(--bg-card, #ffffff)", 
+                  border: "1px solid var(--card-border, #cbd5e1)", 
+                  borderRadius: "8px" 
+                }} 
+                value={manualStartTime} 
+                onChange={e => setManualStartTime(e.target.value)} 
+              />
             </div>
 
             <div className="form-group" style={{ margin: 0 }}>
-              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>End Time</label>
-              <input type="time" className="input-field" style={{ margin: 0 }} value={manualEndTime} onChange={e => setManualEndTime(e.target.value)} />
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "700", marginBottom: "6px" }}>End Time</label>
+              <input 
+                type="time" 
+                className="input-field" 
+                style={{ 
+                  margin: 0, 
+                  height: "44px", 
+                  minHeight: "44px", 
+                  padding: "0 12px", 
+                  fontSize: "0.88rem", 
+                  color: "var(--text-main)", 
+                  backgroundColor: "var(--bg-card, #ffffff)", 
+                  border: "1px solid var(--card-border, #cbd5e1)", 
+                  borderRadius: "8px" 
+                }} 
+                value={manualEndTime} 
+                onChange={e => setManualEndTime(e.target.value)} 
+              />
             </div>
           </div>
         ) : (
-          <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", padding: "1.25rem", background: "rgba(255,255,255,0.02)", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.04)", marginBottom: "1.5rem" }}>
-            <div className="form-group" style={{ margin: 0, flex: 1, minWidth: "220px" }}>
-              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>Select Active or Past Session</label>
+          <div style={{ 
+            display: "flex", 
+            gap: "1.25rem", 
+            flexWrap: "wrap", 
+            padding: "1.25rem", 
+            background: "var(--bg-secondary, rgba(255,255,255,0.02))", 
+            borderRadius: "14px", 
+            border: "1px solid var(--card-border, rgba(255,255,255,0.05))", 
+            marginBottom: "1.5rem" 
+          }}>
+            <div className="form-group" style={{ margin: 0, flex: 1, minWidth: "280px" }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "700", marginBottom: "6px" }}>Select Active or Past Session</label>
               <select
                 className="input-field"
-                style={{ margin: 0 }}
+                style={{ 
+                  margin: 0, 
+                  height: "44px", 
+                  minHeight: "44px", 
+                  padding: "0 12px", 
+                  fontSize: "0.88rem", 
+                  lineHeight: "normal",
+                  color: "var(--text-main)", 
+                  backgroundColor: "var(--bg-card, #ffffff)", 
+                  border: "1px solid var(--card-border, #cbd5e1)", 
+                  borderRadius: "8px", 
+                  cursor: "pointer" 
+                }}
                 value={registerSessionId}
                 onChange={e => { setRegisterSessionId(e.target.value); loadRegisterSession(e.target.value); }}
               >

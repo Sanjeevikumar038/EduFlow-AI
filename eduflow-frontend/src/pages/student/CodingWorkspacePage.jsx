@@ -35,12 +35,25 @@ const CodingWorkspacePage = () => {
     const [compilerMessage, setCompilerMessage] = useState('Compilation successful');
     const [aiReviewFeedback, setAiReviewFeedback] = useState('');
     const [showTerminal, setShowTerminal] = useState(false);
+    const [pasteWarning, setPasteWarning] = useState(null);
+
+    const triggerPasteWarning = (msg = "Copying & Pasting is strictly disabled during coding assessments! Please write your code manually.") => {
+        setPasteWarning(msg);
+        setTimeout(() => setPasteWarning(null), 3500);
+    };
 
     // Tab files mock
     const [activeTabFile, setActiveTabFile] = useState('main.py');
 
     // Restore cursor position right after indentation
     const handleTextareaKeyDown = (e) => {
+        // Block Ctrl+V / Cmd+V / Shift+Insert paste shortcuts
+        if (((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) || (e.shiftKey && e.key === 'Insert')) {
+            e.preventDefault();
+            triggerPasteWarning();
+            return;
+        }
+
         if (e.key === 'Tab') {
             e.preventDefault();
             const start = e.target.selectionStart;
@@ -417,16 +430,37 @@ const CodingWorkspacePage = () => {
             }}>
                 
                 {/* Left Panel: Question and instructions */}
-                <div style={{
-                    flex: "0 0 45%",
-                    background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
-                    borderRight: "6px solid #cbd5e1",
-                    boxShadow: "2px 0 8px rgba(0, 0, 0, 0.04)",
-                    display: "flex",
-                    flexDirection: "column",
-                    height: "100%",
-                    overflow: "hidden"
-                }}>
+                <div 
+                    className="no-copy-zone"
+                    onCopy={(e) => {
+                        e.preventDefault();
+                        triggerPasteWarning("Copying problem statements or test cases is strictly prohibited!");
+                    }}
+                    onCut={(e) => {
+                        e.preventDefault();
+                    }}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        triggerPasteWarning("Right-click context menu is disabled for question statements!");
+                    }}
+                    onDragStart={(e) => {
+                        e.preventDefault();
+                    }}
+                    style={{
+                        flex: "0 0 45%",
+                        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
+                        borderRight: "6px solid #cbd5e1",
+                        boxShadow: "2px 0 8px rgba(0, 0, 0, 0.04)",
+                        display: "flex",
+                        flexDirection: "column",
+                        height: "100%",
+                        overflow: "hidden",
+                        userSelect: "none",
+                        WebkitUserSelect: "none",
+                        MozUserSelect: "none",
+                        msUserSelect: "none"
+                    }}
+                >
                     {/* Question Content container */}
                     <div style={{
                         flex: 1,
@@ -434,7 +468,9 @@ const CodingWorkspacePage = () => {
                         flexDirection: "column",
                         height: "100%",
                         overflowY: "auto",
-                        padding: "2rem"
+                        padding: "2rem",
+                        userSelect: "none",
+                        WebkitUserSelect: "none"
                     }}>
                         {/* Title bar */}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
@@ -628,6 +664,23 @@ const CodingWorkspacePage = () => {
 
                         {/* Toolbar items */}
                         <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexShrink: 0 }}>
+                            <span style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "5px",
+                                padding: "3px 8px",
+                                borderRadius: "6px",
+                                backgroundColor: "rgba(239, 68, 68, 0.12)",
+                                border: "1px solid rgba(239, 68, 68, 0.3)",
+                                color: "#f87171",
+                                fontSize: "0.7rem",
+                                fontWeight: "700",
+                                userSelect: "none"
+                            }}>
+                                <i className="fa-solid fa-lock" style={{ fontSize: "0.65rem" }}></i>
+                                Anti-Cheat Active · Paste Disabled
+                            </span>
+
                             <select
                                 value={studentLanguage}
                                 onChange={(e) => handleLanguageChange(e.target.value)}
@@ -655,6 +708,33 @@ const CodingWorkspacePage = () => {
                             </button>
                         </div>
                     </div>
+
+                    {/* Floating Anti-Cheat / Paste Warning Toast */}
+                    {pasteWarning && (
+                        <div style={{
+                            position: "fixed",
+                            top: "24px",
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
+                            color: "#ffffff",
+                            padding: "0.85rem 1.6rem",
+                            borderRadius: "12px",
+                            boxShadow: "0 10px 30px rgba(239, 68, 68, 0.45), 0 4px 10px rgba(0,0,0,0.3)",
+                            zIndex: 99999,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.85rem",
+                            fontSize: "0.9rem",
+                            fontWeight: "700",
+                            letterSpacing: "0.2px",
+                            border: "1px solid rgba(255, 255, 255, 0.25)",
+                            animation: "bounce 0.3s ease-out"
+                        }}>
+                            <i className="fa-solid fa-shield-halved" style={{ fontSize: "1.25rem", color: "#fef08a" }}></i>
+                            <span>{pasteWarning}</span>
+                        </div>
+                    )}
 
                     {/* Scrollable workspace content */}
                     <div 
@@ -699,11 +779,27 @@ const CodingWorkspacePage = () => {
                                 ))}
                             </div>
 
-                            {/* Main code input area */}
+                            {/* Main code input area with anti-cheat protection */}
                             <textarea
                                 value={studentCode}
                                 onChange={(e) => setStudentCode(e.target.value)}
                                 onKeyDown={handleTextareaKeyDown}
+                                onPaste={(e) => {
+                                    e.preventDefault();
+                                    triggerPasteWarning();
+                                }}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    triggerPasteWarning("Dragging and dropping code into the editor is disabled!");
+                                }}
+                                onContextMenu={(e) => {
+                                    e.preventDefault();
+                                    triggerPasteWarning("Right-click context menu is disabled in assessment mode!");
+                                }}
+                                spellCheck="false"
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="off"
                                 style={{
                                     flex: 1,
                                     background: "transparent",

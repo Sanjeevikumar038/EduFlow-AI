@@ -18,6 +18,10 @@ public class AuthResponse {
     private String name;
     private String registerNumber;
     private String department;
+    private String section;
+    private Integer semester;
+    private String year;
+    private String batch;
     private boolean classAdvisor;
 
     public String getToken() { return token; }
@@ -34,6 +38,14 @@ public class AuthResponse {
     public void setRegisterNumber(String registerNumber) { this.registerNumber = registerNumber; }
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
+    public String getSection() { return section; }
+    public void setSection(String section) { this.section = section; }
+    public Integer getSemester() { return semester; }
+    public void setSemester(Integer semester) { this.semester = semester; }
+    public String getYear() { return year; }
+    public void setYear(String year) { this.year = year; }
+    public String getBatch() { return batch; }
+    public void setBatch(String batch) { this.batch = batch; }
     public boolean isClassAdvisor() { return classAdvisor; }
     public void setClassAdvisor(boolean classAdvisor) { this.classAdvisor = classAdvisor; }
 
@@ -46,6 +58,10 @@ public class AuthResponse {
         private String name;
         private String registerNumber;
         private String department;
+        private String section;
+        private Integer semester;
+        private String year;
+        private String batch;
         private boolean classAdvisor;
 
         public AuthResponseBuilder token(String token) { this.token = token; return this; }
@@ -55,14 +71,14 @@ public class AuthResponse {
         public AuthResponseBuilder name(String name) { this.name = name; return this; }
         public AuthResponseBuilder registerNumber(String registerNumber) { this.registerNumber = registerNumber; return this; }
         public AuthResponseBuilder department(String department) { this.department = department; return this; }
+        public AuthResponseBuilder section(String section) { this.section = section; return this; }
+        public AuthResponseBuilder semester(Integer semester) { this.semester = semester; return this; }
+        public AuthResponseBuilder year(String year) { this.year = year; return this; }
+        public AuthResponseBuilder batch(String batch) { this.batch = batch; return this; }
         public AuthResponseBuilder classAdvisor(boolean classAdvisor) { this.classAdvisor = classAdvisor; return this; }
 
         public AuthResponse build() {
-            AuthResponse r = new AuthResponse();
-            r.setToken(token); r.setId(id); r.setEmail(email);
-            r.setRole(role); r.setName(name); r.setRegisterNumber(registerNumber);
-            r.setDepartment(department); r.setClassAdvisor(classAdvisor);
-            return r;
+            return new AuthResponse(token, id, email, role, name, registerNumber, department, section, semester, year, batch, classAdvisor);
         }
     }
 }

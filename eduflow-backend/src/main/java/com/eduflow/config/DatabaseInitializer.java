@@ -281,6 +281,25 @@ public class DatabaseInitializer implements CommandLineRunner {
                     changed = true;
                 }
             }
+            if (u.getRole() == Role.STUDENT) {
+                if (u.getSection() == null || u.getSection().trim().isEmpty()) {
+                    u.setSection("A");
+                    changed = true;
+                }
+                String reg = u.getRegisterNumber() != null ? u.getRegisterNumber().toUpperCase() : "";
+                String uName = u.getName() != null ? u.getName().toLowerCase() : "";
+                if (uName.contains("balu") || reg.contains("23EUME") || (u.getEmail() != null && u.getEmail().toLowerCase().contains("eume001"))) {
+                    u.setDepartment("Department of Mechanical Engineering");
+                    u.setSemester(3);
+                    u.setYear("2");
+                    u.setSection("A");
+                    u.setBatch("2023 – 2027");
+                    changed = true;
+                } else if (u.getSemester() == null) {
+                    u.setSemester(3);
+                    changed = true;
+                }
+            }
             if (changed) {
                 userRepository.save(u);
             }
