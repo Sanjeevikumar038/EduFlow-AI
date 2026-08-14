@@ -531,6 +531,7 @@ function FacultyDashboard() {
     fetchActiveSession();
     fetchTotalStudents();
     fetchFacultyAnalyticsData();
+    fetchSessions();
   }, [token]);
 
   // Handle live countdown update
@@ -564,11 +565,25 @@ function FacultyDashboard() {
     return () => clearInterval(otpInterval);
   }, [activeSession]);
 
+  const sortStudentsByRoll = (list = []) => {
+    return [...list].sort((a, b) => {
+      const regA = (a.registerNumber || "").trim();
+      const regB = (b.registerNumber || "").trim();
+      if (regA && regB) {
+        return regA.localeCompare(regB, undefined, { numeric: true, sensitivity: "base" });
+      }
+      const nameA = (a.name || a.studentName || "").trim();
+      const nameB = (b.name || b.studentName || "").trim();
+      return nameA.localeCompare(nameB, undefined, { sensitivity: "base" });
+    });
+  };
+
   const fetchSessionRecords = async () => {
     if (!token || !activeSession) return;
     try {
       const res = await getSessionStudents(activeSession.id, token);
-      const allStuds = res.data || [];
+      const rawStuds = res.data || [];
+      const allStuds = sortStudentsByRoll(rawStuds);
       setSessionStudents(allStuds);
 
       // Filter present/late to populate checkedInStudents for backward-compatibility counts
@@ -662,12 +677,18 @@ function FacultyDashboard() {
     }
   }, [activeTab, studentPage, studentSortBy, studentSortDir, studentSectionFilter, studentBatchFilter, searchTerm, token]);
 
-  const fetchSessions = async () => {
+  const fetchSessions = async (shouldAutoSelect = false) => {
     if (!token) return;
     setAnalyticsLoading(true);
     try {
       const res = await getAllSessions(token);
-      setSessions(res.data || []);
+      const sessList = res.data || [];
+      setSessions(sessList);
+      if (sessList.length > 0 && (shouldAutoSelect || (!registerSessionId && registerMode === "existing"))) {
+        const targetId = String(sessList[0].id);
+        setRegisterSessionId(targetId);
+        loadRegisterSession(sessList[0].id);
+      }
     } catch (error) {
       console.error("Error fetching sessions:", error);
       showFeedback("Failed to fetch sessions.", "error");
@@ -714,7 +735,8 @@ function FacultyDashboard() {
     setRegisterLoading(true);
     try {
       const res = await getSessionStudents(sessionId, token);
-      const records = res.data || [];
+      const rawRecords = res.data || [];
+      const records = sortStudentsByRoll(rawRecords);
       setRegisterRecords(records);
       setLocalRegisterRecords(JSON.parse(JSON.stringify(records))); // deep copy
       setHasUnsavedChanges(false);
@@ -789,7 +811,7 @@ function FacultyDashboard() {
       await saveManualAttendanceSession(payload, token);
       showFeedback("Manual attendance saved successfully!");
       setHasUnsavedChanges(false);
-      await fetchSessions();
+      await fetchSessions(true);
       setRegisterMode("existing");
     } catch (error) {
       showFeedback(error.response?.data || "Failed to save manual attendance.", "error");
@@ -812,7 +834,7 @@ function FacultyDashboard() {
 
   useEffect(() => {
     if (activeTab === "analytics" || activeTab === "register") {
-      fetchSessions();
+      fetchSessions(registerMode === "existing" && !registerSessionId);
       setSelectedSession(null);
       setReportRecords([]);
       if (activeTab === "register") {
@@ -857,7 +879,8 @@ function FacultyDashboard() {
         });
       }
 
-      const initialRecords = matchedStudents.map(s => ({
+      const sortedMatched = sortStudentsByRoll(matchedStudents);
+      const initialRecords = sortedMatched.map(s => ({
         studentId: s.id,
         registerNumber: s.registerNumber,
         name: s.name,
@@ -1145,6 +1168,7 @@ function FacultyDashboard() {
               handleRegisterCloseSession={handleRegisterCloseSession}
               registerSessionId={registerSessionId}
               setRegisterSessionId={setRegisterSessionId}
+              fetchSessions={fetchSessions}
             />
           )}
 

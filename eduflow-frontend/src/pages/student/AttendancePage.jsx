@@ -12,6 +12,7 @@ function AttendancePage() {
   const [scanResult, setScanResult] = useState(null);
   const [scannerActive, setScannerActive] = useState(false);
   const [qrInstance, setQrInstance] = useState(null);
+  const [targetScanSession, setTargetScanSession] = useState(null);
   const [markingLoading, setMarkingLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
 
@@ -25,7 +26,7 @@ function AttendancePage() {
 
   const showResult = (success, message) => {
     setScanResult({ success, message });
-    setTimeout(() => setScanResult(null), 4000);
+    setTimeout(() => setScanResult(null), 5000);
   };
 
   const parseLocalDateTime = (str) => {
@@ -45,7 +46,6 @@ function AttendancePage() {
 
   const fetchActiveSession = async () => {
     if (!token) return;
-    setAttendanceLoading(true);
     try {
       const res = await getActiveSession(token);
       if (res.data) {
@@ -69,6 +69,21 @@ function AttendancePage() {
     try {
       const res = await getStudentAnalytics(token);
       setAnalytics(res.data);
+      if (res.data?.subjectWiseAttendance) {
+        const liveSub = res.data.subjectWiseAttendance.find(s => s.hasActiveSession);
+        if (liveSub && liveSub.activeSessionId) {
+          setActiveSession({
+            id: liveSub.activeSessionId,
+            subject: liveSub.subject,
+            facultyName: liveSub.facultyName,
+            currentOtp: liveSub.currentOtp,
+            expiryTime: liveSub.expiryTime
+          });
+          if (liveSub.timeLeftSeconds) {
+            setTimeLeft(liveSub.timeLeftSeconds);
+          }
+        }
+      }
     } catch (err) {
       console.error("Error fetching student analytics:", err);
     } finally {
@@ -95,9 +110,9 @@ function AttendancePage() {
       (error) => {
         setGpsLoading(false);
         const msgs = {
-          1: "GPS permission denied. Please allow location access.",
-          2: "GPS position unavailable. Try outdoors.",
-          3: "GPS request timed out. Please try again.",
+          1: "GPS permission denied. Please allow location access in browser settings.",
+          2: "GPS position unavailable. Try stepping outdoors.",
+          3: "GPS request timed out. Please retry.",
         };
         showResult(false, msgs[error.code] || "GPS error. Please check permissions.");
       },
@@ -111,30 +126,105 @@ function AttendancePage() {
     fetchAnalytics();
   }, [token]);
 
+  // Real-time polling
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAnalytics();
+      fetchActiveSession();
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   // Countdown timer for active session
   useEffect(() => {
-    if (!activeSession) return;
+    if (!activeSession && timeLeft <= 0) return;
     const interval = setInterval(() => {
-      const expiry = parseLocalDateTime(activeSession.expiryTime);
-      const diff = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
-      setTimeLeft(diff);
-      if (diff <= 0) {
-        setActiveSession(null);
-        stopScanner();
-        showResult(false, "Attendance session has expired.");
-        clearInterval(interval);
-      }
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          fetchActiveSession();
+          fetchAnalytics();
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(interval);
-  }, [activeSession]);
+  }, [activeSession, timeLeft]);
 
   const formatTimeLeft = (seconds) => {
+    if (!seconds || seconds <= 0) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
-  const submitAttendance = async (otp) => {
+  const parseQrPayload = (decodedText) => {
+    if (!decodedText) return null;
+    const text = String(decodedText).trim();
+
+    // 1. Check JSON format
+    if (text.startsWith("{") && text.endsWith("}")) {
+      try {
+        const data = JSON.parse(text);
+        const sessionId = data.sessionId || data.id || data.session_id;
+        const otp = data.otp || data.currentOtp || data.code;
+        if (otp) {
+          return { sessionId: sessionId ? parseInt(sessionId, 10) : undefined, otp: String(otp).trim(), subject: data.subject };
+        }
+      } catch (e) {}
+    }
+
+    // 2. Check standard eduflow colon format
+    if (text.startsWith("eduflow:session:")) {
+      const parts = text.split(":");
+      if (parts.length >= 4) {
+        return {
+          sessionId: parseInt(parts[2], 10),
+          otp: String(parts[3]).trim(),
+          subject: parts[4] ? decodeURIComponent(parts[4]) : undefined
+        };
+      }
+    }
+
+    // 3. Check generic colon formats
+    const colonParts = text.split(":");
+    if (colonParts.length === 2 && !isNaN(colonParts[0])) {
+      return { sessionId: parseInt(colonParts[0], 10), otp: String(colonParts[1]).trim() };
+    }
+    if (colonParts.length === 3 && colonParts[0].toLowerCase() === "session" && !isNaN(colonParts[1])) {
+      return { sessionId: parseInt(colonParts[1], 10), otp: String(colonParts[2]).trim() };
+    }
+
+    // 4. Check URL parameter format
+    if (text.includes("sessionId=") || text.includes("session_id=") || text.includes("otp=")) {
+      try {
+        const url = new URL(text.startsWith("http") ? text : `http://localhost/${text}`);
+        const sId = url.searchParams.get("sessionId") || url.searchParams.get("session_id");
+        const otp = url.searchParams.get("otp") || url.searchParams.get("code");
+        if (otp) {
+          return {
+            sessionId: sId ? parseInt(sId, 10) : undefined,
+            otp: String(otp).trim(),
+            subject: url.searchParams.get("subject") || undefined
+          };
+        }
+      } catch (e) {}
+    }
+
+    // 5. Raw OTP fallback
+    if (/^\d{4,8}$/.test(text)) {
+      return { otp: text.trim() };
+    }
+
+    return null;
+  };
+
+  const submitAttendance = async (otp, parsedSessionId = null) => {
+    const targetSessionId = parsedSessionId || targetScanSession?.activeSessionId || activeSession?.id;
+    if (!targetSessionId) {
+      showResult(false, "No active session identified. Please ensure a session is ongoing.");
+      return;
+    }
     if (!coords) {
       showResult(false, "GPS location is required. Please authorize location access first.");
       requestLocation();
@@ -144,16 +234,17 @@ function AttendancePage() {
     try {
       const res = await markAttendance(
         {
-          sessionId: activeSession.id,
+          sessionId: targetSessionId,
           otp: otp,
           latitude: coords.latitude,
           longitude: coords.longitude,
         },
         token
       );
-      showResult(true, res.data || "Attendance marked successfully as PRESENT!");
-      // Re-fetch analytics immediately to reflect attendance updates
+      showResult(true, res.data || "Attendance marked successfully as PRESENT! 🎉");
+      setTargetScanSession(null);
       fetchAnalytics();
+      fetchActiveSession();
     } catch (err) {
       showResult(false, err.response?.data || "Failed to mark attendance.");
     } finally {
@@ -168,21 +259,21 @@ function AttendancePage() {
     setScannerActive(false);
     setQrInstance(null);
 
-    const parts = decodedText.trim().split(":");
-    if (parts.length >= 4 && parts[0] === "eduflow" && parts[1] === "session") {
-      const parsedId = parseInt(parts[2], 10);
-      if (parsedId !== activeSession.id) {
+    const parsed = parseQrPayload(decodedText);
+    if (parsed && parsed.otp) {
+      const expectedId = targetScanSession?.activeSessionId || activeSession?.id;
+      if (parsed.sessionId && expectedId && parsed.sessionId !== expectedId) {
         showResult(false, "Scanned QR code is for a different class session!");
         return;
       }
-      submitAttendance(parts[3]);
+      submitAttendance(parsed.otp, parsed.sessionId || expectedId);
     } else {
       showResult(false, "Invalid QR code format. Please scan the official class QR code.");
     }
   };
 
-  const startScanner = () => {
-    if (!activeSession) return;
+  const startScanner = (subItem = null) => {
+    setTargetScanSession(subItem);
     if (!coords) {
       showResult(false, "Please authorize GPS location access before scanning.");
       requestLocation();
@@ -399,48 +490,87 @@ function AttendancePage() {
           {/* Subject Breakdown Card */}
           <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
             <h3 style={{ fontSize: "1.15rem", fontWeight: "700", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid var(--card-border)", paddingBottom: "12px", margin: 0 }}>
-              <span>📚</span> Subject Wise Percentage
+              <span>📚</span> Enrolled Subjects & Attendance
             </h3>
 
             {analyticsLoading ? (
-              <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)" }}>Loading analytics...</div>
+              <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)" }}>Loading curriculum subjects...</div>
             ) : !analytics || !analytics.subjectWiseAttendance || analytics.subjectWiseAttendance.length === 0 ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontStyle: "italic" }}>
                 No subject attendance data available yet.
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {analytics.subjectWiseAttendance.map((sub, idx) => {
-                  const percentage = Math.round(sub.attendancePercentage);
+                  const percentage = Math.round(sub.attendancePercentage || 0);
                   const isBelowThreshold = sub.attendancePercentage < 75.0;
-                  
+                  const isLive = sub.hasActiveSession;
+                  const total = (sub.presentClasses || 0) + (sub.absentClasses || 0);
+
                   return (
-                    <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      
+                    <div
+                      key={idx}
+                      style={{
+                        padding: "16px",
+                        borderRadius: "12px",
+                        background: isLive ? "rgba(16, 185, 129, 0.05)" : "rgba(255, 255, 255, 0.02)",
+                        border: isLive ? "2px solid #10b981" : "1px solid var(--card-border)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "10px"
+                      }}
+                    >
                       {/* Name & Badge Row */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "0.9rem" }}>{sub.subject}</span>
-                          {isBelowThreshold && (
-                            <span style={{
-                              padding: "2px 8px",
-                              background: "rgba(244, 63, 94, 0.12)",
-                              border: "1px solid rgba(244, 63, 94, 0.3)",
-                              color: "#f43f5e",
-                              borderRadius: "4px",
-                              fontSize: "0.65rem",
-                              fontWeight: "800"
-                            }}>
-                              LOW ATTENDANCE
-                            </span>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ fontWeight: "800", color: "var(--text-main)", fontSize: "0.95rem" }}>{sub.subject}</span>
+                            {isLive && (
+                              <span style={{
+                                padding: "2px 8px",
+                                background: "#dcfce7",
+                                color: "#166534",
+                                borderRadius: "6px",
+                                fontSize: "0.7rem",
+                                fontWeight: "800",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px"
+                              }}>
+                                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", animation: "pulse 1.5s infinite" }} />
+                                QR ACTIVE
+                              </span>
+                            )}
+                            {isBelowThreshold && !isLive && (
+                              <span style={{
+                                padding: "2px 8px",
+                                background: "rgba(244, 63, 94, 0.12)",
+                                border: "1px solid rgba(244, 63, 94, 0.3)",
+                                color: "#f43f5e",
+                                borderRadius: "4px",
+                                fontSize: "0.65rem",
+                                fontWeight: "800"
+                              }}>
+                                LOW ATTENDANCE
+                              </span>
+                            )}
+                          </div>
+                          {sub.subjectName && sub.subjectName !== sub.subject && (
+                            <p style={{ margin: "2px 0 0 0", fontSize: "0.85rem", color: "var(--text-main)", opacity: 0.85 }}>
+                              {sub.subjectName}
+                            </p>
                           )}
+                          <p style={{ margin: "3px 0 0 0", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                            Faculty: <strong>{sub.facultyName || "Course Instructor"}</strong>
+                          </p>
                         </div>
+
                         <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
-                          <span style={{ fontSize: "1.1rem", fontWeight: "800", color: isBelowThreshold ? "#f43f5e" : "var(--text-main)" }}>
+                          <span style={{ fontSize: "1.15rem", fontWeight: "800", color: isBelowThreshold ? "#f43f5e" : "#10b981" }}>
                             {percentage}%
                           </span>
                           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                            ({sub.presentClasses} present / {sub.presentClasses + sub.absentClasses} total)
+                            ({sub.presentClasses || 0} / {total} classes)
                           </span>
                         </div>
                       </div>
@@ -450,11 +580,37 @@ function AttendancePage() {
                         <div style={{
                           height: "100%",
                           width: `${percentage}%`,
-                          background: isBelowThreshold ? "#f43f5e" : "var(--primary)",
+                          background: isBelowThreshold ? "#f43f5e" : "#10b981",
                           borderRadius: "999px",
                           transition: "width 1s ease-out"
                         }} />
                       </div>
+
+                      {/* Action if QR Active */}
+                      {isLive && (
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
+                          <button
+                            onClick={() => startScanner(sub)}
+                            disabled={markingLoading || !coords}
+                            style={{
+                              padding: "6px 14px",
+                              background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: "8px",
+                              fontSize: "0.8rem",
+                              fontWeight: "700",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px"
+                            }}
+                          >
+                            <i className="fa-solid fa-camera"></i>
+                            Scan QR for this Class
+                          </button>
+                        </div>
+                      )}
 
                     </div>
                   );

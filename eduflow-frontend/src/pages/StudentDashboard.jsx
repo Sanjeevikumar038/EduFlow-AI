@@ -532,23 +532,48 @@ function StudentDashboard() {
     setScannerActive(false);
     setQrInstance(null);
 
-    // 2. Decode payload format: eduflow:session:id:otp
-    const parts = decodedText.trim().split(":");
-    if (parts.length >= 4 && parts[0] === "eduflow" && parts[1] === "session") {
-      const parsedSessionId = parseInt(parts[2], 10);
-      if (parsedSessionId !== activeSession.id) {
+    // Parse decoded payload across all supported formats (JSON, colon, URL, OTP)
+    let parsed = null;
+    const text = String(decodedText || "").trim();
+
+    if (text.startsWith("{") && text.endsWith("}")) {
+      try {
+        const data = JSON.parse(text);
+        const sId = data.sessionId || data.id || data.session_id;
+        const otp = data.otp || data.currentOtp || data.code;
+        if (otp) {
+          parsed = { sessionId: sId ? parseInt(sId, 10) : undefined, otp: String(otp).trim() };
+        }
+      } catch (e) {}
+    } else if (text.startsWith("eduflow:session:")) {
+      const parts = text.split(":");
+      if (parts.length >= 4) {
+        parsed = { sessionId: parseInt(parts[2], 10), otp: String(parts[3]).trim() };
+      }
+    } else if (text.includes(":") && !isNaN(text.split(":")[0])) {
+      const parts = text.split(":");
+      parsed = { sessionId: parseInt(parts[0], 10), otp: String(parts[1]).trim() };
+    } else if (/^\d{4,8}$/.test(text)) {
+      parsed = { otp: text.trim() };
+    }
+
+    if (parsed && parsed.otp) {
+      if (parsed.sessionId && activeSession?.id && parsed.sessionId !== activeSession.id) {
         showFeedback("Scanned QR code is for a different class session!", "error");
         return;
       }
-
-      const otp = parts[3];
-      submitAttendance(otp);
+      submitAttendance(parsed.otp, parsed.sessionId);
     } else {
       showFeedback("Invalid QR code format. Please scan the official class QR code.", "error");
     }
   };
 
-  const submitAttendance = async (otp) => {
+  const submitAttendance = async (otp, parsedSessionId = null) => {
+    const targetSessionId = parsedSessionId || activeSession?.id;
+    if (!targetSessionId) {
+      showFeedback("No active session found. Please wait for the teacher to start a session.", "error");
+      return;
+    }
     if (!coords) {
       showFeedback("GPS location access is required. Please authorize location permission first.", "error");
       requestLocation();
@@ -559,7 +584,7 @@ function StudentDashboard() {
     try {
       const res = await markAttendance(
         {
-          sessionId: activeSession.id,
+          sessionId: targetSessionId,
           otp: otp,
           latitude: coords.latitude,
           longitude: coords.longitude
@@ -567,6 +592,8 @@ function StudentDashboard() {
         token
       );
       showFeedback(res.data || "Attendance marked successfully as PRESENT!", "success");
+      fetchAnalytics();
+      fetchActiveSession();
       // Go back to overview after success
       setTimeout(() => {
         setActiveTab("overview");

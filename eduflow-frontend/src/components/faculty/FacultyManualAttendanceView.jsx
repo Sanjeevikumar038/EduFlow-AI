@@ -30,7 +30,8 @@ function FacultyManualAttendanceView({
   handleSaveManualAttendance,
   handleRegisterCloseSession,
   registerSessionId,
-  setRegisterSessionId
+  setRegisterSessionId,
+  fetchSessions
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2rem", width: "100%", animation: "fadeIn 0.5s ease" }}>
@@ -178,6 +179,7 @@ function FacultyManualAttendanceView({
           <div style={{ 
             display: "flex", 
             gap: "1.25rem", 
+            alignItems: "flex-end",
             flexWrap: "wrap", 
             padding: "1.25rem", 
             background: "var(--bg-secondary, rgba(255,255,255,0.02))", 
@@ -186,7 +188,31 @@ function FacultyManualAttendanceView({
             marginBottom: "1.5rem" 
           }}>
             <div className="form-group" style={{ margin: 0, flex: 1, minWidth: "280px" }}>
-              <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "700", marginBottom: "6px" }}>Select Active or Past Session</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "700", margin: 0 }}>
+                  Select Active or Past Session ({sessions.length} Available)
+                </label>
+                {fetchSessions && (
+                  <button
+                    type="button"
+                    onClick={() => fetchSessions(true)}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--primary, #4f46e5)",
+                      fontSize: "0.75rem",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                    title="Reload recent sessions"
+                  >
+                    🔄 Refresh List
+                  </button>
+                )}
+              </div>
               <select
                 className="input-field"
                 style={{ 
@@ -195,22 +221,28 @@ function FacultyManualAttendanceView({
                   minHeight: "44px", 
                   padding: "0 12px", 
                   fontSize: "0.88rem", 
-                  lineHeight: "normal",
+                  lineHeight: "normal", 
                   color: "var(--text-main)", 
                   backgroundColor: "var(--bg-card, #ffffff)", 
                   border: "1px solid var(--card-border, #cbd5e1)", 
                   borderRadius: "8px", 
-                  cursor: "pointer" 
-                }}
+                  cursor: "pointer",
+                  width: "100%"
+                }} 
                 value={registerSessionId}
                 onChange={e => { setRegisterSessionId(e.target.value); loadRegisterSession(e.target.value); }}
               >
-                <option value="">-- Choose Session --</option>
-                {sessions.map(s => (
-                  <option key={s.id} value={s.id}>
-                    Session #{s.id} · {s.subject} · {new Date(s.startTime).toLocaleDateString()} @ {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </option>
-                ))}
+                <option value="">-- Choose Session ({sessions.length} recorded) --</option>
+                {sessions.map(s => {
+                  const sDate = s.startTime ? new Date(s.startTime).toLocaleDateString() : "";
+                  const sTime = s.startTime ? new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
+                  const deptBadge = s.department ? ` [${s.department.replace("Department of ", "")}${s.semester ? ` Sem ${s.semester}` : ""}]` : "";
+                  return (
+                    <option key={s.id} value={s.id}>
+                      Session #{s.id} · {s.subject}{deptBadge} · {sDate} @ {sTime}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>
@@ -227,7 +259,7 @@ function FacultyManualAttendanceView({
                   <tr style={{ borderBottom: "2px solid var(--card-border)", color: "var(--text-muted)" }}>
                     <th style={{ padding: "0.75rem 1rem" }}>Reg No.</th>
                     <th style={{ padding: "0.75rem 1rem" }}>Student Name</th>
-                    <th style={{ padding: "0.75rem 1rem", textAlign: "center" }}>Status Status</th>
+                    <th style={{ padding: "0.75rem 1rem", textAlign: "center" }}>Attendance Status</th>
                     <th style={{ padding: "0.75rem 1rem" }}>Remarks</th>
                   </tr>
                 </thead>
