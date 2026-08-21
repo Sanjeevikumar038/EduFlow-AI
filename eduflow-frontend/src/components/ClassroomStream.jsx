@@ -26,13 +26,18 @@ const ClassroomStream = ({ classroom, userRole }) => {
   }, [classroom?.id]);
 
   const fetchAnnouncements = async () => {
-    if (!classroom?.id || !token) return;
+    const classId = classroom?.id;
+    if (!classId || !token) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const res = await getClassroomAnnouncements(classroom.id, token);
+      const res = await getClassroomAnnouncements(classId, token);
       setAnnouncements(res.data || []);
     } catch (err) {
       console.error("Failed to load announcements:", err);
+      setAnnouncements([]);
     } finally {
       setLoading(false);
     }

@@ -77,8 +77,8 @@
   --secondary-hover: #7c3aed;
 
   --text-main: #0f172a;
-  --text-muted: #64748b;
-  --text-secondary: #475569;
+  --text-muted: #334155;
+  --text-secondary: #1e293b;
   --text-inverse: #ffffff;
 
   --card-bg: #ffffff;
@@ -203,11 +203,15 @@ body {
 
 [data-theme="light"] .text-slate-400,
 [data-theme="light"] .text-slate-500 {
-  color: #64748b !important;
+  color: #334155 !important;
 }
 
 [data-theme="light"] .text-slate-600 {
-  color: #475569 !important;
+  color: #1e293b !important;
+}
+
+[data-theme="light"] .text-muted {
+  color: #334155 !important;
 }
 
 /* Backgrounds with opacity */

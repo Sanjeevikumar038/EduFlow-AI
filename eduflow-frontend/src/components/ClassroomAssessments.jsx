@@ -58,6 +58,7 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
   const [activeAttempt, setActiveAttempt] = useState(null);
   const [userAnswers, setUserAnswers] = useState({});
   const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(1800);
   const [pasteWarning, setPasteWarning] = useState(null);
 
   const triggerPasteWarning = (msg = "Copying & Pasting is disabled during this assessment. Please enter your answer manually.") => {
@@ -76,6 +77,23 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
   // Student Score Review State (Single Attempt Modal)
   const [showStudentScoreModal, setShowStudentScoreModal] = useState(false);
   const [studentScoreData, setStudentScoreData] = useState(null);
+
+  const parseQuestionOptions = (opts) => {
+    if (!opts) return [];
+    if (Array.isArray(opts)) return opts;
+    if (typeof opts === "string") {
+      if (opts.includes("||")) {
+        return opts.split("||").map((s) => s.trim()).filter(Boolean);
+      }
+      try {
+        const parsed = JSON.parse(opts);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        return opts.split(",").map((s) => s.trim().replace(/^['"\[\]]+|['"\[\]]+$/g, "")).filter(Boolean);
+      }
+    }
+    return [];
+  };
 
   useEffect(() => {
     fetchAssessments();
@@ -97,13 +115,18 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
   }, [showAttemptModal, timeLeft]);
 
   const fetchAssessments = async () => {
-    if (!classroom?.id || !token) return;
+    const classId = classroom?.id;
+    if (!classId || !token) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const res = await getClassroomAssessments(classroom.id, token);
+      const res = await getClassroomAssessments(classId, token);
       setAssessments(res.data || []);
     } catch (err) {
       console.error("Failed to load assessments:", err);
+      setAssessments([]);
     } finally {
       setLoading(false);
     }
@@ -1047,11 +1070,11 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
                     </div>
 
                     {/* Options / Answer Input */}
-                    {currentQ.questionType === "MCQ" && currentQ.options && (
+                    {currentQ.questionType === "MCQ" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem", paddingTop: "0.5rem" }}>
-                        {currentQ.options.map((opt, oIdx) => {
+                        {parseQuestionOptions(currentQ.options).map((opt, oIdx) => {
                           const qKey = currentQ.id != null ? currentQ.id : (currentQIndex + 1);
-                          const isSelected = userAnswers[qKey] === opt || userAnswers[currentQ.id] === opt || userAnswers[currentQIndex + 1] === opt;
+                          const isSelected = userAnswers[qKey] === opt || (currentQ.id != null && userAnswers[currentQ.id] === opt) || userAnswers[currentQIndex + 1] === opt;
                           const optionLetters = ["A", "B", "C", "D", "E", "F"];
                           const letter = optionLetters[oIdx] || String(oIdx + 1);
 
@@ -1060,6 +1083,7 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
                               key={oIdx}
                               onClick={() => {
                                 const next = { ...userAnswers };
+                                next[qKey] = opt;
                                 if (currentQ.id != null) next[currentQ.id] = opt;
                                 next[currentQIndex + 1] = opt;
                                 setUserAnswers(next);
@@ -1133,51 +1157,60 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
                     )}
 
                     {/* Subjective Response */}
-                    {currentQ.questionType !== "MCQ" && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                        <textarea
-                          rows={6}
-                          placeholder="Write your answer response here..."
-                          value={userAnswers[currentQ.id] || ""}
-                          onChange={(e) => setUserAnswers({ ...userAnswers, [currentQ.id]: e.target.value })}
-                          onKeyDown={(e) => {
-                            if (((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) || (e.shiftKey && e.key === 'Insert')) {
+                    {currentQ.questionType !== "MCQ" && (() => {
+                      const qKey = currentQ.id != null ? currentQ.id : (currentQIndex + 1);
+                      return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          <textarea
+                            rows={6}
+                            placeholder="Write your answer response here..."
+                            value={userAnswers[qKey] || (currentQ.id != null ? userAnswers[currentQ.id] : "") || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const next = { ...userAnswers, [qKey]: val };
+                              if (currentQ.id != null) next[currentQ.id] = val;
+                              next[currentQIndex + 1] = val;
+                              setUserAnswers(next);
+                            }}
+                            onKeyDown={(e) => {
+                              if (((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) || (e.shiftKey && e.key === 'Insert')) {
+                                e.preventDefault();
+                                triggerPasteWarning();
+                              }
+                            }}
+                            onPaste={(e) => {
                               e.preventDefault();
                               triggerPasteWarning();
-                            }
-                          }}
-                          onPaste={(e) => {
-                            e.preventDefault();
-                            triggerPasteWarning();
-                          }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            triggerPasteWarning("Dragging and dropping text into answers is disabled!");
-                          }}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            triggerPasteWarning("Right-click context menu is disabled in assessment mode!");
-                          }}
-                          spellCheck="false"
-                          autoComplete="off"
-                          autoCorrect="off"
-                          autoCapitalize="off"
-                          style={{
-                            width: "100%",
-                            padding: "1.1rem 1.3rem",
-                            backgroundColor: "var(--input-bg)",
-                            border: "1px solid var(--input-border)",
-                            borderRadius: "14px",
-                            color: "var(--text-main)",
-                            fontSize: "0.95rem",
-                            lineHeight: "1.6",
-                            outline: "none",
-                            boxSizing: "border-box",
-                            resize: "vertical"
-                          }}
-                        />
-                      </div>
-                    )}
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              triggerPasteWarning("Dragging and dropping text into answers is disabled!");
+                            }}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              triggerPasteWarning("Right-click context menu is disabled in assessment mode!");
+                            }}
+                            spellCheck="false"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            style={{
+                              width: "100%",
+                              padding: "1.1rem 1.3rem",
+                              backgroundColor: "var(--input-bg)",
+                              border: "1px solid var(--input-border)",
+                              borderRadius: "14px",
+                              color: "var(--text-main)",
+                              fontSize: "0.95rem",
+                              lineHeight: "1.6",
+                              outline: "none",
+                              boxSizing: "border-box",
+                              resize: "vertical"
+                            }}
+                          />
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "3rem" }}>
@@ -2636,8 +2669,10 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
                   }
 
                   return qs.map((q, idx) => {
-                    const studentAns = parsedAns[q.id] || parsedAns[String(q.id)] || parsedAns[idx + 1] || "No response";
-                    const isCorrect = q.correctAnswer && studentAns.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase();
+                    const rawStudentAns = parsedAns[q.id] ?? parsedAns[String(q.id)] ?? parsedAns[idx + 1] ?? "No response";
+                    const studentAnsStr = String(rawStudentAns ?? "").trim();
+                    const correctAnsStr = String(q.correctAnswer ?? "").trim();
+                    const isCorrect = correctAnsStr !== "" && studentAnsStr.toLowerCase() === correctAnsStr.toLowerCase();
 
                     return (
                       <div
@@ -2673,7 +2708,7 @@ const ClassroomAssessments = ({ classroom, userRole }) => {
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
                           <div style={{ fontSize: "0.82rem", color: isCorrect ? "#10b981" : "#ef4444", fontWeight: "700" }}>
-                            Your Answer: {studentAns}
+                            Your Answer: {studentAnsStr || "No response"}
                           </div>
                           {!isCorrect && (
                             <div style={{ fontSize: "0.82rem", color: "#10b981", fontWeight: "700" }}>

@@ -1,9 +1,9 @@
 import React from "react";
 
 function StatCard({ title, value, status, icon, caption, progress, color }) {
-  const badgeColor = color === "amber" ? "rgba(245, 158, 11, 0.15)" : "rgba(244, 63, 94, 0.15)";
-  const badgeText = color === "amber" ? "var(--warning)" : "var(--error)";
-  const barColor = color === "amber" ? "#f59e0b" : "#f43f5e";
+  const badgeColor = color === "amber" ? "rgba(245, 158, 11, 0.15)" : color === "emerald" ? "rgba(16, 185, 129, 0.15)" : "rgba(244, 63, 94, 0.15)";
+  const badgeText = color === "amber" ? "var(--warning)" : color === "emerald" ? "var(--success)" : "var(--error)";
+  const barColor = color === "amber" ? "#f59e0b" : color === "emerald" ? "#10b981" : "#f43f5e";
 
   return (
     <div className="dashboard-card" style={{
@@ -40,7 +40,7 @@ function StatCard({ title, value, status, icon, caption, progress, color }) {
       </div>
       <div>
         <div style={{ height: "6px", width: "100%", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: "999px", overflow: "hidden", marginBottom: "0.5rem" }}>
-          <div style={{ height: "100%", width: `${progress}%`, backgroundColor: barColor, borderRadius: "999px" }} />
+          <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, progress))}%`, backgroundColor: barColor, borderRadius: "999px" }} />
         </div>
         <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{caption}</span>
       </div>
@@ -49,13 +49,28 @@ function StatCard({ title, value, status, icon, caption, progress, color }) {
 }
 
 function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
-  const recentActivities = [
-    { id: 1, icon: <i className="fa-solid fa-user"></i>, title: "Faculty Account Created", details: "Dr. Sarah Connor registered under CSE department.", time: "5 mins ago" },
-    { id: 2, icon: <i className="fa-solid fa-calendar-days"></i>, title: "Timetable Updated", details: "Timetable periods assigned for M.Tech CSE.", time: "1 hour ago" },
-    { id: 3, icon: <i className="fa-solid fa-file-invoice"></i>, title: "OD Request Approved", details: "Approved student leave request for John Doe.", time: "2 hours ago" },
-    { id: 4, icon: <i className="fa-solid fa-book"></i>, title: "New Subject Registered", details: "Subject 'Applied Generative AI' registered.", time: "1 day ago" },
-    { id: 5, icon: <i className="fa-solid fa-gear"></i>, title: "System Maintenance", details: "Weekly database backup completed successfully.", time: "1 day ago" }
-  ];
+  // Use real recent activities from backend, or clean fallback
+  const activitiesList = (adminAnalytics?.recentActivities && adminAnalytics.recentActivities.length > 0)
+    ? adminAnalytics.recentActivities
+    : [
+        { id: "act-1", title: "System Initialized", details: "EduFlow Analytics engine active", time: "Just now", iconType: "user" }
+      ];
+
+  const getIcon = (iconType) => {
+    switch (iconType) {
+      case "session":
+        return <i className="fa-solid fa-bolt" style={{ color: "#10b981" }}></i>;
+      case "leave":
+        return <i className="fa-solid fa-file-invoice" style={{ color: "#f59e0b" }}></i>;
+      case "user":
+      default:
+        return <i className="fa-solid fa-user-graduate" style={{ color: "#6366f1" }}></i>;
+    }
+  };
+
+  const totalStud = adminAnalytics?.totalStudents ?? 0;
+  const totalFac = adminAnalytics?.totalFaculty ?? 0;
+  const totalSess = adminAnalytics?.totalSessions ?? 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2rem", width: "100%", animation: "fadeIn 0.5s ease" }}>
@@ -64,29 +79,29 @@ function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: "1.5rem", width: "100%" }}>
         <StatCard
           title="Total Students"
-          value={adminAnalytics?.totalStudents !== undefined ? `${(adminAnalytics.totalStudents * 1.0).toFixed(1)}%` : "78.0%"}
+          value={`${totalStud}`}
           status="TOTAL ACTIVE"
           icon={<i className="fa-solid fa-user-graduate"></i>}
-          caption="System Student Count"
-          progress={78}
-          color="amber"
+          caption="Registered Students Count"
+          progress={totalStud ? Math.min(100, totalStud) : 0}
+          color="emerald"
         />
         <StatCard
           title="Total Faculty"
-          value={adminAnalytics?.totalFaculty !== undefined ? `${(adminAnalytics.totalFaculty * 1.0).toFixed(1)}%` : "19.0%"}
-          status="TOTAL CONDUCTOR"
+          value={`${totalFac}`}
+          status="TOTAL CONDUCTORS"
           icon={<i className="fa-solid fa-user"></i>}
-          caption="System Faculty Count"
-          progress={19}
-          color="rose"
+          caption="Faculty & Instructors Count"
+          progress={totalFac ? Math.min(100, totalFac * 5) : 0}
+          color="amber"
         />
         <StatCard
           title="Total Sessions"
-          value={adminAnalytics?.totalSessions !== undefined ? `${(adminAnalytics.totalSessions * 1.0).toFixed(1)}%` : "0.0%"}
+          value={`${totalSess}`}
           status="CONDUCTED"
           icon={<i className="fa-solid fa-bolt"></i>}
           caption="Total Attendance Sessions"
-          progress={0}
+          progress={totalSess ? Math.min(100, totalSess * 10) : 0}
           color="rose"
         />
       </div>
@@ -136,10 +151,10 @@ function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
             ⚡ Recent Activity
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {recentActivities.map(act => (
+            {activitiesList.map(act => (
               <div key={act.id} style={{ display: "flex", alignItems: "center", gap: "1rem", paddingBottom: "0.75rem", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                 <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(99, 102, 241, 0.1)", border: "1px solid rgba(99, 102, 241, 0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>
-                  {act.icon}
+                  {getIcon(act.iconType)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h5 style={{ margin: 0, fontSize: "0.85rem", fontWeight: "600", color: "var(--text-main)" }}>{act.title}</h5>

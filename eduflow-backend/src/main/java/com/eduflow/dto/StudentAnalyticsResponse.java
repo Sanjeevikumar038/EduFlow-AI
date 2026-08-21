@@ -30,13 +30,24 @@ public class StudentAnalyticsResponse {
     @AllArgsConstructor
     public static class SubjectAttendance {
         private String subject;
+        private String subjectName;
+        private String facultyName;
         private double attendancePercentage;
         private int presentClasses;
         private int absentClasses;
         private boolean isLow; // true if below 75%
+        private boolean hasActiveSession;
+        private Long activeSessionId;
+        private String currentOtp;
+        private String expiryTime;
+        private Integer timeLeftSeconds;
 
         public String getSubject() { return subject; }
         public void setSubject(String subject) { this.subject = subject; }
+        public String getSubjectName() { return subjectName; }
+        public void setSubjectName(String subjectName) { this.subjectName = subjectName; }
+        public String getFacultyName() { return facultyName; }
+        public void setFacultyName(String facultyName) { this.facultyName = facultyName; }
         public double getAttendancePercentage() { return attendancePercentage; }
         public void setAttendancePercentage(double attendancePercentage) { this.attendancePercentage = attendancePercentage; }
         public int getPresentClasses() { return presentClasses; }
@@ -45,26 +56,56 @@ public class StudentAnalyticsResponse {
         public void setAbsentClasses(int absentClasses) { this.absentClasses = absentClasses; }
         public boolean isLow() { return isLow; }
         public void setLow(boolean low) { isLow = low; }
+        public boolean isHasActiveSession() { return hasActiveSession; }
+        public void setHasActiveSession(boolean hasActiveSession) { this.hasActiveSession = hasActiveSession; }
+        public Long getActiveSessionId() { return activeSessionId; }
+        public void setActiveSessionId(Long activeSessionId) { this.activeSessionId = activeSessionId; }
+        public String getCurrentOtp() { return currentOtp; }
+        public void setCurrentOtp(String currentOtp) { this.currentOtp = currentOtp; }
+        public String getExpiryTime() { return expiryTime; }
+        public void setExpiryTime(String expiryTime) { this.expiryTime = expiryTime; }
+        public Integer getTimeLeftSeconds() { return timeLeftSeconds; }
+        public void setTimeLeftSeconds(Integer timeLeftSeconds) { this.timeLeftSeconds = timeLeftSeconds; }
 
         public static SubjectAttendanceBuilder builder() { return new SubjectAttendanceBuilder(); }
         public static class SubjectAttendanceBuilder {
             private String subject;
+            private String subjectName;
+            private String facultyName;
             private double attendancePercentage;
             private int presentClasses;
             private int absentClasses;
             private boolean isLow;
+            private boolean hasActiveSession;
+            private Long activeSessionId;
+            private String currentOtp;
+            private String expiryTime;
+            private Integer timeLeftSeconds;
 
             public SubjectAttendanceBuilder subject(String subject) { this.subject = subject; return this; }
+            public SubjectAttendanceBuilder subjectName(String subjectName) { this.subjectName = subjectName; return this; }
+            public SubjectAttendanceBuilder facultyName(String facultyName) { this.facultyName = facultyName; return this; }
             public SubjectAttendanceBuilder attendancePercentage(double attendancePercentage) { this.attendancePercentage = attendancePercentage; return this; }
             public SubjectAttendanceBuilder presentClasses(int presentClasses) { this.presentClasses = presentClasses; return this; }
             public SubjectAttendanceBuilder absentClasses(int absentClasses) { this.absentClasses = absentClasses; return this; }
             public SubjectAttendanceBuilder isLow(boolean isLow) { this.isLow = isLow; return this; }
+            public SubjectAttendanceBuilder hasActiveSession(boolean hasActiveSession) { this.hasActiveSession = hasActiveSession; return this; }
+            public SubjectAttendanceBuilder activeSessionId(Long activeSessionId) { this.activeSessionId = activeSessionId; return this; }
+            public SubjectAttendanceBuilder currentOtp(String currentOtp) { this.currentOtp = currentOtp; return this; }
+            public SubjectAttendanceBuilder expiryTime(String expiryTime) { this.expiryTime = expiryTime; return this; }
+            public SubjectAttendanceBuilder timeLeftSeconds(Integer timeLeftSeconds) { this.timeLeftSeconds = timeLeftSeconds; return this; }
 
             public SubjectAttendance build() {
                 SubjectAttendance sa = new SubjectAttendance();
-                sa.setSubject(subject); sa.setAttendancePercentage(attendancePercentage);
+                sa.setSubject(subject); sa.setSubjectName(subjectName); sa.setFacultyName(facultyName);
+                sa.setAttendancePercentage(attendancePercentage);
                 sa.setPresentClasses(presentClasses); sa.setAbsentClasses(absentClasses);
                 sa.setLow(isLow);
+                sa.setHasActiveSession(hasActiveSession);
+                sa.setActiveSessionId(activeSessionId);
+                sa.setCurrentOtp(currentOtp);
+                sa.setExpiryTime(expiryTime);
+                sa.setTimeLeftSeconds(timeLeftSeconds);
                 return sa;
             }
         }

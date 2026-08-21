@@ -124,8 +124,8 @@ const CodingDashboard = () => {
       {/* Header section */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <h2 className="text-3xl font-extrabold text-white tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>
-            💻 Coding Performance Hub
+          <h2 className="text-3xl font-extrabold text-white tracking-tight" style={{ fontFamily: "var(--font-heading)", display: "flex", alignItems: "center", gap: "10px" }}>
+            <i className="fa-solid fa-code" style={{ color: "var(--primary)" }}></i> Coding Performance Hub
           </h2>
           <p style={{ color: "var(--text-muted)", marginTop: "0.25rem", fontSize: "0.95rem" }}>
             Monitor your coding stats, daily challenge streaks, and submission analytics in real-time.
@@ -135,7 +135,7 @@ const CodingDashboard = () => {
           onClick={() => { fetchData(); fetchChallenge(); }}
           className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/5 font-semibold text-sm flex items-center gap-2"
         >
-          🔄 Refresh Page
+          <i className="fa-solid fa-rotate-right"></i> Refresh Page
         </button>
       </div>
 
@@ -153,16 +153,20 @@ const CodingDashboard = () => {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
                   <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "#f87171", textTransform: "uppercase", letterSpacing: "0.05em" }}>Coding Streak</span>
-                  <div style={{ fontSize: "2.2rem", fontWeight: "800", color: "#f87171", display: "flex", alignItems: "center", gap: "0.4rem", marginTop: "0.25rem" }}>
+                  <div style={{ fontSize: "2.2rem", fontWeight: "800", color: "#f87171", display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.25rem" }}>
                     <span>{progress.currentStreak || 0}</span>
-                    <span style={{ animation: "pulse 1.5s infinite", display: "inline-block" }}>🔥</span>
+                    <i className="fa-solid fa-fire" style={{ fontSize: "1.6rem", color: "#f87171", animation: "pulse 1.5s infinite" }}></i>
                   </div>
                 </div>
-                <div style={{ padding: "0.4rem", borderRadius: "10px", background: "rgba(239, 68, 68, 0.1)", fontSize: "1.1rem" }}>📅</div>
+                <div style={{ padding: "0.6rem", borderRadius: "10px", background: "rgba(239, 68, 68, 0.1)", color: "#f87171", fontSize: "1.1rem" }}>
+                  <i className="fa-solid fa-calendar-days"></i>
+                </div>
               </div>
-              <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)", paddingTop: "0.5rem", fontSize: "0.8rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
+              <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)", paddingTop: "0.5rem", fontSize: "0.8rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>Longest Streak:</span>
-                <span style={{ color: "var(--text-main)", fontWeight: "700" }}>🏆 {progress.longestStreak || 0} days</span>
+                <span style={{ color: "var(--text-main)", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <i className="fa-solid fa-trophy" style={{ color: "#fbbf24" }}></i> {progress.longestStreak || 0} days
+                </span>
               </div>
             </div>
 
@@ -175,7 +179,9 @@ const CodingDashboard = () => {
                     {formatRate(progress.successRate)}<span style={{ fontSize: "1.2rem", fontWeight: "500" }}>%</span>
                   </div>
                 </div>
-                <div style={{ padding: "0.4rem", borderRadius: "10px", background: "rgba(59, 130, 246, 0.1)", fontSize: "1.1rem" }}>🎯</div>
+                <div style={{ padding: "0.6rem", borderRadius: "10px", background: "rgba(59, 130, 246, 0.1)", color: "#60a5fa", fontSize: "1.1rem" }}>
+                  <i className="fa-solid fa-bullseye"></i>
+                </div>
               </div>
               <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)", paddingTop: "0.5rem", fontSize: "0.8rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
                 <span>Total Attempts:</span>
@@ -192,7 +198,9 @@ const CodingDashboard = () => {
                     {formatRate(progress.averageScore)}<span style={{ fontSize: "1.2rem", fontWeight: "500" }}>%</span>
                   </div>
                 </div>
-                <div style={{ padding: "0.4rem", borderRadius: "10px", background: "rgba(168, 85, 247, 0.1)", fontSize: "1.1rem" }}>⚡</div>
+                <div style={{ padding: "0.6rem", borderRadius: "10px", background: "rgba(168, 85, 247, 0.1)", color: "#c084fc", fontSize: "1.1rem" }}>
+                  <i className="fa-solid fa-bolt"></i>
+                </div>
               </div>
               <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)", paddingTop: "0.5rem", fontSize: "0.8rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
                 <span>Highest Score:</span>
@@ -209,7 +217,9 @@ const CodingDashboard = () => {
                     {progress.totalSolved || 0}
                   </div>
                 </div>
-                <div style={{ padding: "0.4rem", borderRadius: "10px", background: "rgba(16, 185, 129, 0.1)", fontSize: "1.1rem" }}>✅</div>
+                <div style={{ padding: "0.6rem", borderRadius: "10px", background: "rgba(16, 185, 129, 0.1)", color: "#34d399", fontSize: "1.1rem" }}>
+                  <i className="fa-solid fa-circle-check"></i>
+                </div>
               </div>
               <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)", paddingTop: "0.5rem", fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between", gap: "0.2rem" }}>
                 <span>E: <b style={{ color: "#34d399" }}>{progress.easySolved || 0}</b></span>
@@ -223,8 +233,8 @@ const CodingDashboard = () => {
           {/* Detailed Solved Problems List */}
           <div className="glass-card" style={{ padding: "1.5rem", borderRadius: "24px", border: "1px solid var(--card-border)", background: "rgba(30, 41, 59, 0.2)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
-              <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "700", fontFamily: "var(--font-heading)" }}>
-                📋 My Solving History (Per Question)
+              <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "700", fontFamily: "var(--font-heading)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <i className="fa-solid fa-list-check" style={{ color: "var(--primary)" }}></i> My Solving History (Per Question)
               </h3>
               <input
                 type="text"
@@ -237,7 +247,7 @@ const CodingDashboard = () => {
 
             {loading ? (
               <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                ⌛ Loading solved history...
+                <i className="fa-solid fa-spinner fa-spin"></i> Loading solved history...
               </div>
             ) : filteredProgressList.length === 0 ? (
               <div style={{ textAlign: "center", padding: "2rem 1rem", color: "var(--text-muted)", fontStyle: "italic", background: "rgba(30, 41, 59, 0.15)", borderRadius: "16px", border: "1px dashed var(--card-border)", fontSize: "0.85rem" }}>
@@ -296,8 +306,8 @@ const CodingDashboard = () => {
         <div style={{ flex: "1 1 450px", minWidth: "320px", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           <div className="glass-card" style={{ padding: "2.5rem", borderRadius: "24px", border: "1px solid var(--card-border)", background: "rgba(15, 23, 42, 0.45)", textAlign: "center" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
-              <span style={{ background: "rgba(99, 102, 241, 0.15)", border: "1px solid rgba(99, 102, 241, 0.3)", borderRadius: "6px", padding: "0.3rem 0.8rem", fontSize: "0.75rem", fontWeight: "800", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px" }}>
-                🏁 Todays Coding Assessment
+              <span style={{ background: "rgba(99, 102, 241, 0.15)", border: "1px solid rgba(99, 102, 241, 0.3)", borderRadius: "6px", padding: "0.3rem 0.8rem", fontSize: "0.75rem", fontWeight: "800", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "1px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <i className="fa-solid fa-flag-checkered"></i> Today's Coding Assessment
               </span>
 
               {challengeLoading ? (
@@ -329,7 +339,9 @@ const CodingDashboard = () => {
             </div>
 
             {challengeLoading ? (
-              <div style={{ padding: "2rem 0", color: "var(--text-muted)", fontSize: "0.9rem" }}>⌛ Preparing testing server environment...</div>
+              <div style={{ padding: "2rem 0", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                <i className="fa-solid fa-spinner fa-spin"></i> Preparing testing server environment...
+              </div>
             ) : challenge ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                 {progressList.some(item => item.questionBankId === challenge.id && item.passed) ? (
@@ -347,13 +359,13 @@ const CodingDashboard = () => {
                     justifyContent: "center",
                     gap: "0.5rem"
                   }}>
-                    ✔️ Test Completed
+                    <i className="fa-solid fa-circle-check"></i> Test Completed
                   </div>
                 ) : (
                   /* Not Solved / Start vs Resume Test State */
                   <>
-                    <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
-                      ⚠️ <strong>Notice:</strong> Launching the workspace starts a full-screen, focused programming assessment environment. Please ensure you do not close or minimize the window during execution.
+                    <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5", background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.2)", padding: "12px", borderRadius: "10px", textAlign: "left" }}>
+                      <i className="fa-solid fa-triangle-exclamation" style={{ color: "#f59e0b", marginRight: "6px" }}></i> <strong>Notice:</strong> Launching the workspace starts a full-screen, focused programming assessment environment. Please ensure you do not close or minimize the window during execution.
                     </div>
 
                     <button
@@ -368,14 +380,23 @@ const CodingDashboard = () => {
                         fontSize: "1.05rem",
                         cursor: "pointer",
                         boxShadow: "0 4px 15px rgba(99, 102, 241, 0.3)",
-                        transition: "all 0.3s"
+                        transition: "all 0.3s",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px"
                       }}
                       className="hover:scale-105"
                     >
-                      {localStorage.getItem('coding_test_time_left') !== null || progressList.some(item => item.questionBankId === challenge.id && item.attempts > 0)
-                        ? "💻 Resume Test"
-                        : "💻 Start Test"
-                      }
+                      {localStorage.getItem('coding_test_time_left') !== null || progressList.some(item => item.questionBankId === challenge.id && item.attempts > 0) ? (
+                        <>
+                          <i className="fa-solid fa-rotate"></i> Resume Test
+                        </>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-play"></i> Start Test
+                        </>
+                      )}
                     </button>
                   </>
                 )}

@@ -1,301 +1,338 @@
-# EduFlow
-### AI-Powered Smart Academic ERP for Modern Universities
+# 🎓 EduFlow-AI — Next-Gen AI-Powered Academic ERP & Intelligent Learning Ecosystem
 
-![React](https://img.shields.io/badge/React-19-blue)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-3-green)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue)
-![JWT](https://img.shields.io/badge/JWT-Authentication-orange)
-![Groq AI](https://img.shields.io/badge/Groq-AI-purple)
-![License](https://img.shields.io/badge/License-MIT-success)
-
-EduFlow is an advanced, AI-powered smart academic ERP and college portal system. It bridges the gap between daily campus administration and practical learning by integrating role-based user management, geolocated QR attendance checks, an automated AI resume scanner, and a sandbox-based coding workspace where students solve daily challenges to secure class attendance.
+![EduFlow Banner](https://img.shields.io/badge/EduFlow-AI-4f46e5?style=for-the-badge&logo=education&logoColor=white)
+![Build Status](https://img.shields.io/badge/Spring_Boot-3.5.15-brightgreen?style=for-the-badge&logo=springboot)
+![React](https://img.shields.io/badge/React-18.3.1-blue?style=for-the-badge&logo=react)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4.1-38bdf8?style=for-the-badge&logo=tailwindcss)
+![PostgreSQL / H2](https://img.shields.io/badge/Database-PostgreSQL%2FDB-336791?style=for-the-badge&logo=postgresql)
+![WebRTC & Computer Vision](https://img.shields.io/badge/AI_Vision-WebRTC%2FCanvas-ff69b4?style=for-the-badge)
 
 ---
 
-## 📊 Project Statistics
+## 📌 Executive Summary
 
-| Metric | Value |
-| :--- | :--- |
-| User Roles | 3 (Student, Faculty, Admin) |
-| Departments | 11 |
-| Coding Questions | 100+ Curated Problems |
-| REST APIs | 15+ Secured Endpoints |
-| Authentication | JWT + BCrypt |
-| Attendance | QR + GPS + Department Validated |
-| AI Modules | Resume Analyzer, Code Review |
+**EduFlow-AI** is an enterprise-grade, full-stack Academic Management ERP and Intelligent Learning Platform tailored for modern higher educational institutions. It seamlessly unites institutional administration, automated attendance checking, virtual classrooms, coding assessment sandboxes, AI resume ATS scanning, real-time computer vision mock interviews, placement drive management, and real-time executive analytics into a single cohesive, high-performance web platform.
+
+Built with a **Spring Boot 3.x (Java 17)** RESTful backend architecture, **React 18** frontend, **WebRTC AI Vision Stream**, and **PostgreSQL/H2 JPA Database**, EduFlow-AI empowers Students, Faculty Members, and Academic Administrators with state-of-the-art tools designed for speed, security, and exceptional user experience across both **Dark Mode** and **Light Mode**.
 
 ---
 
-## 🏛 Architecture
+## 🌟 Key Architecture & System Highlights
 
-```
-                  React + Vite
-                       │
-          Axios + JWT Authentication
-                       │
-               Spring Boot REST API
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-   PostgreSQL       Groq AI      Code Executor
-        │              │              │
-   Attendance     Resume AI     Java/C/Python/C++
-   Coding         Code Review
-   Users
-   Resume
+```mermaid
+graph TD
+    A[User Client Browser - React 18 + TailwindCSS] -->|HTTPS / REST API| B[Spring Boot REST Controllers]
+    A -->|WebRTC / MediaStreams| C[Client Canvas AI Vision Engine]
+    B -->|Spring Security + JWT| D[JWT Filter & Role Guards]
+    D -->|Spring Data JPA| E[(PostgreSQL / H2 Database)]
+    B -->|AI Engine Integration| F[AI Question & ATS Resume Processor]
 ```
 
----
-
-## 🤖 AI Integration
-
-Groq AI powers:
-
-* **ATS Resume Analysis** — Extracts PDF text and generates detailed ATS scorecards with category breakdowns and actionable career suggestions.
-* **AI Code Review & Suggestions** — Reviews submitted code for optimizations, best practices, and performance improvements.
-
----
-
-## 🔐 Authentication Flow
-
-```
-        User Login
-             ↓
-  Spring Boot Authentication
-             ↓
-     JWT Token Generated
-             ↓
-   Stored in Browser (localStorage)
-             ↓
-      Protected API Calls
-             ↓
-   Role Based Authorization
-```
+- **Role-Based Security Model (RBAC)**: Fine-grained security for `ADMIN`, `FACULTY`, and `STUDENT` roles enforced via Stateless JWT Authentication.
+- **Dynamic Dual-Theme System**: Seamless dark and light mode UI featuring curated contrast colors, smooth CSS transitions, and local storage persistence.
+- **Real-Time ERP Timetable Synchronization**: Automated mapping between institutional master timetables, active period detection, and virtual classroom generation.
+- **Computer Vision WebRTC AI Interviewer**: Real-time webcam frame processing calculating Face Confidence %, Eye Contact Index %, Posture Detection, and Live Audio Transcription.
+- **Integrated Coding Assessment Sandbox**: Online code execution environment tracking submission analytics, daily streaks, problem difficulty tiers (Easy/Medium/Hard), and leaderboard rankings.
+- **Virtual Mini Classrooms**: Complete Google Classroom equivalent supporting Stream Announcements, Multi-format Classwork (PDFs/Links), Assignments & Submissions, MCQ/Descriptive Assessments with automated evaluation, and AI-summarized Lecture Timelines.
+- **Smart Attendance & Geofenced OD Approval**: Facial verification check-ins, automated attendance percentage calculations, and digital On-Duty (OD) / Leave request workflow.
 
 ---
 
-## 🛠 Tech Stack
+## 🏛️ Comprehensive Feature Breakdown by Module
 
-* **Frontend**: React.js 19 (Vite), Axios, Vanilla CSS (Premium Glassmorphic layouts, responsive card splits, fluid animations)
-* **Backend**: Spring Boot 3.x, Spring Security, Hibernate JPA
-* **Database**: PostgreSQL
-* **AI Integration**: Groq AI API (Llama models) for resume parsing and code review
-* **Authentication**: Stateless JWT (JSON Web Tokens) with BCrypt hashing
-* **Code Execution Sandbox**:
-  * Java
-  * Python
-  * C
-  * C++
-* **Network**: Served over HTTPS (Vite SSL) to allow mobile Geolocation and Camera Web APIs
-
----
-
-## 🏛 Supported Departments & Academic Codes
-
-EduFlow registers and manages academic records across 11 departments using sequential register numbers starting from `001`:
-
-| Department Name | Short Code | Register Number Format |
-| :--- | :---: | :--- |
-| **Civil Engineering** | `CE` | `727723EUCE001` |
-| **Computer Science & Engineering** | `CS` | `727723EUCS001` |
-| **CSE (AI & ML / Cyber Security)** | `CC` | `727723EUCC001` |
-| **Electrical & Electronics Engineering** | `EE` | `727723EUEE001` |
-| **Electronics & Communication Engineering** | `EC` | `727723EUEC001` |
-| **Mechanical Engineering** | `ME` | `727723EUME001` |
-| **Mechatronics Engineering** | `MT` | `727723EUMT001` |
-| **Information Technology** | `IT` | `727723EUIT001` |
-| **Artificial Intelligence & Data Science** | `AD` | `727723EUAD001` |
-| **CS & Business Systems** | `CB` | `727723EUCB001` |
-| **M.Tech Computer Science (5 Years)** | `CI` | `727723EUCI001` |
+### 1. 📢 Virtual Course Classrooms (`/student/classroom` & `/classroom`)
+Virtual course rooms connect faculty members and enrolled students with 7 interactive sub-modules:
+- **Stream & Discussion Hub**: Broadcast course updates, pin critical notices (`📌 Pinned`), and engage in nested discussion threads.
+- **Classwork & Learning Materials**: Publish structured course notes, PDF documents, video lectures, and external web resource links categorized by Units.
+- **Assignment Management Console**:
+  - Faculty publish assignments with due dates, maximum marks, attached files, and late submission rules.
+  - Students submit files or text answers with immediate submission receipts.
+  - Faculty review, score, and provide qualitative feedback.
+- **Online MCQ & Descriptive Assessment Engine**:
+  - Timed assessments supporting Multiple Choice Questions (MCQ), short-answer descriptive, and inline coding questions.
+  - Features question/option shuffling, paste prevention safeguards, automated grading for MCQs, auto-publishing results, and student performance review modals.
+- **Lecture History & AI Syllabus Timeline**:
+  - Log daily lecture topics, covered learning objectives, and completion dates.
+  - One-click AI Lecture Summary generation distilling class content into quick revision key points.
+- **Student Gradebook & Class Analytics**: Comprehensive performance dashboards tracking assessment averages, assignment completion rates, and individual progress.
+- **Course Roster & People Directory**: Full view of course instructors and enrolled class section roster.
 
 ---
 
-## 👥 Role Permissions & Access Boundaries
-
-* **STUDENT**: Self-registration with auto-register generation. Accesses geolocated QR attendance, ATS resume analyzer, and daily coding workspace.
-* **FACULTY**: Created exclusively by Administrators. Hosts attendance sessions, reviews real-time department roll-calls, manages student records, and overrides coding attendance.
-* **ADMIN**: Pre-seeded account (`admin` / `admin@123`). Full CRUD controls over students and faculty across all departments.
-
----
-
-## ✨ Key Features
-
-| Module | Status |
-| :--- | :---: |
-| Authentication (JWT) | ✅ |
-| Smart Attendance (QR + GPS) | ✅ |
-| Department Validation | ✅ |
-| Student Dashboard | ✅ |
-| Faculty Dashboard | ✅ |
-| Admin Dashboard | ✅ |
-| AI Resume Analyzer | ✅ |
-| Coding Workspace | ✅ |
-| AI Code Review | ✅ |
-| Daily Coding Challenge | ✅ |
-| Coding History & Progress | ✅ |
-| Performance Dashboard | ✅ |
-| Automatic Coding Attendance | ✅ |
-| Faculty Attendance Override | ✅ |
+### 2. 📹 WebRTC Real-Time AI Mock Interview Room (`/student/interview`)
+An advanced career readiness environment providing simulated technical and behavioral mock interviews:
+- **WebRTC Camera Stream & Picture-in-Picture Viewport**: Live video feed processing canvas frames every 300ms.
+- **Real-Time Face Confidence & Posture Analyzer**:
+  - Calculates **Face Confidence %** (0–100%) and **Eye Contact Index %** using luminance distribution, skin-tone hue detection, center target alignment, and frame-to-frame variance analysis.
+  - Live HUD Target Bounding Overlay (`REC • AI VISION` live dot, glowing neon corner targets) with posture stability warnings (`⚠ Slight Head Tilt`, `🎯 Perfect Eye Alignment`).
+- **Live Terminal Speech Console**: Simulated speech recognition engine displaying candidate answers in real time with dynamic audio waveform visualizer.
+- **Domain-Specific Interviews**: Choose specialized interview tracks including Full Stack Developer, Data Scientist, DevOps Engineer, Cloud Architect, and AI Engineer.
+- **Evaluation Scorecard**: Generates final scores combining technical answer quality, clarity rating, and average face confidence percentage.
 
 ---
 
-## 🚀 Feature Breakdown
-
-### 1. Modern Login Experience
-* **Unified Portal (`/`)**: Single login card for both Students and Faculty. System auto-detects roles and redirects to respective dashboards.
-* **Hidden Admin Portal (`/admin`)**: Dedicated login route reserved exclusively for Administrators.
-* **Premium Design**: ERP-inspired split-screen interface with full-bleed illustration panel and responsive layout.
-
-### 2. Smart Attendance Verification
-Attendance is verified using multiple layers:
-* **Dynamic QR Codes** — Sessions rendered as QR images with transient session IDs.
-* **GPS Location Verification** — Compares student coordinates against faculty starting location within a ~100m radius.
-* **Department Validation** — Rejects scans from mismatched departments.
-* **Active Session Validation** — Ensures the session is currently live before accepting check-ins.
-* **Coding Assessment Verification** — Automatic attendance during Free Activity Period based on coding performance.
-
-### 3. AI Coding Practice Workspace
-Students write, compile, and execute code in a focused full-screen sandbox:
-* **100+ Curated Coding Problems** across multiple difficulty levels and topics.
-* **Automatic Daily Rotation** — A new challenge is assigned each day.
-* **Faculty Override Support** — Faculty can manually assign specific problems.
-* **Unlimited Run Code** — Test against sample inputs as many times as needed.
-* **Hidden Test Cases** — Submit solution to validate against hidden inputs.
-* **75% Passing Rule** — Attendance awarded when ≥75% of hidden test cases pass.
-* **AI Code Review** — Get AI-powered review and optimization suggestions.
-* **Coding History** — Track all past submissions and attempts.
-* **Progress Dashboard** — View scores, streaks, and performance metrics.
-
-### 4. Smart Free Activity Period
-EduFlow introduces an innovative Free Activity Period dedicated entirely to coding practice.
-* Students receive one coding challenge every day.
-* Attendance is automatically awarded when the student successfully solves at least **75% of the hidden test cases**.
-* This transforms attendance into a measure of practical learning rather than passive classroom presence.
-
-### 5. Coding Performance Hub
-Students can view:
-* **Coding History** — All past submissions with timestamps.
-* **Attempts** — Number of tries per problem.
-* **Scores** — Best score achieved per problem.
-* **Pass Percentage** — Overall success rate.
-* **AI Feedback** — Saved AI code reviews and suggestions.
-* **Success Rate** — Problems solved vs attempted ratio.
-* **Streak** — Consecutive days of successful submissions.
-
-### 6. AI-Powered ATS Resume Hub
-* **ATS Scorecard** — Generates an overall score out of 100 from uploaded PDF resumes.
-* **Multi-Category Breakdown** — Formatting & Layout, Grammar & Tone, Projects & Experience, Skills Match Rate, Achievements & Impact, Keywords Coverage.
-* **Mentorship Reports** — Personalized Strengths, Weaknesses, and actionable improvement suggestions.
+### 3. 💻 Coding Performance Hub (`/student/coding`)
+A full-featured competitive programming and skill assessment platform:
+- **Real-Time Analytics & Streaks**: Track Current Streak, Longest Streak, Submission Success Rate %, Total Solved count broken down by difficulty (Easy, Medium, Hard), and Average Score.
+- **Problem Directory & Challenge Workspace**: Interactive programming challenges with full problem statements, input/output test cases, constraints, and initial code stubs.
+- **Code Execution Sandbox**: Web-based code editor with language selection (Java, Python, C++, JavaScript), standard output console, and test case execution runner.
+- **Solving History & Submission Audit**: Per-question submission log recording submission timestamps, execution time, pass percentage, and score.
 
 ---
 
-## 🔒 Secured API Routing (Spring Security)
-
-| Method | Endpoint | Description | Role |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Student self-registration | Public |
-| `POST` | `/api/auth/login` | Login and return JWT token | Public |
-| `GET` | `/api/admin/students` | Fetch students (dept-filtered for faculty) | `ADMIN` / `FACULTY` |
-| `POST` | `/api/admin/create-student` | Admin-created student accounts | `ADMIN` |
-| `DELETE` | `/api/admin/students/{id}` | Remove student | `ADMIN` |
-| `GET` | `/api/admin/faculty` | Fetch all faculty profiles | `ADMIN` |
-| `POST` | `/api/admin/create-faculty` | Create faculty account | `ADMIN` |
-| `DELETE` | `/api/admin/faculty/{id}` | Remove faculty | `ADMIN` |
-| `POST` | `/api/attendance/session/start` | Host a class session | `FACULTY` |
-| `POST` | `/api/attendance/mark` | Mark attendance (GPS + Dept) | `STUDENT` |
-| `GET` | `/api/attendance/session/{id}/records` | Live check-in list | `FACULTY` |
-| `GET` | `/api/attendance/session/{id}/report` | Attendance report | `FACULTY` / `ADMIN` |
-| `POST` | `/api/resume/upload` | Upload PDF for AI ATS analysis | `STUDENT` |
-| `GET` | `/api/coding/challenge` | Fetch daily coding challenge | `STUDENT` |
-| `GET` | `/api/coding/problems` | List all coding problems | `STUDENT` |
-| `POST` | `/api/coding/run` | Compile and run test cases | `STUDENT` |
-| `POST` | `/api/coding/submit` | Submit solution against hidden tests | `STUDENT` |
-| `GET` | `/api/coding/history` | Fetch coding submission history | `STUDENT` |
-| `POST` | `/api/coding/override-attendance` | Faculty override coding attendance | `FACULTY` |
+### 4. 📄 AI Resume Analyzer & ATS Score Calculator (`/student/resume`)
+Empowers students to optimize their resumes for corporate applicant tracking systems:
+- **Resume Upload & Parsing**: Upload PDF or Word documents for instant text extraction.
+- **ATS Compatibility Score**: Multi-factor scoring assessing keyword density, format compatibility, section layout, and industry relevance.
+- **Keyword Gap Analysis**: Identifies missing technical skills, frameworks, and certifications based on target job descriptions.
+- **Actionable Optimization Recommendations**: Direct feedback on bullet point impact, quantifiable achievements, and contact information placement.
 
 ---
 
-## ⚙️ Setup & Installation
+### 5. 📅 Master Timetable & ERP Schedule Matrix (`/student/timetable`)
+Automated academic schedule management:
+- **Interactive Weekly Grid**: Visual matrix displaying Monday–Friday schedule across 6 daily periods (P1–P6) with dedicated Short Break and Lunch Break dividers.
+- **Active Class Detection**: Live indicator highlighting current ongoing class period with animated pulse indicator (`● LIVE CLASS`).
+- **Faculty & Room Mapping**: Displays subject acronyms (`IOT`, `BT`, `PE-III`, `MP`, `BI`), course codes, assigned faculty members, and classroom/lab room codes.
+- **Printable Schedule**: One-click printable PDF view formatted for academic printing.
+- **Academic Calendar Modal**: Full institutional calendar overlay (June–October) detailing working days (W.D.), day orders (D.O.), CIA exam dates, and official holidays.
 
-### 1. Database Setup
-Configure your database connection inside `eduflow-backend/src/main/resources/application.properties`:
-```properties
-spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/EduFlow
-spring.datasource.username=postgres
-spring.datasource.password=YOUR_PASSWORD
+---
+
+### 6. ⏱️ Smart Attendance & Geofenced Check-in (`/student/attendance`)
+Modernized attendance verification system:
+- **Overall Attendance Index %**: Real-time progress ring tracking total attended vs. conducted sessions across all subjects.
+- **Subject-Wise Breakdown**: Detailed per-subject attendance percentages with threshold warnings (e.g. `< 75%` warning badge).
+- **Face Recognition & Geofenced Verification**: Camera check-in verifying student face and GPS location against campus boundaries.
+- **On-Duty (OD) & Leave Application Portal**: Submit medical leave or institutional OD requests with attached document proofs, status tracking (`PENDING`, `APPROVED`, `REJECTED`), and faculty approval workflow.
+
+---
+
+### 7. 💼 Career & Placement Portal (`/student/career`)
+Connecting students with institutional recruitment drives:
+- **Live Recruitment Drives**: Explore upcoming campus placement drives from top technology companies.
+- **Application Tracker**: Manage application status (`Applied`, `Shortlisted`, `Interview Scheduled`, `Offered`).
+- **Placement Analytics**: Institutional placement statistics, average salary packages, and company visit history.
+
+---
+
+### 8. 📊 Executive Analytics & Admin Controls (`/admin/analytics` & `/admin/dashboard`)
+Comprehensive institutional administration:
+- **Department-Wise Breakdown**: Real-time breakdown of students, faculty accounts, and active classroom sessions across CSE, IT, ECE, EEE, Mech, Civil, AI&DS, CSBS, and M.Tech CSE departments.
+- **System Health & Logs**: Database query latency, active JWT sessions, and server uptime monitoring.
+- **Faculty & Student Account Management**: Register new faculty members, assign department affiliations, and adjust user roles.
+
+---
+
+## 🛠️ Technology Stack & Dependencies
+
+### Backend Framework & Core
+- **Java 17**: LTS Java runtime environment.
+- **Spring Boot 3.5.15**: Core application framework.
+- **Spring Security & Spring JWT**: Stateless token-based security and RBAC filter chains.
+- **Spring Data JPA & Hibernate**: Object-relational mapping and repository abstraction.
+- **PostgreSQL / H2 Database**: Relational database storage (H2 embedded in development, PostgreSQL in production).
+- **Lombok**: Boilerplate reduction for data models, DTOs, and builders.
+- **Maven**: Dependency management and build tool.
+
+### Frontend Framework & Styling
+- **React 18.3.1**: Component-based UI library.
+- **Vite 6.x**: High-performance frontend build tool and dev server.
+- **TailwindCSS 3.4.1 & Custom CSS Variables**: Utility-first styling combined with dynamic theme tokens (`--bg-primary`, `--text-main`, `--card-bg`).
+- **FontAwesome 6.4.0 (Free Vector Icons)**: Professional iconography across all modules.
+- **Chart.js & React-Chartjs-2**: Interactive visual analytics, radar charts, and attendance bar graphs.
+
+### Real-Time & Media API
+- **WebRTC (`navigator.mediaDevices.getUserMedia`)**: Camera video stream capture.
+- **HTML5 Canvas Context 2D**: Real-time image frame extraction and pixel luminance analysis.
+- **Web Speech API**: Live audio speech recognition and dynamic voice transcription.
+
+---
+
+## 📂 Project Repository Structure
+
+```text
+EduFlow/
+├── eduflow-backend/                  # Spring Boot Backend Server
+│   ├── src/main/java/com/eduflow/
+│   │   ├── config/                   # SecurityConfig, CorsConfig, JwtConfig
+│   │   ├── controller/               # REST Controllers (Auth, Classroom, Attendance, etc.)
+│   │   ├── dto/                      # Data Transfer Objects & API Schemas
+│   │   ├── entity/                   # JPA Entity Models (User, Classroom, Assessment, etc.)
+│   │   ├── repository/               # Spring Data Repositories
+│   │   ├── security/                 # JwtTokenProvider, JwtAuthFilter, UserDetails
+│   │   └── service/                  # Business Logic Services
+│   ├── src/main/resources/
+│   │   ├── application.properties    # Database & Server Configuration
+│   │   └── data.sql                  # Initial Database Seed Script
+│   └── pom.xml                       # Maven Build Manifest
+│
+└── eduflow-frontend/                 # React 18 Vite Frontend Application
+    ├── src/
+    │   ├── assets/                   # Static Media & Icons
+    │   ├── components/               # Reusable UI Components
+    │   │   ├── analytics/            # FacultyAnalytics, StudentGradebook
+    │   │   ├── career/               # InterviewDashboard, CodingDashboard, NotificationBell
+    │   │   ├── layout/               # StudentPortalLayout, FacultyLayout, AdminLayout
+    │   │   ├── ClassroomAssignments.jsx
+    │   │   ├── ClassroomAssessments.jsx
+    │   │   ├── ClassroomMaterials.jsx
+    │   │   ├── ClassroomStream.jsx
+    │   │   └── ClassroomLectureHistory.jsx
+    │   ├── pages/                    # Main Portal Pages
+    │   │   ├── ClassroomDashboard.jsx
+    │   │   ├── ClassroomDetail.jsx
+    │   │   ├── student/              # Student Dashboard, AttendancePage, TimetablePage, etc.
+    │   │   ├── faculty/              # Faculty Dashboard & Grading Pages
+    │   │   └── admin/                # Admin Analytics & User Control Console
+    │   ├── services/                 # Axios API Service Connectors
+    │   ├── App.jsx                   # React Router Configuration & Route Guards
+    │   ├── main.jsx                  # React DOM Entry Point
+    │   └── index.css                 # Global CSS Variables & Theme Token System
+    ├── package.json                  # NPM Project Dependencies
+    └── vite.config.js                # Vite Development Server Config
 ```
 
-### 2. AI Integration
-Add your Groq API key:
-```properties
-groq.api.key=YOUR_GROQ_API_KEY
-```
+---
 
-### 3. Backend Server
+## ⚡ Quick Start & Installation Guide
+
+### Prerequisites
+- **Java Development Kit (JDK 17 or higher)**
+- **Node.js (v18.0.0 or higher)** & **npm (v9.0.0 or higher)**
+- **Maven (v3.8+)** or Maven Wrapper included
+
+---
+
+### Step 1: Clone Repository
 ```bash
-cd eduflow-backend
-mvn clean compile
-mvn spring-boot:run
-```
-
-### 4. Frontend Web Server
-```bash
-cd eduflow-frontend
-npm install
-npm run dev
+git clone https://github.com/Sanjeevikumar038/EduFlow-AI.git
+cd EduFlow
 ```
 
 ---
 
-## 🖼 Screenshots
+### Step 2: Configure & Launch Backend Server
+1. Navigate to backend directory:
+   ```bash
+   cd eduflow-backend
+   ```
+2. Build and run Spring Boot application:
+   ```bash
+   mvn spring-boot:run
+   ```
+3. The REST API server will start at: `http://localhost:8080`
 
-### Login Portal
-![Login](screenshots/login.png)
-
-### Student Dashboard
-![Student](screenshots/student-dashboard.png)
-
-### Faculty Dashboard
-![Faculty](screenshots/faculty-dashboard.png)
-
-### Admin Dashboard
-![Admin](screenshots/admin-dashboard.png)
-
-### QR Attendance
-![QR](screenshots/attendance.png)
-
-### Coding Workspace
-![Coding](screenshots/coding.png)
-
-### Resume Analyzer
-![Resume](screenshots/resume.png)
+> **Note**: Database schema tables and seed data will initialize automatically on first boot.
 
 ---
 
-## 🔮 Future Enhancements
-
-* **Online Judge System** — Competitive compiler infrastructure
-* **Contest Mode** — Host real-time hackathons and coding rounds
-* **Leaderboard** — Global ranks and scoring parameters
-* **Coding Badges** — Gamified achievements based on streaks and performance
-* **AI Interview Simulator** — Speech-to-text interactive mock interviews
-* **Placement Analytics** — Campus hiring predictions and insights
-* **Email Notifications** — Real-time push updates for sessions and results
-* **Mobile Application** — Native Android/iOS builds
-
----
-
-## 📜 License
-
-This project is released under the **MIT License**.
+### Step 3: Configure & Launch Frontend Application
+1. Open a new terminal and navigate to frontend directory:
+   ```bash
+   cd eduflow-frontend
+   ```
+2. Install npm dependencies:
+   ```bash
+   npm install
+   ```
+3. Launch Vite development server:
+   ```bash
+   npm run dev
+   ```
+4. Access the web application at: `https://localhost:5173`
 
 ---
 
-## 👨‍💻 Author
+## 🔐 Default Demo Login Credentials
 
-**Sanjeevi Kumar**  
-Integrated M.Tech Computer Science & Engineering  
-Sri Krishna College of Engineering & Technology
+| Portal / Role | Email Address | Password | Privileges / Features |
+|---|---|---|---|
+| **Student** | `727723euci045@skcet.ac.in` | `student123` | Virtual Classroom, Timetable, Attendance, Coding Hub, AI Interview, ATS Resume |
+| **Faculty** | `faculty@skcet.ac.in` | `faculty123` | Classroom Management, Create Assignments & Quizzes, Grade Submissions, Attendance Roster |
+| **Admin** | `admin@skcet.ac.in` | `admin123` | Executive Analytics, System Health, User Management, Timetable Allotment |
 
-* GitHub: [github.com/Sanjeevikumar038](https://github.com/Sanjeevikumar038)
-* LinkedIn: [linkedin.com/in/sanjeevikumar038](https://linkedin.com/in/sanjeevikumar038)
+---
+
+## 📡 REST API Endpoint Documentation Summary
+
+### 🔑 Authentication API (`/api/auth`)
+- `POST /api/auth/register`: Register new student or faculty account.
+- `POST /api/auth/login`: Authenticate credentials and return JWT bearer token.
+- `GET /api/auth/me`: Retrieve currently logged-in user profile details.
+
+### 🏫 Virtual Classroom API (`/api/classrooms`)
+- `GET /api/classrooms/my-classrooms`: Fetch classrooms enrolled/taught by logged-in user.
+- `GET /api/classrooms/{id}`: Fetch single classroom detailed overview.
+- `POST /api/classrooms/sync`: Synchronize classrooms from master timetable.
+- `GET /api/classrooms/{id}/announcements`: Get stream posts and comments.
+- `POST /api/classrooms/{id}/announcements`: Publish new announcement.
+- `GET /api/classrooms/{id}/materials`: Fetch course learning materials.
+- `POST /api/classrooms/{id}/materials`: Upload new learning material or link.
+- `GET /api/classrooms/{id}/assignments`: List course assignments.
+- `POST /api/classrooms/{id}/assignments`: Create assignment.
+- `POST /api/classrooms/assignments/{id}/submit`: Submit student assignment work.
+- `GET /api/classrooms/{id}/assessments`: Fetch course online assessments.
+- `POST /api/classrooms/{id}/assessments`: Create online quiz/assessment.
+- `POST /api/classrooms/assessments/{id}/start`: Start timed student assessment attempt.
+- `POST /api/classrooms/assessments/attempts/{id}/submit`: Submit assessment answers for auto-grading.
+- `GET /api/classrooms/{id}/lectures`: Fetch lecture history timeline.
+- `POST /api/classrooms/{id}/lectures`: Log covered lecture topic.
+
+### ⏱️ Timetable & Attendance API (`/api/timetable` & `/api/attendance`)
+- `GET /api/timetable/student`: Fetch weekly class timetable.
+- `GET /api/timetable/current-status`: Retrieve live period status and active subject.
+- `GET /api/attendance/summary`: Get overall and subject-wise attendance percentages.
+- `POST /api/attendance/mark`: Record facial/geofenced attendance check-in.
+- `POST /api/attendance/leave-request`: Submit Leave or On-Duty (OD) application.
+
+### 💻 Coding & AI Services API (`/api/coding`, `/api/ai`, `/api/resume`)
+- `GET /api/coding/dashboard`: Retrieve coding stats, current streak, and problem challenges.
+- `POST /api/coding/submit`: Submit code solution for test case evaluation.
+- `POST /api/ai/interview/start`: Initialize AI vision mock interview session.
+- `POST /api/ai/interview/submit-evaluation`: Save interview responses and vision confidence score.
+- `POST /api/resume/analyze`: Upload resume document for ATS scoring and keyword extraction.
+
+---
+
+## 🎨 Theme Customization & UI Guidelines
+
+EduFlow-AI features a dynamic CSS Token Design System supporting both Dark and Light themes:
+
+```css
+/* CSS Theme Tokens (index.css) */
+[data-theme="dark"] {
+  --bg-primary: #0b0f19;
+  --bg-card: rgba(17, 24, 39, 0.7);
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --primary: #6366f1;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-card: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #334155;
+  --primary: #4f46e5;
+}
+```
+
+- **Theme Toggle**: Users can toggle between Dark and Light mode at any time using the moon/sun button in the top navigation bar.
+- **Persistence**: User theme choice is saved to `localStorage("eduflow-theme")` and dynamically synchronized across browser windows.
+
+---
+
+## 📄 License & Attribution
+
+This project is developed for educational and institutional research purposes under the **MIT License**.
+
+- **Designed & Developed by**: [Sanjeevikumar D](https://github.com/Sanjeevikumar038)
+- **Institution**: Sri Krishna College of Engineering and Technology (SKCET)
+- **Department**: Department of MTech Computer Science and Engineering
+
+---
+
+<p center="text-center" style="text-align: center; margin-top: 2rem;">
+  <b>EduFlow-AI</b> — Empowering Next-Generation Higher Education through Intelligent Automation & AI Vision.
+</p>

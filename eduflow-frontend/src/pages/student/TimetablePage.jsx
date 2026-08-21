@@ -140,7 +140,7 @@ function TimetablePage() {
   const classBadge = formatDeptYearSec(activeDept, activeSem, activeSec);
   const classYear = getYearFromSem(activeSem);
 
-  // Extract unique valid subjects for reference panel (excluding LIBRARY_STUDY/FREE_ACTIVITY)
+  // Extract unique valid subjects for reference panel
   const uniqueSubjects = [];
   const seen = new Set();
   if (timetableData && Array.isArray(timetableData)) {
@@ -148,31 +148,29 @@ function TimetablePage() {
       const code = entry.courseCode || entry.subject;
       if (code && code !== "LIBRARY_STUDY" && code !== "FREE_ACTIVITY" && !seen.has(code)) {
         seen.add(code);
-        const name = entry.subjectName || entry.subject || "Course Subject";
         uniqueSubjects.push({
           code: code,
-          abbr: getSubjectAbbreviation(code, name),
-          name: name,
-          staff: entry.faculty?.name || entry.facultyName || "Course Instructor",
-          staffDept: entry.faculty?.department || activeDept,
-          room: entry.room ? (entry.room.roomCode || entry.room.roomName) : "Classroom"
+          name: entry.subjectName || entry.subject,
+          staff: entry.faculty?.name || entry.facultyName || "Course Faculty",
+          room: entry.room ? (entry.room.roomCode || entry.room.roomName) : "Classroom",
+          abbr: getSubjectAbbreviation(code, entry.subjectName || entry.subject)
         });
       }
     });
-    uniqueSubjects.sort((a, b) => a.abbr.localeCompare(b.abbr));
   }
 
   const fetchTimetableAndStatus = async () => {
-    if (!token) return;
-    setLoading(true);
     try {
-      const timetableRes = await getStudentTimetable(token);
-      setTimetableData(Array.isArray(timetableRes.data) ? timetableRes.data : []);
+      setLoading(true);
+      const res = await getStudentTimetable(token);
+      setTimetableData(res.data || []);
 
-      const statusRes = await getCurrentClassStatus(simParams, token);
-      setCurrentClassStatus(statusRes.data);
+      if (token) {
+        const statusRes = await getCurrentClassStatus(simParams, token);
+        setCurrentClassStatus(statusRes.data);
+      }
     } catch (err) {
-      console.error("Error fetching student timetable/status:", err);
+      console.error("Failed to load student timetable:", err);
     } finally {
       setLoading(false);
     }
@@ -212,7 +210,7 @@ function TimetablePage() {
 
   const breakTd = {
     ...tdBase,
-    background: "rgba(10,15,30,0.25)",
+    background: "var(--box-bg)",
     width: "36px",
     padding: "0",
     writingMode: "vertical-rl",
@@ -228,45 +226,45 @@ function TimetablePage() {
     <div className="animate-fade-in space-y-6 max-w-full pb-8">
       
       {/* ── Header ── */}
-      <div className="glass-card p-6 rounded-2xl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+      <div className="glass-card p-6 rounded-2xl" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem", background: "var(--card-bg)" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "0.35rem" }}>
             <span style={{
               fontSize: "0.95rem",
               fontWeight: "800",
-              color: "#38bdf8",
-              background: "rgba(56, 189, 248, 0.15)",
-              border: "1px solid rgba(56, 189, 248, 0.3)",
+              color: "var(--primary)",
+              background: "rgba(99, 102, 241, 0.12)",
+              border: "1px solid rgba(99, 102, 241, 0.25)",
               padding: "3px 10px",
               borderRadius: "6px",
               letterSpacing: "0.3px"
             }}>
               {classBadge}
             </span>
-            <h2 className="text-2xl font-bold text-white mb-0" style={{ margin: 0 }}>
+            <h2 className="text-2xl font-bold mb-0" style={{ margin: 0, color: "var(--text-main)" }}>
               Class Timetable
             </h2>
           </div>
-          <p className="text-slate-400 text-sm" style={{ margin: 0 }}>
+          <p className="text-sm" style={{ margin: 0, color: "var(--text-muted)" }}>
             {classYear} • Section {activeSec} • {activeDept}
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <button
             onClick={() => window.print()}
             style={{
-              background: "rgba(255,255,255,0.06)",
+              padding: "0.6rem 1.2rem",
+              background: "var(--box-bg)",
               border: "1px solid var(--card-border)",
-              color: "#fff",
-              padding: "8px 16px",
-              borderRadius: "8px",
-              fontSize: "0.85rem",
+              color: "var(--text-main)",
+              borderRadius: "10px",
               fontWeight: "600",
+              fontSize: "0.85rem",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: "6px"
+              gap: "0.5rem"
             }}
           >
             <i className="fa-solid fa-print"></i> Print Schedule
@@ -286,8 +284,8 @@ function TimetablePage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "850px" }}>
               <thead>
-                <tr style={{ background: "rgba(30,41,59,0.4)" }}>
-                  <th style={{ ...tdBase, width: "100px", background: "rgba(15,23,42,0.5)", fontWeight: "700", color: "#f8fafc", fontSize: "0.8rem" }}>
+                <tr style={{ background: "var(--box-bg)" }}>
+                  <th style={{ ...tdBase, width: "100px", background: "var(--box-bg)", fontWeight: "700", color: "var(--text-main)", fontSize: "0.8rem" }}>
                     Day / Period
                   </th>
 
@@ -300,7 +298,7 @@ function TimetablePage() {
                   ))}
 
                   {/* Short Break */}
-                  <th style={{ ...breakTd, background: "rgba(10,15,30,0.3)", color: "var(--text-muted)", border: "1px solid var(--card-border)" }}>
+                  <th style={{ ...breakTd, background: "var(--box-bg)", color: "var(--text-muted)", border: "1px solid var(--card-border)" }}>
                     Break (10:35–10:50)
                   </th>
 
@@ -313,7 +311,7 @@ function TimetablePage() {
                   ))}
 
                   {/* Lunch Break */}
-                  <th style={{ ...breakTd, background: "rgba(10,15,30,0.3)", color: "var(--text-muted)", border: "1px solid var(--card-border)" }}>
+                  <th style={{ ...breakTd, background: "var(--box-bg)", color: "var(--text-muted)", border: "1px solid var(--card-border)" }}>
                     Lunch (12:40–1:30)
                   </th>
 
@@ -329,7 +327,7 @@ function TimetablePage() {
               <tbody>
                 {DAYS.map((day, i) => {
                   const isToday = todayName.toLowerCase() === day.toLowerCase();
-                  const rowBg = isToday ? "rgba(99,102,241,0.04)" : i % 2 === 0 ? "rgba(15,23,42,0.1)" : "transparent";
+                  const rowBg = isToday ? "rgba(99,102,241,0.06)" : i % 2 === 0 ? "var(--nav-hover-bg)" : "transparent";
                   const isFirstRow = i === 0;
 
                   const renderCell = (periodNum) => {
@@ -341,7 +339,7 @@ function TimetablePage() {
                     
                     if (!entry || !entry.subject || entry.subject.trim() === "" || isStudy) {
                       return (
-                        <td key={periodNum} style={{ ...tdBase, background: rowBg, color: "rgba(255,255,255,0.2)", fontSize: "0.75rem", fontStyle: "italic", height: "76px" }}>
+                        <td key={periodNum} style={{ ...tdBase, background: rowBg, color: "var(--text-muted)", fontSize: "0.75rem", fontStyle: "italic", height: "76px" }}>
                           Free
                         </td>
                       );
@@ -360,7 +358,7 @@ function TimetablePage() {
                         key={periodNum} 
                         style={{
                           ...tdBase,
-                          background: active ? "rgba(99,102,241,0.14)" : (rowBg || "rgba(30, 41, 59, 0.4)"),
+                          background: active ? "rgba(99,102,241,0.14)" : (rowBg || "var(--card-bg)"),
                           border: active ? "1px solid var(--primary)" : "1px solid var(--card-border)",
                           boxShadow: active ? "inset 0 0 12px rgba(99,102,241,0.15)" : "none",
                           padding: "10px 8px",
@@ -380,9 +378,9 @@ function TimetablePage() {
                           <span style={{
                             fontWeight: "800",
                             fontSize: "0.95rem",
-                            color: active ? "#fff" : "#818cf8",
-                            background: active ? "var(--primary)" : "rgba(99, 102, 241, 0.15)",
-                            border: "1px solid rgba(99, 102, 241, 0.3)",
+                            color: active ? "#ffffff" : "var(--primary)",
+                            background: active ? "var(--primary)" : "rgba(99, 102, 241, 0.12)",
+                            border: "1px solid rgba(99, 102, 241, 0.25)",
                             padding: "3px 10px",
                             borderRadius: "6px",
                             letterSpacing: "0.5px"
@@ -391,8 +389,8 @@ function TimetablePage() {
                           </span>
                           <span style={{
                             fontSize: "0.72rem",
-                            color: "#cbd5e1",
-                            fontWeight: "500",
+                            color: "var(--text-muted)",
+                            fontWeight: "600",
                             whiteSpace: "nowrap",
                             overflow: "hidden",
                             textOverflow: "ellipsis",
@@ -408,7 +406,7 @@ function TimetablePage() {
 
                   return (
                     <tr key={day}>
-                      <td style={{ ...tdBase, fontWeight: "700", color: isToday ? "var(--primary)" : "#f8fafc", background: isToday ? "rgba(99,102,241,0.06)" : "rgba(15,23,42,0.4)", borderLeft: isToday ? "3px solid var(--primary)" : "1px solid var(--card-border)", fontSize: "0.82rem", textAlign: "center" }}>
+                      <td style={{ ...tdBase, fontWeight: "700", color: isToday ? "var(--primary)" : "var(--text-main)", background: isToday ? "rgba(99,102,241,0.08)" : "var(--box-bg)", borderLeft: isToday ? "3px solid var(--primary)" : "1px solid var(--card-border)", fontSize: "0.82rem", textAlign: "center" }}>
                         {day}
                         {isToday && <span style={{ display: "block", fontSize: "0.55rem", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "2px" }}>Today</span>}
                       </td>
@@ -419,7 +417,7 @@ function TimetablePage() {
                       {isFirstRow && (
                         <td rowSpan={DAYS.length} style={{
                           ...breakTd,
-                          background: "rgba(10,15,30,0.15)",
+                          background: "var(--box-bg)",
                           verticalAlign: "middle",
                           textAlign: "center",
                           padding: "0 4px",
@@ -433,7 +431,7 @@ function TimetablePage() {
                       {isFirstRow && (
                         <td rowSpan={DAYS.length} style={{
                           ...breakTd,
-                          background: "rgba(10,15,30,0.15)",
+                          background: "var(--box-bg)",
                           verticalAlign: "middle",
                           textAlign: "center",
                           padding: "0 4px",
@@ -453,7 +451,7 @@ function TimetablePage() {
         {/* ── Course & Faculty Reference Details Table ── */}
         {uniqueSubjects.length > 0 && (
           <div style={{ marginTop: "2.5rem", borderTop: "1px solid var(--card-border)", paddingTop: "1.5rem" }}>
-            <h4 style={{ margin: "0 0 1rem 0", color: "#fff", fontSize: "1rem", display: "flex", alignItems: "center", gap: "8px" }}>
+            <h4 style={{ margin: "0 0 1rem 0", color: "var(--text-main)", fontSize: "1rem", display: "flex", alignItems: "center", gap: "8px" }}>
               <i className="fa-solid fa-list-check" style={{ color: "var(--primary)" }}></i>
               Course & Faculty Reference Details
             </h4>
@@ -461,7 +459,7 @@ function TimetablePage() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
                 <thead>
-                  <tr style={{ background: "rgba(30,41,59,0.3)", borderBottom: "1px solid var(--card-border)", textAlign: "left" }}>
+                  <tr style={{ background: "var(--box-bg)", borderBottom: "1px solid var(--card-border)", textAlign: "left" }}>
                     <th style={{ ...tdBase, width: "45px", color: "var(--text-muted)", fontWeight: "700" }}>S.No</th>
                     <th style={{ ...tdBase, textAlign: "left", color: "var(--text-muted)", fontWeight: "700" }}>Subject / Acronym</th>
                     <th style={{ ...tdBase, textAlign: "left", color: "var(--text-muted)", fontWeight: "700" }}>Course Code</th>
@@ -477,16 +475,16 @@ function TimetablePage() {
                       e => (e.courseCode?.trim().toUpperCase() === sub.code.toUpperCase()) || (e.subject?.trim().toUpperCase() === sub.code.toUpperCase())
                     ).length;
                     return (
-                      <tr key={idx} style={{ borderBottom: "1px solid var(--card-border)", background: idx % 2 === 0 ? "rgba(15,23,42,0.05)" : "transparent" }}>
+                      <tr key={idx} style={{ borderBottom: "1px solid var(--card-border)", background: idx % 2 === 0 ? "var(--nav-hover-bg)" : "transparent" }}>
                         <td style={{ ...tdBase, color: "var(--text-muted)" }}>{idx + 1}</td>
-                        <td style={{ ...tdBase, textAlign: "left", fontWeight: "800", color: "#38bdf8", letterSpacing: "0.04em" }}>{sub.abbr}</td>
+                        <td style={{ ...tdBase, textAlign: "left", fontWeight: "800", color: "var(--primary)", letterSpacing: "0.04em" }}>{sub.abbr}</td>
                         <td style={{ ...tdBase, textAlign: "left", fontWeight: "700", color: "var(--primary)" }}>{sub.code}</td>
-                        <td style={{ ...tdBase, textAlign: "left", color: "#f8fafc", fontWeight: "500" }}>{sub.name}</td>
+                        <td style={{ ...tdBase, textAlign: "left", color: "var(--text-main)", fontWeight: "500" }}>{sub.name}</td>
                         <td style={{ ...tdBase, textAlign: "left", color: "var(--success)", fontWeight: "600" }}>
                           <i className="fa-solid fa-user-tie" style={{ marginRight: "6px" }}></i>{sub.staff}
                         </td>
                         <td style={{ ...tdBase, textAlign: "left", color: "var(--text-muted)" }}>{sub.room}</td>
-                        <td style={{ ...tdBase, color: count > 0 ? "#38bdf8" : "var(--text-muted)", fontWeight: count > 0 ? "700" : "400" }}>{count > 0 ? `${count} Hrs` : "—"}</td>
+                        <td style={{ ...tdBase, color: count > 0 ? "var(--primary)" : "var(--text-muted)", fontWeight: count > 0 ? "700" : "400" }}>{count > 0 ? `${count} Hrs` : "—"}</td>
                       </tr>
                     );
                   })}
@@ -506,7 +504,7 @@ function TimetablePage() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "rgba(0,0,0,0.7)",
+            background: "rgba(0,0,0,0.6)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -517,18 +515,18 @@ function TimetablePage() {
         >
           <div 
             style={{
-              background: "rgba(30, 41, 59, 0.95)",
+              background: "var(--bg-modal)",
               border: "1px solid var(--card-border)",
               borderRadius: "20px",
               padding: "2rem",
               maxWidth: "450px",
               width: "90%",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.5)"
+              boxShadow: "var(--card-shadow)"
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <span style={{ fontSize: "0.8rem", fontWeight: "800", color: "#38bdf8", background: "rgba(56, 189, 248, 0.15)", padding: "3px 8px", borderRadius: "6px" }}>
+              <span style={{ fontSize: "0.8rem", fontWeight: "800", color: "var(--primary)", background: "rgba(99, 102, 241, 0.12)", padding: "3px 8px", borderRadius: "6px" }}>
                 {classBadge}
               </span>
               <button 
@@ -539,14 +537,14 @@ function TimetablePage() {
               </button>
             </div>
 
-            <h3 style={{ margin: "0 0 0.5rem 0", color: "#fff", fontSize: "1.15rem", fontWeight: "700" }}>
+            <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)", fontSize: "1.15rem", fontWeight: "700" }}>
               {selectedCell.courseCode ? `${selectedCell.courseCode} — ` : ""}{selectedCell.subjectName || selectedCell.subject}
             </h3>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "1.25rem", fontSize: "0.85rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-muted)" }}>Day & Period:</span>
-                <span style={{ color: "#fff", fontWeight: "700" }}>{selectedCell.dayOfWeek}, Period {selectedCell.period}</span>
+                <span style={{ color: "var(--text-main)", fontWeight: "700" }}>{selectedCell.dayOfWeek}, Period {selectedCell.period}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-muted)" }}>Faculty Member:</span>
@@ -556,13 +554,13 @@ function TimetablePage() {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-muted)" }}>Assigned Room:</span>
-                <span style={{ color: "#818cf8", fontWeight: "700" }}>
+                <span style={{ color: "var(--primary)", fontWeight: "700" }}>
                   {selectedCell.room ? (selectedCell.room.roomCode || selectedCell.room.roomName) : "Classroom"}
                 </span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-muted)" }}>Department:</span>
-                <span style={{ color: "#cbd5e1" }}>{selectedCell.department || activeDept}</span>
+                <span style={{ color: "var(--text-main)" }}>{selectedCell.department || activeDept}</span>
               </div>
             </div>
 
@@ -571,9 +569,9 @@ function TimetablePage() {
               style={{
                 marginTop: "1.5rem",
                 width: "100%",
-                background: "var(--primary-gradient)",
+                background: "#4f46e5",
                 border: "none",
-                color: "#fff",
+                color: "#ffffff",
                 padding: "10px",
                 borderRadius: "10px",
                 fontWeight: "700",

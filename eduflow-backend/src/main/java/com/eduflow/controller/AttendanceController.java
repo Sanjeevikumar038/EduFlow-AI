@@ -42,6 +42,9 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
@@ -72,36 +75,45 @@ public class AttendanceController {
     private CourseClassroomRepository classroomRepository;
 
     private boolean isFacultyAssignedToSubject(User faculty, String subjectCodeOrName) {
+        if (faculty == null) return false;
         if (faculty.isClassAdvisor() || faculty.getRole() == Role.ADMIN) {
             return true;
         }
+        if (subjectCodeOrName == null || subjectCodeOrName.trim().isEmpty()) {
+            return false;
+        }
+        String target = subjectCodeOrName.trim();
         List<CourseClassroom> classrooms = classroomRepository.findByFacultyId(faculty.getId());
         for (CourseClassroom c : classrooms) {
-            if (c.getSubjectCode().equalsIgnoreCase(subjectCodeOrName.trim()) ||
-                c.getSubjectName().equalsIgnoreCase(subjectCodeOrName.trim())) {
+            if ((c.getSubjectCode() != null && c.getSubjectCode().equalsIgnoreCase(target)) ||
+                (c.getSubjectName() != null && c.getSubjectName().equalsIgnoreCase(target))) {
                 return true;
             }
         }
         List<FacultyExpertise> expertises = facultyExpertiseRepository.findByFacultyId(faculty.getId());
         for (FacultyExpertise fe : expertises) {
-            if (fe.getSubject().getSubjectCode().equalsIgnoreCase(subjectCodeOrName.trim()) ||
-                fe.getSubject().getSubjectName().equalsIgnoreCase(subjectCodeOrName.trim())) {
-                return true;
+            if (fe.getSubject() != null) {
+                if ((fe.getSubject().getSubjectCode() != null && fe.getSubject().getSubjectCode().equalsIgnoreCase(target)) ||
+                    (fe.getSubject().getSubjectName() != null && fe.getSubject().getSubjectName().equalsIgnoreCase(target))) {
+                    return true;
+                }
             }
         }
         return false;
     }
 
     public List<User> getStudentsForSession(AttendanceSession session, User facultyUser) {
+        if (session == null) return Collections.emptyList();
         String targetDept = session.getDepartment();
         Integer targetSem = session.getSemester();
         String targetSec = session.getSection();
+        String sessionSubj = session.getSubject() != null ? session.getSubject().trim() : "";
 
         // If department is missing on session, attempt to infer from CourseClassroom or SubjectMaster
-        if (targetDept == null || targetDept.trim().isEmpty()) {
+        if ((targetDept == null || targetDept.trim().isEmpty()) && !sessionSubj.isEmpty()) {
             Optional<CourseClassroom> ccOpt = classroomRepository.findAll().stream()
-                    .filter(c -> c.getSubjectCode().equalsIgnoreCase(session.getSubject().trim()) ||
-                                 c.getSubjectName().equalsIgnoreCase(session.getSubject().trim()))
+                    .filter(c -> (c.getSubjectCode() != null && c.getSubjectCode().equalsIgnoreCase(sessionSubj)) ||
+                                 (c.getSubjectName() != null && c.getSubjectName().equalsIgnoreCase(sessionSubj)))
                     .findFirst();
             if (ccOpt.isPresent()) {
                 targetDept = ccOpt.get().getDepartment();
@@ -109,7 +121,7 @@ public class AttendanceController {
                 if (targetSec == null) targetSec = ccOpt.get().getSection();
             }
             if (targetDept == null || targetDept.trim().isEmpty()) {
-                Optional<SubjectMaster> smOpt = subjectMasterRepository.findBySubjectCode(session.getSubject().trim());
+                Optional<SubjectMaster> smOpt = subjectMasterRepository.findBySubjectCode(sessionSubj);
                 if (smOpt.isPresent()) {
                     targetDept = smOpt.get().getDepartment();
                     if (targetSem == null) targetSem = smOpt.get().getSemester();
@@ -158,6 +170,18 @@ public class AttendanceController {
                 students = secFiltered;
             }
         }
+
+        // Sort students in natural alphanumeric attendance register / roll number order
+        students.sort((u1, u2) -> {
+            String r1 = u1.getRegisterNumber() != null ? u1.getRegisterNumber().trim() : "";
+            String r2 = u2.getRegisterNumber() != null ? u2.getRegisterNumber().trim() : "";
+            if (!r1.isEmpty() && !r2.isEmpty()) {
+                return r1.compareToIgnoreCase(r2);
+            }
+            String n1 = u1.getName() != null ? u1.getName().trim() : "";
+            String n2 = u2.getName() != null ? u2.getName().trim() : "";
+            return n1.compareToIgnoreCase(n2);
+        });
 
         return students;
     }
@@ -396,17 +420,37 @@ public class AttendanceController {
             return ResponseEntity.ok().body(null);
         }
 
-        // Filter active sessions by department if the user is a Student
+        // Filter active sessions by cohort / department if the user is a Student
         if (user.getRole() == Role.STUDENT) {
             String dept = user.getDepartment();
             if (dept != null && !dept.trim().isEmpty()) {
+                String normStudentDept = com.eduflow.controller.TimetableController.normalizeDepartment(dept);
+                String normRegDept = user.getRegisterNumber() != null ? com.eduflow.controller.TimetableController.normalizeDepartment(user.getRegisterNumber()) : "";
+
                 Optional<AttendanceSession> deptActive = activeSessions.stream()
                         .filter(s -> {
+                            // Check if session cohort matches student
+                            if (s.getDepartment() != null && !s.getDepartment().trim().isEmpty()) {
+                                String normSessionDept = com.eduflow.controller.TimetableController.normalizeDepartment(s.getDepartment());
+                                boolean deptMatch = normSessionDept.equalsIgnoreCase(normStudentDept) || (normRegDept != null && normSessionDept.equalsIgnoreCase(normRegDept));
+                                if (deptMatch) {
+                                    if (s.getSemester() != null && user.getSemester() != null && !s.getSemester().equals(user.getSemester())) {
+                                        return false;
+                                    }
+                                    if (s.getSection() != null && user.getSection() != null && !s.getSection().equalsIgnoreCase(user.getSection())) {
+                                        return false;
+                                    }
+                                    return true;
+                                }
+                            }
+                            // Fallback to faculty creator's department
                             Optional<User> creatorOpt = userRepository.findById(s.getFacultyId());
                             if (creatorOpt.isPresent()) {
                                 User creator = creatorOpt.get();
-                                return creator.getDepartment() != null && 
-                                       creator.getDepartment().equalsIgnoreCase(dept);
+                                if (creator.getDepartment() != null) {
+                                    String normCreatorDept = com.eduflow.controller.TimetableController.normalizeDepartment(creator.getDepartment());
+                                    return normCreatorDept.equalsIgnoreCase(normStudentDept) || (normRegDept != null && normCreatorDept.equalsIgnoreCase(normRegDept));
+                                }
                             }
                             return false;
                         })
@@ -475,13 +519,21 @@ public class AttendanceController {
             return ResponseEntity.badRequest().body("Attendance session has expired!");
         }
 
-        // Verify student department matches faculty department
-        Optional<User> facultyOpt = userRepository.findById(session.getFacultyId());
-        if (facultyOpt.isPresent()) {
-            User faculty = facultyOpt.get();
-            if (faculty.getDepartment() != null && student.getDepartment() != null &&
-                    !faculty.getDepartment().equalsIgnoreCase(student.getDepartment())) {
-                return ResponseEntity.badRequest().body("You cannot mark attendance for a class in a different department (" + faculty.getDepartment() + ")!");
+        // Verify student department/cohort matches session
+        String sessionDept = session.getDepartment();
+        if (sessionDept != null && !sessionDept.trim().isEmpty()) {
+            String normSD = com.eduflow.controller.TimetableController.normalizeDepartment(sessionDept);
+            String normStudentDept = student.getDepartment() != null ? com.eduflow.controller.TimetableController.normalizeDepartment(student.getDepartment()) : "";
+            String normRegDept = student.getRegisterNumber() != null ? com.eduflow.controller.TimetableController.normalizeDepartment(student.getRegisterNumber()) : "";
+            boolean deptMatch = normSD.equalsIgnoreCase(normStudentDept) || (normRegDept != null && normSD.equalsIgnoreCase(normRegDept));
+            if (!deptMatch) {
+                Optional<User> facultyOpt = userRepository.findById(session.getFacultyId());
+                if (facultyOpt.isPresent() && facultyOpt.get().getDepartment() != null) {
+                    String normFD = com.eduflow.controller.TimetableController.normalizeDepartment(facultyOpt.get().getDepartment());
+                    if (!normFD.equalsIgnoreCase(normStudentDept) && (normRegDept == null || !normFD.equalsIgnoreCase(normRegDept))) {
+                        return ResponseEntity.badRequest().body("You cannot mark attendance for a class in a different department (" + sessionDept + ")!");
+                    }
+                }
             }
         }
 
@@ -609,25 +661,20 @@ public class AttendanceController {
             sessions = new java.util.ArrayList<>(attendanceSessionRepository.findAll());
         } else if (user.getRole() == Role.FACULTY) {
             String dept = user.getDepartment();
-            List<AttendanceSession> rawSessions;
-            if (dept == null || dept.trim().isEmpty()) {
-                rawSessions = attendanceSessionRepository.findByFacultyId(user.getId());
-            } else {
-                List<User> departmentFaculties = userRepository.findByRoleAndDepartmentIgnoreCase(Role.FACULTY, dept);
-                List<Long> facultyIds = departmentFaculties.stream().map(User::getId).filter(id -> id != null).toList();
-                if (facultyIds.isEmpty()) {
-                    rawSessions = new java.util.ArrayList<>();
-                } else {
-                    rawSessions = attendanceSessionRepository.findByFacultyIdIn(facultyIds);
+            String normFacultyDept = dept != null ? com.eduflow.controller.TimetableController.normalizeDepartment(dept) : "";
+            List<AttendanceSession> allSessions = attendanceSessionRepository.findAll();
+            sessions = allSessions.stream().filter(s -> {
+                // Sessions created by this faculty
+                if (s.getFacultyId() != null && s.getFacultyId().equals(user.getId())) return true;
+                // Sessions for subjects assigned to this faculty
+                if (isFacultyAssignedToSubject(user, s.getSubject())) return true;
+                // Class advisor can see sessions in their department
+                if (user.isClassAdvisor() && s.getDepartment() != null) {
+                    String normSD = com.eduflow.controller.TimetableController.normalizeDepartment(s.getDepartment());
+                    if (normSD.equalsIgnoreCase(normFacultyDept)) return true;
                 }
-            }
-            if (!user.isClassAdvisor()) {
-                sessions = rawSessions.stream()
-                    .filter(s -> s.getFacultyId() != null && s.getFacultyId().equals(user.getId()))
-                    .collect(java.util.stream.Collectors.toList());
-            } else {
-                sessions = new java.util.ArrayList<>(rawSessions);
-            }
+                return false;
+            }).collect(Collectors.toList());
         } else {
             return ResponseEntity.status(403).body("Students cannot view all sessions!");
         }
@@ -672,9 +719,9 @@ public class AttendanceController {
 
         // Security check: Only the faculty who started it, faculty in the same department, or an ADMIN can view this report
         boolean isCreatorOrSameDept = false;
-        if (session.getFacultyId().equals(user.getId())) {
+        if (session.getFacultyId() != null && session.getFacultyId().equals(user.getId())) {
             isCreatorOrSameDept = true;
-        } else {
+        } else if (session.getFacultyId() != null) {
             Optional<User> creatorOpt = userRepository.findById(session.getFacultyId());
             if (creatorOpt.isPresent()) {
                 User creator = creatorOpt.get();
@@ -685,7 +732,8 @@ public class AttendanceController {
         }
 
         if (user.getRole() == Role.FACULTY) {
-            if (!session.getFacultyId().equals(user.getId()) && !user.isClassAdvisor() && !isFacultyAssignedToSubject(user, session.getSubject())) {
+            boolean isCreator = session.getFacultyId() != null && session.getFacultyId().equals(user.getId());
+            if (!isCreator && !user.isClassAdvisor() && !isFacultyAssignedToSubject(user, session.getSubject())) {
                 return ResponseEntity.status(403).body("You do not have permission to view this report!");
             }
         } else if (user.getRole() != Role.ADMIN) {
@@ -740,42 +788,57 @@ public class AttendanceController {
         }
 
         String dept = student.getDepartment();
-        if (dept == null || dept.trim().isEmpty()) {
-            return ResponseEntity.ok(StudentAnalyticsResponse.builder()
-                    .overallAttendancePercentage(0.0).presentClasses(0).absentClasses(0).excusedClasses(0)
-                    .attendanceStatus("Needs Improvement").lowAttendanceWarning(false).alertLevel("NORMAL")
-                    .subjectWiseAttendance(java.util.Collections.emptyList())
-                    .attendanceTrend(java.util.Collections.emptyList()).build());
-        }
+        String normStudentDept = com.eduflow.controller.TimetableController.normalizeDepartment(dept);
+        String normRegDept = student.getRegisterNumber() != null ? com.eduflow.controller.TimetableController.normalizeDepartment(student.getRegisterNumber()) : "";
 
-        // Get all faculty in student's department
-        List<User> faculties = userRepository.findByRoleAndDepartmentIgnoreCase(Role.FACULTY, dept);
-        List<Long> facultyIds = faculties.stream().map(User::getId).toList();
-
-        if (facultyIds.isEmpty()) {
-            return ResponseEntity.ok(StudentAnalyticsResponse.builder()
-                    .overallAttendancePercentage(0.0).presentClasses(0).absentClasses(0).excusedClasses(0)
-                    .attendanceStatus("Needs Improvement").lowAttendanceWarning(false).alertLevel("NORMAL")
-                    .subjectWiseAttendance(java.util.Collections.emptyList())
-                    .attendanceTrend(java.util.Collections.emptyList()).build());
-        }
-
-        // Get all sessions conducted by these faculty
-        List<AttendanceSession> sessions = attendanceSessionRepository.findByFacultyIdIn(facultyIds);
-
-        // Get all attendance records for this student
+        // 1. Get all attendance records for this student
         List<Attendance> attendances = attendanceRepository.findByStudentId(student.getId());
         java.util.Set<Long> attendedSessionIds = attendances.stream()
-                .filter(a -> "PRESENT".equalsIgnoreCase(a.getStatus()))
+                .filter(a -> "PRESENT".equalsIgnoreCase(a.getStatus()) || "LATE".equalsIgnoreCase(a.getStatus()))
                 .map(Attendance::getSessionId)
                 .collect(java.util.stream.Collectors.toSet());
         java.util.Set<Long> excusedSessionIds = attendances.stream()
                 .filter(a -> "EXCUSED".equalsIgnoreCase(a.getStatus()))
                 .map(Attendance::getSessionId)
                 .collect(java.util.stream.Collectors.toSet());
+        java.util.Set<Long> recordedSessionIds = attendances.stream()
+                .map(Attendance::getSessionId)
+                .collect(java.util.stream.Collectors.toSet());
 
-        // Only count sessions that are neither excused as absent
-        List<AttendanceSession> countableSessions = sessions.stream()
+        // 2. Get all relevant sessions for student's cohort
+        List<AttendanceSession> allSessions = attendanceSessionRepository.findAll();
+        List<AttendanceSession> studentSessions = allSessions.stream()
+                .filter(s -> {
+                    // Match recorded sessions directly
+                    if (recordedSessionIds.contains(s.getId())) return true;
+                    // Match cohort department, semester, section
+                    if (s.getDepartment() != null && !s.getDepartment().trim().isEmpty()) {
+                        String normSD = com.eduflow.controller.TimetableController.normalizeDepartment(s.getDepartment());
+                        if (normSD.equalsIgnoreCase(normStudentDept) || (normRegDept != null && normSD.equalsIgnoreCase(normRegDept))) {
+                            if (s.getSemester() != null && student.getSemester() != null && !s.getSemester().equals(student.getSemester())) {
+                                return false;
+                            }
+                            if (s.getSection() != null && student.getSection() != null && !s.getSection().equalsIgnoreCase(student.getSection())) {
+                                return false;
+                            }
+                            return true;
+                        }
+                    }
+                    // Match creator's department
+                    Optional<User> creatorOpt = userRepository.findById(s.getFacultyId());
+                    if (creatorOpt.isPresent()) {
+                        User creator = creatorOpt.get();
+                        if (creator.getDepartment() != null) {
+                            String normCD = com.eduflow.controller.TimetableController.normalizeDepartment(creator.getDepartment());
+                            return normCD.equalsIgnoreCase(normStudentDept) || (normRegDept != null && normCD.equalsIgnoreCase(normRegDept));
+                        }
+                    }
+                    return false;
+                })
+                .toList();
+
+        // 3. Filter countable sessions (exclude excused)
+        List<AttendanceSession> countableSessions = studentSessions.stream()
                 .filter(s -> !excusedSessionIds.contains(s.getId()))
                 .toList();
 
@@ -791,7 +854,6 @@ public class AttendanceController {
         else if (overallPercentage >= 85.0) status = "Good";
         else if (overallPercentage >= 75.0) status = "Average";
 
-        // Low-attendance alert
         boolean lowWarning = overallPercentage < 75.0;
         String alertLevel = overallPercentage >= 75.0 ? "NORMAL" : overallPercentage >= 60.0 ? "WARNING" : "CRITICAL";
         String alertMessage = null;
@@ -801,29 +863,224 @@ public class AttendanceController {
             alertMessage = String.format("⚠ WARNING: Your attendance is %.1f%% — approaching the 75%% minimum threshold. Attend classes regularly to avoid detention.", overallPercentage);
         }
 
-        // Group by subject — use countable sessions
-        java.util.Map<String, List<AttendanceSession>> subjectSessions = countableSessions.stream()
-                .collect(java.util.stream.Collectors.groupingBy(s -> s.getSubject().trim()));
-
-        List<StudentAnalyticsResponse.SubjectAttendance> subjectStats = subjectSessions.entrySet().stream()
-                .map(entry -> {
-                    String subject = entry.getKey();
-                    List<AttendanceSession> sList = entry.getValue();
-                    int subTotal = sList.size();
-                    int subPresent = (int) sList.stream().filter(s -> attendedSessionIds.contains(s.getId())).count();
-                    int subAbsent = subTotal - subPresent;
-                    double subPercentage = subTotal > 0 ? (subPresent * 100.0) / subTotal : 100.0;
-                    return StudentAnalyticsResponse.SubjectAttendance.builder()
-                            .subject(subject).attendancePercentage(subPercentage)
-                            .presentClasses(subPresent).absentClasses(subAbsent)
-                            .isLow(subPercentage < 75.0).build();
+        // 4. Find all Curriculum Subjects for student from SubjectMaster
+        List<SubjectMaster> masterSubjects = subjectMasterRepository.findAll().stream()
+                .filter(sm -> {
+                    if (sm.getDepartment() == null) return false;
+                    String normSmDept = com.eduflow.controller.TimetableController.normalizeDepartment(sm.getDepartment());
+                    boolean deptMatch = normSmDept.equalsIgnoreCase(normStudentDept) || (normRegDept != null && normSmDept.equalsIgnoreCase(normRegDept));
+                    if (deptMatch) {
+                        return student.getSemester() == null || sm.getSemester() == null || sm.getSemester().equals(student.getSemester());
+                    }
+                    return false;
                 })
-                .sorted((a, b) -> a.getSubject().compareToIgnoreCase(b.getSubject()))
                 .toList();
 
-        // Trend by date
-        java.util.Map<LocalDate, List<AttendanceSession>> dateSessions = countableSessions.stream()
-                .collect(java.util.stream.Collectors.groupingBy(s -> s.getStartTime().toLocalDate()));
+        // 5. Build subject-wise attendance map (seed with curriculum subjects + any session subjects)
+        Map<String, List<AttendanceSession>> subjectSessionsMap = countableSessions.stream()
+                .collect(Collectors.groupingBy(s -> s.getSubject().trim()));
+
+        // Active sessions currently live for student's cohort
+        List<AttendanceSession> liveActiveSessions = allSessions.stream()
+                .filter(s -> s.isActive() && LocalDateTime.now().isBefore(s.getExpiryTime()))
+                .filter(s -> {
+                    if (s.getDepartment() != null && !s.getDepartment().trim().isEmpty()) {
+                        String normSD = com.eduflow.controller.TimetableController.normalizeDepartment(s.getDepartment());
+                        if (normSD.equalsIgnoreCase(normStudentDept) || (normRegDept != null && normSD.equalsIgnoreCase(normRegDept))) {
+                            if (s.getSemester() != null && student.getSemester() != null && !s.getSemester().equals(student.getSemester())) {
+                                return false;
+                            }
+                            if (s.getSection() != null && student.getSection() != null && !s.getSection().equalsIgnoreCase(student.getSection())) {
+                                return false;
+                            }
+                            return true;
+                        }
+                    }
+                    Optional<User> creatorOpt = userRepository.findById(s.getFacultyId());
+                    if (creatorOpt.isPresent() && creatorOpt.get().getDepartment() != null) {
+                        String normCD = com.eduflow.controller.TimetableController.normalizeDepartment(creatorOpt.get().getDepartment());
+                        return normCD.equalsIgnoreCase(normStudentDept) || (normRegDept != null && normCD.equalsIgnoreCase(normRegDept));
+                    }
+                    return false;
+                })
+                .toList();
+
+        // Collect all distinct subject codes
+        Set<String> allSubjectKeys = new LinkedHashSet<>();
+        for (SubjectMaster sm : masterSubjects) {
+            allSubjectKeys.add(sm.getSubjectCode().trim());
+        }
+        for (String sessSub : subjectSessionsMap.keySet()) {
+            allSubjectKeys.add(sessSub.trim());
+        }
+        for (AttendanceSession as : liveActiveSessions) {
+            if (as.getSubject() != null) allSubjectKeys.add(as.getSubject().trim());
+        }
+
+        // If there is a more specific variant like '25XXXX-4064', suppress the bare generic '25XXXX'
+        Set<String> filteredSubjectKeys = new LinkedHashSet<>();
+        for (String k : allSubjectKeys) {
+            boolean hasMoreSpecificVariant = allSubjectKeys.stream()
+                    .anyMatch(other -> !other.equalsIgnoreCase(k) && other.toUpperCase().startsWith(k.toUpperCase() + "-"));
+            if (!hasMoreSpecificVariant) {
+                filteredSubjectKeys.add(k);
+            }
+        }
+
+        List<StudentAnalyticsResponse.SubjectAttendance> subjectStats = new ArrayList<>();
+        for (String subKey : filteredSubjectKeys) {
+            List<AttendanceSession> sList = subjectSessionsMap.getOrDefault(subKey, Collections.emptyList());
+            int subTotal = sList.size();
+            int subPresent = (int) sList.stream().filter(s -> attendedSessionIds.contains(s.getId())).count();
+            int subAbsent = subTotal - subPresent;
+            double subPercentage = subTotal > 0 ? (subPresent * 100.0) / subTotal : 100.0;
+
+            // Find matching subject master metadata
+            Optional<SubjectMaster> smOpt = masterSubjects.stream()
+                    .filter(sm -> sm.getSubjectCode().equalsIgnoreCase(subKey) || 
+                                  subKey.toUpperCase().startsWith(sm.getSubjectCode().toUpperCase() + "-") ||
+                                  subKey.toLowerCase().contains(sm.getSubjectCode().toLowerCase()))
+                    .findFirst();
+
+            String subName = smOpt.map(SubjectMaster::getSubjectName).orElse(subKey);
+
+            // Check if there is an active session for this subject
+            Optional<AttendanceSession> activeForSub = liveActiveSessions.stream()
+                    .filter(as -> as.getSubject() != null && (
+                            as.getSubject().equalsIgnoreCase(subKey) ||
+                            (smOpt.isPresent() && as.getSubject().equalsIgnoreCase(smOpt.get().getSubjectCode()))
+                    ))
+                    .findFirst();
+
+            boolean hasActive = activeForSub.isPresent();
+            Long activeId = null;
+            String currentOtp = null;
+            String expiryTimeStr = null;
+            Integer timeLeftSec = null;
+            String facultyName = null;
+
+            if (hasActive) {
+                AttendanceSession as = activeForSub.get();
+                populateOtp(as);
+                activeId = as.getId();
+                currentOtp = as.getCurrentOtp();
+                expiryTimeStr = as.getExpiryTime() != null ? as.getExpiryTime().toString() : null;
+                if (as.getExpiryTime() != null) {
+                    long diffSec = java.time.Duration.between(LocalDateTime.now(), as.getExpiryTime()).getSeconds();
+                    timeLeftSec = Math.max(0, (int) diffSec);
+                }
+                if (as.getFacultyId() != null) {
+                    Optional<User> fOpt = userRepository.findById(as.getFacultyId());
+                    facultyName = fOpt.map(User::getName).orElse(as.getFacultyName());
+                }
+            } else if (!sList.isEmpty()) {
+                AttendanceSession latestSess = sList.get(sList.size() - 1);
+                if (latestSess.getFacultyId() != null) {
+                    Optional<User> fOpt = userRepository.findById(latestSess.getFacultyId());
+                    facultyName = fOpt.map(User::getName).orElse(latestSess.getFacultyName());
+                }
+            }
+
+            // Fallback 1: Resolve assigned faculty from CourseClassroom
+            if (facultyName == null || facultyName.trim().isEmpty()) {
+                final String currentSub = subKey;
+                List<CourseClassroom> classrooms = classroomRepository.findAll();
+                Optional<CourseClassroom> ccOpt = classrooms.stream()
+                        .filter(cc -> cc.getFaculty() != null)
+                        .filter(cc -> {
+                            String code = cc.getSubjectCode() != null ? cc.getSubjectCode().trim() : "";
+                            String name = cc.getSubjectName() != null ? cc.getSubjectName().trim() : "";
+                            return code.equalsIgnoreCase(currentSub) || 
+                                   name.equalsIgnoreCase(currentSub) ||
+                                   (smOpt.isPresent() && (code.equalsIgnoreCase(smOpt.get().getSubjectCode()) || name.equalsIgnoreCase(smOpt.get().getSubjectName()))) ||
+                                   currentSub.toUpperCase().startsWith(code.toUpperCase() + "-");
+                        })
+                        .findFirst();
+                if (ccOpt.isPresent()) {
+                    facultyName = ccOpt.get().getFaculty().getName();
+                }
+            }
+
+            // Fallback 2: Resolve assigned faculty from FacultyExpertise
+            if (facultyName == null || facultyName.trim().isEmpty()) {
+                final String currentSub = subKey;
+                List<FacultyExpertise> expertises = facultyExpertiseRepository.findAll();
+                Optional<FacultyExpertise> feOpt = expertises.stream()
+                        .filter(fe -> fe.getFaculty() != null && fe.getSubject() != null)
+                        .filter(fe -> {
+                            String code = fe.getSubject().getSubjectCode() != null ? fe.getSubject().getSubjectCode().trim() : "";
+                            String name = fe.getSubject().getSubjectName() != null ? fe.getSubject().getSubjectName().trim() : "";
+                            return code.equalsIgnoreCase(currentSub) || 
+                                   name.equalsIgnoreCase(currentSub) ||
+                                   (smOpt.isPresent() && (code.equalsIgnoreCase(smOpt.get().getSubjectCode()) || name.equalsIgnoreCase(smOpt.get().getSubjectName()))) ||
+                                   currentSub.toUpperCase().startsWith(code.toUpperCase() + "-");
+                        })
+                        .findFirst();
+                if (feOpt.isPresent()) {
+                    facultyName = feOpt.get().getFaculty().getName();
+                }
+            }
+
+            // Fallback 3: Resolve from any attendance session ever recorded for this subject
+            if (facultyName == null || facultyName.trim().isEmpty()) {
+                final String currentSub = subKey;
+                Optional<AttendanceSession> anySess = allSessions.stream()
+                        .filter(s -> s.getSubject() != null && s.getFacultyId() != null)
+                        .filter(s -> {
+                            String sub = s.getSubject().trim();
+                            return sub.equalsIgnoreCase(currentSub) || 
+                                   (smOpt.isPresent() && sub.equalsIgnoreCase(smOpt.get().getSubjectCode())) ||
+                                   sub.toUpperCase().startsWith(currentSub.toUpperCase() + "-") ||
+                                   currentSub.toUpperCase().startsWith(sub.toUpperCase() + "-");
+                        })
+                        .findFirst();
+                if (anySess.isPresent()) {
+                    Optional<User> fOpt = userRepository.findById(anySess.get().getFacultyId());
+                    facultyName = fOpt.map(User::getName).orElse(anySess.get().getFacultyName());
+                }
+            }
+
+            // Fallback 4: Check if any faculty in the department is assigned to this subject
+            if (facultyName == null || facultyName.trim().isEmpty()) {
+                final String currentSub = subKey;
+                if (dept != null && !dept.trim().isEmpty()) {
+                    List<User> deptFaculties = userRepository.findByRoleAndDepartmentIgnoreCase(Role.FACULTY, dept);
+                    for (User df : deptFaculties) {
+                        if (isFacultyAssignedToSubject(df, currentSub)) {
+                            facultyName = df.getName();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            subjectStats.add(StudentAnalyticsResponse.SubjectAttendance.builder()
+                    .subject(subKey)
+                    .subjectName(subName)
+                    .facultyName(facultyName)
+                    .attendancePercentage(subPercentage)
+                    .presentClasses(subPresent)
+                    .absentClasses(subAbsent)
+                    .isLow(subPercentage < 75.0)
+                    .hasActiveSession(hasActive)
+                    .activeSessionId(activeId)
+                    .currentOtp(currentOtp)
+                    .expiryTime(expiryTimeStr)
+                    .timeLeftSeconds(timeLeftSec)
+                    .build());
+        }
+
+        // Sort: active sessions first, then alphabetical by subject code
+        subjectStats.sort((a, b) -> {
+            if (a.isHasActiveSession() != b.isHasActiveSession()) {
+                return a.isHasActiveSession() ? -1 : 1;
+            }
+            return a.getSubject().compareToIgnoreCase(b.getSubject());
+        });
+
+        // 6. Trend by date
+        Map<LocalDate, List<AttendanceSession>> dateSessions = countableSessions.stream()
+                .collect(Collectors.groupingBy(s -> s.getStartTime().toLocalDate()));
 
         List<StudentAnalyticsResponse.AttendanceTrend> trendList = dateSessions.entrySet().stream()
                 .map(entry -> {
@@ -871,9 +1128,9 @@ public class AttendanceController {
         }
 
         List<Attendance> checkIns = attendanceRepository.findBySessionId(sessionId);
-        Optional<User> facultyOpt = userRepository.findById(session.getFacultyId());
+        Optional<User> facultyOpt = session.getFacultyId() != null ? userRepository.findById(session.getFacultyId()) : Optional.empty();
         String facultyName = facultyOpt.map(User::getName).orElse("Unknown");
-        String sessionDate = session.getStartTime().toLocalDate().toString();
+        String sessionDate = session.getStartTime() != null ? session.getStartTime().toLocalDate().toString() : LocalDate.now().toString();
 
         StringBuilder csv = new StringBuilder();
         csv.append("Register Number,Student Name,Department,Subject,Faculty,Date,Status,Scan Time\n");
@@ -887,13 +1144,14 @@ public class AttendanceController {
             csv.append(String.format("\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"%n",
                     student.getRegisterNumber() != null ? student.getRegisterNumber() : "Pending",
                     student.getName(), student.getDepartment() != null ? student.getDepartment() : "",
-                    session.getSubject(), facultyName, sessionDate, status, scanTime));
+                    session.getSubject() != null ? session.getSubject() : "", facultyName, sessionDate, status, scanTime));
         }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("text/csv"));
+        String safeSubj = session.getSubject() != null ? session.getSubject().replaceAll("\\s+", "_") : "session";
         headers.setContentDispositionFormData("attachment",
-                "attendance_" + session.getSubject().replaceAll("\\s+", "_") + "_" + sessionDate + ".csv");
+                "attendance_" + safeSubj + "_" + sessionDate + ".csv");
         return ResponseEntity.ok().headers(headers).body(csv.toString());
     }
 
@@ -922,7 +1180,7 @@ public class AttendanceController {
         }
 
         List<Attendance> checkIns = attendanceRepository.findBySessionId(sessionId);
-        Optional<User> facultyOpt = userRepository.findById(session.getFacultyId());
+        Optional<User> facultyOpt = session.getFacultyId() != null ? userRepository.findById(session.getFacultyId()) : Optional.empty();
 
         List<Map<String, Object>> records = new ArrayList<>();
         for (User student : students) {
@@ -940,8 +1198,8 @@ public class AttendanceController {
         Map<String, Object> result = new java.util.LinkedHashMap<>();
         result.put("subject", session.getSubject());
         result.put("faculty", facultyOpt.map(User::getName).orElse("Unknown"));
-        result.put("date", session.getStartTime().toLocalDate().toString());
-        result.put("startTime", session.getStartTime().toLocalTime().toString());
+        result.put("date", session.getStartTime() != null ? session.getStartTime().toLocalDate().toString() : "");
+        result.put("startTime", session.getStartTime() != null ? session.getStartTime().toLocalTime().toString() : "");
         result.put("department", facultyOpt.map(User::getDepartment).orElse(""));
         result.put("totalStudents", students.size());
         result.put("presentCount", checkIns.stream().filter(a -> "PRESENT".equalsIgnoreCase(a.getStatus())).count());
@@ -1254,13 +1512,95 @@ public class AttendanceController {
             needsImprovementDept = String.format("%s - %.1f%%", worst.getDepartment(), worst.getAverageAttendance());
         }
 
+        // Build Real Recent Activities list from Database
+        List<AdminAnalyticsResponse.ActivityItem> recentActivities = new java.util.ArrayList<>();
+
+        // 1. Recent Attendance Sessions
+        List<AttendanceSession> allSess = attendanceSessionRepository.findAll();
+        List<AttendanceSession> recentSessions = allSess.stream()
+                .filter(s -> s.getStartTime() != null)
+                .sorted((a, b) -> b.getStartTime().compareTo(a.getStartTime()))
+                .limit(4)
+                .toList();
+
+        for (AttendanceSession s : recentSessions) {
+            String facName = s.getFacultyName();
+            if (s.getFacultyId() != null) {
+                facName = userRepository.findById(s.getFacultyId()).map(User::getName).orElse(facName);
+            }
+            long presentCount = attendanceRepository.findBySessionId(s.getId()).stream()
+                    .filter(att -> "PRESENT".equalsIgnoreCase(att.getStatus()) || "LATE".equalsIgnoreCase(att.getStatus()))
+                    .count();
+
+            recentActivities.add(AdminAnalyticsResponse.ActivityItem.builder()
+                    .id("sess-" + s.getId())
+                    .title("Attendance Session Conducted")
+                    .details(String.format("Session '%s' by %s (%d signed in)", s.getSubject(), facName != null ? facName : "Faculty", presentCount))
+                    .time(formatRelativeTime(s.getStartTime()))
+                    .iconType("session")
+                    .build());
+        }
+
+        // 2. Recent Leave / OD Requests
+        List<LeaveRequest> allLeaves = leaveRequestRepository.findAll();
+        List<LeaveRequest> recentLeaves = allLeaves.stream()
+                .filter(l -> l.getCreatedAt() != null)
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .limit(3)
+                .toList();
+
+        for (LeaveRequest lr : recentLeaves) {
+            String studentName = userRepository.findById(lr.getStudentId()).map(User::getName).orElse("Student");
+            recentActivities.add(AdminAnalyticsResponse.ActivityItem.builder()
+                    .id("leave-" + lr.getId())
+                    .title(String.format("%s Request %s", lr.getType(), lr.getStatus()))
+                    .details(String.format("%s request submitted for %s", lr.getType(), studentName))
+                    .time(formatRelativeTime(lr.getCreatedAt()))
+                    .iconType("leave")
+                    .build());
+        }
+
+        // 3. Recent Registered Users (Faculty/Students)
+        List<User> recentUsers = userRepository.findAll().stream()
+                .sorted((a, b) -> Long.compare(b.getId(), a.getId()))
+                .limit(3)
+                .toList();
+
+        for (User u : recentUsers) {
+            String roleTitle = u.getRole() == Role.FACULTY ? "Faculty Account Registered" : "Student Account Registered";
+            recentActivities.add(AdminAnalyticsResponse.ActivityItem.builder()
+                    .id("user-" + u.getId())
+                    .title(roleTitle)
+                    .details(String.format("%s registered under %s", u.getName(), u.getDepartment() != null ? u.getDepartment() : "General"))
+                    .time("Recently")
+                    .iconType("user")
+                    .build());
+        }
+
         return ResponseEntity.ok(AdminAnalyticsResponse.builder()
                 .totalStudents(totalStudents)
                 .totalFaculty(totalFaculty)
                 .totalSessions(totalSessions)
+                .bestDepartment(bestDept)
                 .needsImprovementDepartment(needsImprovementDept)
                 .departmentComparison(comparisonList)
+                .recentActivities(recentActivities)
                 .build());
+    }
+
+    private String formatRelativeTime(LocalDateTime dt) {
+        if (dt == null) return "Recently";
+        long seconds = java.time.Duration.between(dt, LocalDateTime.now()).getSeconds();
+        if (seconds < 0) seconds = Math.abs(seconds);
+        if (seconds < 60) return "Just now";
+        long minutes = seconds / 60;
+        if (minutes < 60) return minutes + " mins ago";
+        long hours = minutes / 60;
+        if (hours < 24) return hours + " hrs ago";
+        long days = hours / 24;
+        if (days == 1) return "Yesterday";
+        if (days < 7) return days + " days ago";
+        return dt.toLocalDate().toString();
     }
 
     @PostMapping("/session/create")
@@ -1308,11 +1648,30 @@ public class AttendanceController {
         }
 
         Optional<User> hostOpt = userRepository.findById(session.getFacultyId());
-        List<User> students = getStudentsForSession(session, hostOpt.orElse(user));
+        List<User> students = new ArrayList<>(getStudentsForSession(session, hostOpt.orElse(user)));
 
         List<Attendance> attendances = attendanceRepository.findBySessionId(id);
+        Set<Long> loadedIds = students.stream().map(User::getId).collect(Collectors.toSet());
+        for (Attendance att : attendances) {
+            if (att.getStudentId() != null && !loadedIds.contains(att.getStudentId())) {
+                userRepository.findById(att.getStudentId()).ifPresent(students::add);
+            }
+        }
+
+        // Sort students in natural roll number order
+        students.sort((u1, u2) -> {
+            String r1 = u1.getRegisterNumber() != null ? u1.getRegisterNumber().trim() : "";
+            String r2 = u2.getRegisterNumber() != null ? u2.getRegisterNumber().trim() : "";
+            if (!r1.isEmpty() && !r2.isEmpty()) {
+                return r1.compareToIgnoreCase(r2);
+            }
+            String n1 = u1.getName() != null ? u1.getName().trim() : "";
+            String n2 = u2.getName() != null ? u2.getName().trim() : "";
+            return n1.compareToIgnoreCase(n2);
+        });
+
         Map<Long, Attendance> attendanceMap = attendances.stream()
-                .collect(Collectors.toMap(Attendance::getStudentId, a -> a));
+                .collect(Collectors.toMap(Attendance::getStudentId, a -> a, (a1, a2) -> a1));
 
         List<Map<String, Object>> result = students.stream().map(student -> {
             Map<String, Object> map = new LinkedHashMap<>();

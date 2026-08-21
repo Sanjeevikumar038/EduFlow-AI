@@ -17,6 +17,52 @@ public class AdminAnalyticsResponse {
     private String bestDepartment;
     private String needsImprovementDepartment;
     private List<DepartmentAnalytics> departmentComparison;
+    private List<ActivityItem> recentActivities;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ActivityItem {
+        private String id;
+        private String title;
+        private String details;
+        private String time;
+        private String iconType;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+        public String getDetails() { return details; }
+        public void setDetails(String details) { this.details = details; }
+        public String getTime() { return time; }
+        public void setTime(String time) { this.time = time; }
+        public String getIconType() { return iconType; }
+        public void setIconType(String iconType) { this.iconType = iconType; }
+
+        public static ActivityItemBuilder builder() { return new ActivityItemBuilder(); }
+        public static class ActivityItemBuilder {
+            private String id;
+            private String title;
+            private String details;
+            private String time;
+            private String iconType;
+
+            public ActivityItemBuilder id(String id) { this.id = id; return this; }
+            public ActivityItemBuilder title(String title) { this.title = title; return this; }
+            public ActivityItemBuilder details(String details) { this.details = details; return this; }
+            public ActivityItemBuilder time(String time) { this.time = time; return this; }
+            public ActivityItemBuilder iconType(String iconType) { this.iconType = iconType; return this; }
+
+            public ActivityItem build() {
+                ActivityItem ai = new ActivityItem();
+                ai.setId(id); ai.setTitle(title); ai.setDetails(details);
+                ai.setTime(time); ai.setIconType(iconType);
+                return ai;
+            }
+        }
+    }
 
     @Data
     @Builder
@@ -70,6 +116,8 @@ public class AdminAnalyticsResponse {
     public void setNeedsImprovementDepartment(String needsImprovementDepartment) { this.needsImprovementDepartment = needsImprovementDepartment; }
     public List<DepartmentAnalytics> getDepartmentComparison() { return departmentComparison; }
     public void setDepartmentComparison(List<DepartmentAnalytics> departmentComparison) { this.departmentComparison = departmentComparison; }
+    public List<ActivityItem> getRecentActivities() { return recentActivities; }
+    public void setRecentActivities(List<ActivityItem> recentActivities) { this.recentActivities = recentActivities; }
 
     public static AdminAnalyticsResponseBuilder builder() { return new AdminAnalyticsResponseBuilder(); }
     public static class AdminAnalyticsResponseBuilder {
@@ -79,6 +127,7 @@ public class AdminAnalyticsResponse {
         private String bestDepartment;
         private String needsImprovementDepartment;
         private List<DepartmentAnalytics> departmentComparison;
+        private List<ActivityItem> recentActivities;
 
         public AdminAnalyticsResponseBuilder totalStudents(long totalStudents) { this.totalStudents = totalStudents; return this; }
         public AdminAnalyticsResponseBuilder totalFaculty(long totalFaculty) { this.totalFaculty = totalFaculty; return this; }
@@ -86,6 +135,7 @@ public class AdminAnalyticsResponse {
         public AdminAnalyticsResponseBuilder bestDepartment(String bestDepartment) { this.bestDepartment = bestDepartment; return this; }
         public AdminAnalyticsResponseBuilder needsImprovementDepartment(String needsImprovementDepartment) { this.needsImprovementDepartment = needsImprovementDepartment; return this; }
         public AdminAnalyticsResponseBuilder departmentComparison(List<DepartmentAnalytics> departmentComparison) { this.departmentComparison = departmentComparison; return this; }
+        public AdminAnalyticsResponseBuilder recentActivities(List<ActivityItem> recentActivities) { this.recentActivities = recentActivities; return this; }
 
         public AdminAnalyticsResponse build() {
             AdminAnalyticsResponse r = new AdminAnalyticsResponse();
@@ -93,6 +143,7 @@ public class AdminAnalyticsResponse {
             r.setTotalSessions(totalSessions); r.setBestDepartment(bestDepartment);
             r.setNeedsImprovementDepartment(needsImprovementDepartment);
             r.setDepartmentComparison(departmentComparison);
+            r.setRecentActivities(recentActivities);
             return r;
         }
     }

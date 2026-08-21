@@ -33,13 +33,18 @@ const ClassroomLectureHistory = ({ classroom, userRole }) => {
   }, [classroom?.id]);
 
   const fetchTimeline = async () => {
-    if (!classroom?.id || !token) return;
+    const classId = classroom?.id;
+    if (!classId || !token) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const res = await getLectureTimeline(classroom.id, token);
+      const res = await getLectureTimeline(classId, token);
       setLectures(res.data || []);
     } catch (err) {
       console.error("Failed to load lecture timeline:", err);
+      setLectures([]);
     } finally {
       setLoading(false);
     }

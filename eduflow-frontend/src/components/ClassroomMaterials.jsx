@@ -36,13 +36,18 @@ const ClassroomMaterials = ({ classroom, userRole }) => {
   }, [classroom?.id]);
 
   const fetchMaterials = async () => {
-    if (!classroom?.id || !token) return;
+    const classId = classroom?.id;
+    if (!classId || !token) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const res = await getClassroomMaterials(classroom.id, token);
+      const res = await getClassroomMaterials(classId, token);
       setMaterials(res.data || []);
     } catch (err) {
       console.error("Failed to load materials:", err);
+      setMaterials([]);
     } finally {
       setLoading(false);
     }
