@@ -403,7 +403,31 @@ const ResumeManagement = () => {
                         </form>
                     </div>
 
-                    {latestResume ? (
+                    {loading ? (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px", alignItems: "start", animation: "pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "24px", gridColumn: "span 2" }}>
+                                <div className="glass-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid var(--card-border)" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid var(--card-border)", paddingBottom: "16px", marginBottom: "20px" }}>
+                                        <div>
+                                            <div style={{ width: "150px", height: "24px", borderRadius: "4px", background: "rgba(255,255,255,0.1)", marginBottom: "8px" }}></div>
+                                            <div style={{ width: "100px", height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.05)" }}></div>
+                                        </div>
+                                        <div style={{ width: "80px", height: "40px", borderRadius: "8px", background: "rgba(255,255,255,0.1)" }}></div>
+                                    </div>
+                                    <div style={{ width: "100%", height: "60px", borderRadius: "10px", background: "rgba(255,255,255,0.05)", marginBottom: "24px" }}></div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "20px" }}>
+                                        {[1,2,3,4,5,6].map(i => (
+                                            <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                                <div style={{ width: "120px", height: "14px", borderRadius: "4px", background: "rgba(255,255,255,0.1)" }}></div>
+                                                <div style={{ flex: 1, height: "8px", borderRadius: "999px", background: "rgba(255,255,255,0.05)" }}></div>
+                                                <div style={{ width: "30px", height: "14px", borderRadius: "4px", background: "rgba(255,255,255,0.1)" }}></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : latestResume ? (
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px", alignItems: "start" }}>
                             
                             {/* Left Column (Score Breakdown & Strengths) */}

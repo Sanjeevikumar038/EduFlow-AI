@@ -87,6 +87,9 @@ public class ResumeServiceImpl implements ResumeService {
 
             try {
                 JsonNode root = objectMapper.readTree(cleanedResponse);
+                if (root.isEmpty() || !root.has("atsScore")) {
+                    throw new RuntimeException("Invalid or empty AI response");
+                }
                 resume.setAtsScore(root.path("atsScore").asInt(50));
                 resume.setAtsBreakdown(root.path("atsBreakdown").isMissingNode() || root.path("atsBreakdown").isNull() ? "{}" : root.path("atsBreakdown").toString());
                 resume.setSummary(root.path("summary").isMissingNode() || root.path("summary").isNull() ? "Parsed successfully." : root.path("summary").asText());

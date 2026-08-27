@@ -109,7 +109,7 @@ function Register() {
 
       <div className="auth-header">
         <h1>Create Account</h1>
-        <p>Get started with EduFlow Student Portal</p>
+        <p>Get started with EduFlow Student Hub</p>
       </div>
 
       <form className="auth-form" onSubmit={handleRegister}>

@@ -884,7 +884,7 @@ function StudentDashboard() {
     <div className="dashboard-container" style={{ maxWidth: "1100px", width: "100%" }}>
       <div className="dashboard-header">
         <div className="dashboard-title">
-          <h1>Student Portal</h1>
+          <h1>Student Hub</h1>
           <p>Welcome back, {name}! {registerNumber && `(Reg No: ${registerNumber})`} {localStorage.getItem("department") && `| Dept: ${localStorage.getItem("department")}`}</p>
         </div>
         <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>

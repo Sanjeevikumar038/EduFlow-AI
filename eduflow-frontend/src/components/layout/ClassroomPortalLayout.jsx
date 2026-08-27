@@ -61,7 +61,7 @@ const ClassroomPortalLayout = () => {
         }}
         handleLogout={handleLogout}
         name={name}
-        subtitle="Faculty Portal"
+        subtitle="Faculty Hub"
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
       />

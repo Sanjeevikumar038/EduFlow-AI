@@ -402,78 +402,140 @@ function FacultyQrSessionView({
       ) : (
         /* Config form to start new QR session */
         <div className="dashboard-card" style={{
-          background: "rgba(30, 41, 59, 0.25)",
-          border: "1px solid var(--card-border)",
+          background: "linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)",
+          border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: "24px",
-          padding: "2.5rem",
-          maxWidth: "440px",
+          padding: "3rem 2.5rem",
+          maxWidth: "480px",
           width: "100%",
           display: "flex",
           flexDirection: "column",
-          gap: "1.5rem"
+          gap: "2rem",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+          position: "relative",
+          overflow: "hidden",
+          backdropFilter: "blur(16px)"
         }}>
-          <h3 style={{ margin: 0, fontSize: "1.4rem", color: "#fff", fontWeight: "800", textAlign: "center" }}>
-            📱 Launch QR Code Session
-          </h3>
+          {/* Decorative background elements */}
+          <div style={{ position: "absolute", top: "-50px", right: "-50px", width: "150px", height: "150px", background: "radial-gradient(circle, rgba(244,63,94,0.15) 0%, rgba(0,0,0,0) 70%)", borderRadius: "50%" }}></div>
+          <div style={{ position: "absolute", bottom: "-50px", left: "-50px", width: "150px", height: "150px", background: "radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(0,0,0,0) 70%)", borderRadius: "50%" }}></div>
 
-          <form onSubmit={handleStartSession} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-            <div className="form-group">
-              <label>Select Subject</label>
+          <div style={{ textAlign: "center", zIndex: 1 }}>
+            <div style={{ 
+              width: "64px", 
+              height: "64px", 
+              background: "linear-gradient(135deg, rgba(244,63,94,0.2) 0%, rgba(225,29,72,0.1) 100%)", 
+              borderRadius: "16px", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              margin: "0 auto 1.5rem auto",
+              border: "1px solid rgba(244,63,94,0.3)",
+              boxShadow: "0 0 20px rgba(244,63,94,0.15)"
+            }}>
+              <span style={{ fontSize: "2rem" }}>📱</span>
+            </div>
+            <h3 style={{ margin: 0, fontSize: "1.6rem", color: "#fff", fontWeight: "800", letterSpacing: "-0.5px" }}>
+              Launch QR Code Session
+            </h3>
+            <p style={{ margin: "8px 0 0 0", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+              Generate a live, time-limited QR code for instant student check-ins.
+            </p>
+          </div>
+
+          <form onSubmit={handleStartSession} style={{ display: "flex", flexDirection: "column", gap: "1.5rem", zIndex: 1 }}>
+            <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <label style={{ fontSize: "0.85rem", fontWeight: "700", color: "#e2e8f0", textTransform: "uppercase", letterSpacing: "0.5px" }}>Select Subject</label>
               <select
                 className="input-field"
                 style={{ 
-                  height: "44px", 
-                  minHeight: "44px", 
-                  padding: "0 12px", 
-                  fontSize: "0.88rem", 
-                  lineHeight: "normal", 
-                  color: "var(--text-main)", 
-                  backgroundColor: "var(--bg-card, #ffffff)", 
-                  border: "1px solid var(--card-border, #cbd5e1)", 
-                  borderRadius: "8px", 
-                  cursor: "pointer" 
+                  height: "50px", 
+                  padding: "0 16px", 
+                  fontSize: "0.95rem", 
+                  color: "#fff", 
+                  backgroundColor: "rgba(15, 23, 42, 0.6)", 
+                  border: "1px solid rgba(255,255,255,0.1)", 
+                  borderRadius: "12px", 
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  outline: "none",
+                  boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)"
                 }}
+                onFocus={(e) => e.target.style.borderColor = "var(--primary)"}
+                onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
                 value={sessionSubject}
                 onChange={(e) => setSessionSubject(e.target.value)}
                 required
               >
-                <option value="">-- Choose Subject --</option>
+                <option value="" style={{ background: "#0f172a" }}>-- Choose Subject --</option>
                 {facultySubjects.map(sub => (
-                  <option key={sub.id || sub.subjectCode} value={sub.subjectCode}>
+                  <option key={sub.id || sub.subjectCode} value={sub.subjectCode} style={{ background: "#0f172a" }}>
                     {sub.subjectCode} - {sub.subjectName} {sub.department ? `(${sub.department.replace("Department of ", "")} · Sem ${sub.semester || 1}${sub.section ? ` ${sub.section}` : ""})` : ""}
                   </option>
                 ))}
                 {isAdvisor && (
-                  <option value="CUSTOM">-- Enter Custom Code --</option>
+                  <option value="CUSTOM" style={{ background: "#0f172a" }}>-- Enter Custom Code --</option>
                 )}
               </select>
             </div>
 
             {sessionSubject === "CUSTOM" && (
-              <div className="form-group">
-                <label>Custom Subject Code</label>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px", animation: "fadeIn 0.3s ease" }}>
+                <label style={{ fontSize: "0.85rem", fontWeight: "700", color: "#e2e8f0", textTransform: "uppercase", letterSpacing: "0.5px" }}>Custom Subject Code</label>
                 <input
                   type="text"
-                  className="input-field"
                   placeholder="e.g. CS101"
                   value={customSubject}
                   onChange={(e) => setCustomSubject(e.target.value)}
+                  style={{ 
+                    height: "50px", 
+                    padding: "0 16px", 
+                    fontSize: "0.95rem", 
+                    color: "#fff", 
+                    backgroundColor: "rgba(15, 23, 42, 0.6)", 
+                    border: "1px solid rgba(255,255,255,0.1)", 
+                    borderRadius: "12px",
+                    outline: "none",
+                    transition: "all 0.2s ease"
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = "var(--primary)"}
+                  onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
                   required
                 />
               </div>
             )}
 
-            <div className="form-group">
-              <label>Session Duration (Minutes): {sessionDuration}</label>
+            <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label style={{ fontSize: "0.85rem", fontWeight: "700", color: "#e2e8f0", textTransform: "uppercase", letterSpacing: "0.5px" }}>Session Duration</label>
+                <span style={{ 
+                  background: "rgba(244,63,94,0.15)", 
+                  color: "#f43f5e", 
+                  padding: "4px 10px", 
+                  borderRadius: "20px", 
+                  fontSize: "0.8rem", 
+                  fontWeight: "800" 
+                }}>
+                  {sessionDuration} Minutes
+                </span>
+              </div>
               <input
                 type="range"
                 min="1"
                 max="30"
                 value={sessionDuration}
                 onChange={(e) => setSessionDuration(e.target.value)}
-                style={{ width: "100%", accentColor: "#f43f5e", cursor: "pointer" }}
+                style={{ 
+                  width: "100%", 
+                  accentColor: "#f43f5e", 
+                  cursor: "pointer",
+                  height: "6px",
+                  borderRadius: "10px",
+                  appearance: "none",
+                  background: "rgba(255,255,255,0.1)"
+                }}
               />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>
                 <span>1 min</span>
                 <span>30 mins</span>
               </div>
@@ -485,12 +547,37 @@ function FacultyQrSessionView({
               style={{
                 width: "100%",
                 background: "linear-gradient(135deg, #f43f5e 0%, #be123c 100%)",
-                border: "none", color: "#fff", padding: "12px", borderRadius: "10px",
-                fontWeight: "700", cursor: "pointer", fontSize: "0.9rem",
-                boxShadow: "0 4px 12px rgba(244,63,94,0.3)"
+                border: "none", 
+                color: "#fff", 
+                padding: "16px", 
+                borderRadius: "14px",
+                fontWeight: "800", 
+                cursor: sessionLoading ? "not-allowed" : "pointer", 
+                fontSize: "1rem",
+                boxShadow: "0 8px 20px rgba(244,63,94,0.3)",
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                marginTop: "10px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                opacity: sessionLoading ? 0.7 : 1,
+                transform: sessionLoading ? "scale(0.98)" : "scale(1)"
               }}
+              onMouseEnter={(e) => !sessionLoading && (e.currentTarget.style.transform = "translateY(-2px)", e.currentTarget.style.boxShadow = "0 12px 25px rgba(244,63,94,0.4)")}
+              onMouseLeave={(e) => !sessionLoading && (e.currentTarget.style.transform = "translateY(0)", e.currentTarget.style.boxShadow = "0 8px 20px rgba(244,63,94,0.3)")}
+              onMouseDown={(e) => !sessionLoading && (e.currentTarget.style.transform = "translateY(1px)")}
             >
-              {sessionLoading ? "Launching..." : "⚡ Generate Live QR"}
+              {sessionLoading ? (
+                <>
+                  <span style={{ 
+                    width: "20px", height: "20px", border: "3px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 1s linear infinite" 
+                  }}></span>
+                  Generating...
+                </>
+              ) : (
+                <>⚡ Generate Live QR</>
+              )}
             </button>
           </form>
         </div>

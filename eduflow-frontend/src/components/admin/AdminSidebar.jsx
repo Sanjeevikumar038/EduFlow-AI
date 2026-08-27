@@ -37,7 +37,7 @@ function AdminSidebar({ activeTab, setActiveTab, handleLogout }) {
         <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", color: "#fff", flexShrink: 0 }}>E</div>
         <div>
           <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.2rem", fontWeight: "700", color: "var(--text-main)", margin: 0, lineHeight: 1 }}>EduFlow</h2>
-          <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", margin: 0, textTransform: "uppercase", letterSpacing: "1px", marginTop: "2px" }}>Admin Portal</p>
+          <p style={{ fontSize: "0.7rem", color: "var(--text-muted)", margin: 0, textTransform: "uppercase", letterSpacing: "1px", marginTop: "2px" }}>Admin Console</p>
         </div>
       </div>
 

@@ -52,7 +52,7 @@ function FacultySidebar({ activeTab, setActiveTab, handleLogout, name, subtitle,
             <span style={{ fontWeight: "800", fontSize: "1.25rem", color: "var(--text-main)" }}>EduFlow</span>
           </div>
           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "2.2rem" }}>
-            Faculty Portal
+            Faculty Hub
           </span>
         </div>
 

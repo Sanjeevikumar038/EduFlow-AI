@@ -1,6 +1,6 @@
 import React from "react";
 
-function StatCard({ title, value, status, icon, caption, progress, color }) {
+function StatCard({ title, value, status, icon, caption, progress, color, loading }) {
   const badgeColor = color === "amber" ? "rgba(245, 158, 11, 0.15)" : color === "emerald" ? "rgba(16, 185, 129, 0.15)" : "rgba(244, 63, 94, 0.15)";
   const badgeText = color === "amber" ? "var(--warning)" : color === "emerald" ? "var(--success)" : "var(--error)";
   const barColor = color === "amber" ? "#f59e0b" : color === "emerald" ? "#10b981" : "#f43f5e";
@@ -14,36 +14,58 @@ function StatCard({ title, value, status, icon, caption, progress, color }) {
       display: "flex",
       flexDirection: "column",
       gap: "1rem",
-      flex: "1 1 240px"
+      flex: "1 1 240px",
+      position: "relative"
     }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <span style={{ fontSize: "1.2rem" }}>{icon}</span>
-          <span style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "0.95rem" }}>{title}</span>
+      {loading ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", animation: "pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "rgba(255,255,255,0.1)" }}></div>
+              <div style={{ width: "100px", height: "16px", borderRadius: "4px", background: "rgba(255,255,255,0.1)" }}></div>
+            </div>
+            <div style={{ width: "60px", height: "16px", borderRadius: "999px", background: "rgba(255,255,255,0.1)" }}></div>
+          </div>
+          <div>
+            <div style={{ width: "80px", height: "36px", borderRadius: "8px", background: "rgba(255,255,255,0.1)", marginTop: "0.5rem" }}></div>
+          </div>
+          <div>
+            <div style={{ height: "6px", width: "100%", backgroundColor: "rgba(255,255,255,0.05)", borderRadius: "999px", marginBottom: "0.5rem" }}></div>
+            <div style={{ width: "120px", height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.1)" }}></div>
+          </div>
         </div>
-        <span style={{
-          fontSize: "0.7rem",
-          fontWeight: "800",
-          color: badgeText,
-          backgroundColor: badgeColor,
-          padding: "2px 8px",
-          borderRadius: "999px",
-          textTransform: "uppercase"
-        }}>
-          {status}
-        </span>
-      </div>
-      <div>
-        <span style={{ fontSize: "2.25rem", fontWeight: "800", color: "var(--text-main)", fontFamily: "var(--font-heading)" }}>
-          {value}
-        </span>
-      </div>
-      <div>
-        <div style={{ height: "6px", width: "100%", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: "999px", overflow: "hidden", marginBottom: "0.5rem" }}>
-          <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, progress))}%`, backgroundColor: barColor, borderRadius: "999px" }} />
-        </div>
-        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{caption}</span>
-      </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ fontSize: "1.2rem" }}>{icon}</span>
+              <span style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "0.95rem" }}>{title}</span>
+            </div>
+            <span style={{
+              fontSize: "0.7rem",
+              fontWeight: "800",
+              color: badgeText,
+              backgroundColor: badgeColor,
+              padding: "2px 8px",
+              borderRadius: "999px",
+              textTransform: "uppercase"
+            }}>
+              {status}
+            </span>
+          </div>
+          <div>
+            <span style={{ fontSize: "2.25rem", fontWeight: "800", color: "var(--text-main)", fontFamily: "var(--font-heading)" }}>
+              {value}
+            </span>
+          </div>
+          <div>
+            <div style={{ height: "6px", width: "100%", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: "999px", overflow: "hidden", marginBottom: "0.5rem" }}>
+              <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, progress))}%`, backgroundColor: barColor, borderRadius: "999px" }} />
+            </div>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{caption}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -85,6 +107,7 @@ function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
           caption="Registered Students Count"
           progress={totalStud ? Math.min(100, totalStud) : 0}
           color="emerald"
+          loading={adminAnalyticsLoading}
         />
         <StatCard
           title="Total Faculty"
@@ -94,6 +117,7 @@ function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
           caption="Faculty & Instructors Count"
           progress={totalFac ? Math.min(100, totalFac * 5) : 0}
           color="amber"
+          loading={adminAnalyticsLoading}
         />
         <StatCard
           title="Total Sessions"
@@ -103,6 +127,7 @@ function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
           caption="Total Attendance Sessions"
           progress={totalSess ? Math.min(100, totalSess * 10) : 0}
           color="rose"
+          loading={adminAnalyticsLoading}
         />
       </div>
 
@@ -115,7 +140,20 @@ function AnalyticsControlView({ adminAnalytics, adminAnalyticsLoading }) {
             📋 Department-wise Breakdown
           </h3>
           {adminAnalyticsLoading ? (
-            <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>Loading comparisons...</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", animation: "pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite" }}>
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} style={{ paddingBottom: "1rem", borderBottom: "1px solid rgba(255,255,255,0.03)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <div style={{ width: "40%", height: "16px", background: "rgba(255,255,255,0.1)", borderRadius: "4px" }}></div>
+                    <div style={{ width: "10%", height: "16px", background: "rgba(255,255,255,0.1)", borderRadius: "4px" }}></div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: "999px", height: "6px" }}></div>
+                    <div style={{ width: "20%", height: "12px", background: "rgba(255,255,255,0.1)", borderRadius: "4px" }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
               {adminAnalytics?.departmentComparison && adminAnalytics.departmentComparison.length > 0 ? (
