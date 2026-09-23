@@ -1,5 +1,7 @@
 package com.eduflow.controller;
 
+import com.eduflow.service.FaceVerificationService;
+import org.springframework.beans.factory.annotation.Value;
 import com.eduflow.dto.StartSessionRequest;
 import com.eduflow.dto.MarkAttendanceRequest;
 import com.eduflow.dto.AttendanceRecordResponse;
@@ -73,6 +75,12 @@ public class AttendanceController {
 
     @Autowired
     private CourseClassroomRepository classroomRepository;
+
+    @Autowired
+    private FaceVerificationService faceVerificationService;
+
+    @Value("${eduflow.attendance.face.enabled:false}")
+    private boolean faceVerificationEnabled;
 
     private boolean isFacultyAssignedToSubject(User faculty, String subjectCodeOrName) {
         if (faculty == null) return false;
@@ -501,6 +509,12 @@ public class AttendanceController {
         User student = userOpt.get();
         if (student.getRole() != Role.STUDENT) {
             return ResponseEntity.status(403).body("Only students can mark attendance!");
+        }
+
+        if (faceVerificationEnabled) {
+            if (!faceVerificationService.isVerifiedRecent(student.getEmail())) {
+                return ResponseEntity.status(403).body("Mobile Face Verification is required to mark attendance!");
+            }
         }
 
         Optional<AttendanceSession> sessionOpt = attendanceSessionRepository.findById(request.getSessionId());

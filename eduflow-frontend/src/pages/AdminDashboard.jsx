@@ -1051,6 +1051,7 @@ function AdminDashboard() {
       await deleteStudent(id, token);
       showFeedback("Student account deleted successfully!");
       fetchData();
+      if (activeTab === "students") fetchStudentsList();
     } catch (error) {
       showFeedback(error.response?.data || "Failed to delete student account.", "error");
     }

@@ -2,7 +2,8 @@
 
 
 /* ─── DARK THEME (default) ────────────────────────────────────────────── */
-:root, [data-theme="dark"] {
+:root,
+[data-theme="dark"] {
   --font-heading: 'Outfit', sans-serif;
   --font-body: 'Plus Jakarta Sans', sans-serif;
 
@@ -307,8 +308,8 @@ body {
 }
 
 /* Modal Inner Container Cards in Light Theme */
-[data-theme="light"] [style*="position: fixed"] > div:not([style*="background: linear-gradient"]):not([style*="background:linear-gradient"]),
-[data-theme="light"] [style*="position:fixed"] > div:not([style*="background: linear-gradient"]):not([style*="background:linear-gradient"]) {
+[data-theme="light"] [style*="position: fixed"]>div:not([style*="background: linear-gradient"]):not([style*="background:linear-gradient"]),
+[data-theme="light"] [style*="position:fixed"]>div:not([style*="background: linear-gradient"]):not([style*="background:linear-gradient"]) {
   background-color: var(--bg-modal, #ffffff) !important;
   color: var(--text-main, #0f172a) !important;
   border-color: var(--card-border, #e2e8f0) !important;
@@ -846,6 +847,7 @@ body {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -856,6 +858,7 @@ body {
     opacity: 0;
     transform: translateY(16px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1573,6 +1576,7 @@ select.input-field,
     opacity: 0;
     transform: translate(-50%, -20px);
   }
+
   to {
     opacity: 1;
     transform: translate(-50%, 0);
@@ -1584,9 +1588,11 @@ select.input-field,
     opacity: 0;
     transform: translate(-50%, -20px);
   }
+
   60% {
     transform: translate(-50%, 4px);
   }
+
   100% {
     opacity: 1;
     transform: translate(-50%, 0);

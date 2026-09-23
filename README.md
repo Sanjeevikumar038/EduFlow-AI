@@ -103,7 +103,10 @@ Automated academic schedule management:
 Modernized attendance verification system:
 - **Overall Attendance Index %**: Real-time progress ring tracking total attended vs. conducted sessions across all subjects.
 - **Subject-Wise Breakdown**: Detailed per-subject attendance percentages with threshold warnings (e.g. `< 75%` warning badge).
-- **Face Recognition & Geofenced Verification**: Camera check-in verifying student face and GPS location against campus boundaries.
+- **Face Recognition & Geofenced Verification**: 
+  - **Instant FaceID-style Scanning**: Utilizes `@vladmandic/face-api` running entirely client-side to capture and generate a 128D face descriptor instantly upon detection.
+  - **Secure Identity Binding**: Matches live webcam face descriptor against registered student ID photos with a strict configurable distance threshold (e.g. 0.55) to prevent spoofing.
+  - **Geofenced Check-in**: Validates GPS location against institutional boundaries alongside face verification for dual-layer security.
 - **On-Duty (OD) & Leave Application Portal**: Submit medical leave or institutional OD requests with attached document proofs, status tracking (`PENDING`, `APPROVED`, `REJECTED`), and faculty approval workflow.
 
 ---
@@ -142,10 +145,11 @@ Comprehensive institutional administration:
 - **FontAwesome 6.4.0 (Free Vector Icons)**: Professional iconography across all modules.
 - **Chart.js & React-Chartjs-2**: Interactive visual analytics, radar charts, and attendance bar graphs.
 
-### Real-Time & Media API
+### Real-Time, Vision & Media APIs
 - **WebRTC (`navigator.mediaDevices.getUserMedia`)**: Camera video stream capture.
 - **HTML5 Canvas Context 2D**: Real-time image frame extraction and pixel luminance analysis.
 - **Web Speech API**: Live audio speech recognition and dynamic voice transcription.
+- **`@vladmandic/face-api`**: TensorFlow.js models running client-side for ultra-fast facial recognition (`tiny_face_detector`, `face_recognition_net`) and FaceID-style authentication without uploading video.
 
 ---
 
@@ -156,21 +160,25 @@ EduFlow/
 ├── eduflow-backend/                  # Spring Boot Backend Server
 │   ├── src/main/java/com/eduflow/
 │   │   ├── config/                   # SecurityConfig, CorsConfig, JwtConfig
-│   │   ├── controller/               # REST Controllers (Auth, Classroom, Attendance, etc.)
+│   │   ├── controller/               # REST Controllers (Auth, Classroom, FaceVerification, etc.)
 │   │   ├── dto/                      # Data Transfer Objects & API Schemas
 │   │   ├── entity/                   # JPA Entity Models (User, Classroom, Assessment, etc.)
 │   │   ├── repository/               # Spring Data Repositories
 │   │   ├── security/                 # JwtTokenProvider, JwtAuthFilter, UserDetails
-│   │   └── service/                  # Business Logic Services
+│   │   └── service/                  # Business Logic Services (including FaceVerificationService)
 │   ├── src/main/resources/
 │   │   ├── application.properties    # Database & Server Configuration
 │   │   └── data.sql                  # Initial Database Seed Script
 │   └── pom.xml                       # Maven Build Manifest
 │
 └── eduflow-frontend/                 # React 18 Vite Frontend Application
+    ├── public/
+    │   ├── models/                   # Pre-trained TensorFlow.js Face API Weights
+    │   └── students_photos/          # Registered Student Identification Photos
     ├── src/
     │   ├── assets/                   # Static Media & Icons
     │   ├── components/               # Reusable UI Components
+    │   │   ├── attendance/           # MobileFaceVerification, QRScanner
     │   │   ├── analytics/            # FacultyAnalytics, StudentGradebook
     │   │   ├── career/               # InterviewDashboard, CodingDashboard, NotificationBell
     │   │   ├── layout/               # StudentPortalLayout, FacultyLayout, AdminLayout
@@ -283,7 +291,8 @@ cd EduFlow
 - `GET /api/timetable/student`: Fetch weekly class timetable.
 - `GET /api/timetable/current-status`: Retrieve live period status and active subject.
 - `GET /api/attendance/summary`: Get overall and subject-wise attendance percentages.
-- `POST /api/attendance/mark`: Record facial/geofenced attendance check-in.
+- `POST /api/attendance/mobile-face-verify`: Bind successful client-side FaceID verification to JWT session (5-min expiry).
+- `POST /api/attendance/mark`: Record facial/geofenced attendance check-in (blocked if face verification token invalid).
 - `POST /api/attendance/leave-request`: Submit Leave or On-Duty (OD) application.
 
 ### 💻 Coding & AI Services API (`/api/coding`, `/api/ai`, `/api/resume`)

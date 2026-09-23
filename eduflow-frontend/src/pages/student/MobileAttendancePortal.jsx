@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getActiveSession, markAttendance, getStudentAnalytics } from "../../services/attendanceService";
 import { Html5Qrcode } from "html5-qrcode";
+import MobileFaceVerification from "../../components/attendance/MobileFaceVerification";
 
 function MobileAttendancePortal() {
   const navigate = useNavigate();
@@ -31,6 +32,9 @@ function MobileAttendancePortal() {
   // Analytics & Enrolled Subjects states
   const [analytics, setAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+  // Security
+  const [faceVerified, setFaceVerified] = useState(false);
 
   const showResult = (success, message) => {
     setScanResult({ success, message });
@@ -341,6 +345,16 @@ function MobileAttendancePortal() {
     activeSessionId: activeSession.id,
     timeLeftSeconds: timeLeft
   } : null);
+
+  if (!faceVerified) {
+    return (
+      <MobileFaceVerification 
+        onVerificationSuccess={() => setFaceVerified(true)} 
+        studentRegNumber={registerNumber}
+        token={token}
+      />
+    );
+  }
 
   return (
     <div style={{

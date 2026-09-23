@@ -16,13 +16,21 @@ class SpeechRecognitionService {
             this.recognition.lang = 'en-US';
 
             this.recognition.onresult = (event) => {
-                let currentTranscript = '';
+                let interimTranscript = '';
+                let finalTranscriptChunk = '';
+
                 for (let i = event.resultIndex; i < event.results.length; i++) {
-                    currentTranscript += event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscriptChunk += event.results[i][0].transcript + ' ';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
                 }
                 
+                this.transcript += finalTranscriptChunk;
+                
                 if (this.onResultCallback) {
-                    this.onResultCallback(currentTranscript, event.results[event.results.length - 1].isFinal);
+                    this.onResultCallback(this.transcript + interimTranscript, event.results[event.results.length - 1].isFinal);
                 }
             };
 
@@ -35,6 +43,14 @@ class SpeechRecognitionService {
 
             this.recognition.onend = () => {
                 this.isRecording = false;
+                if (this.shouldRecord) {
+                    try {
+                        this.recognition.start();
+                        this.isRecording = true;
+                    } catch (e) {
+                        console.error("Could not restart recording", e);
+                    }
+                }
             };
         } else {
             console.error("Speech Recognition API is not supported in this browser.");
@@ -52,8 +68,9 @@ class SpeechRecognitionService {
             return;
         }
 
-        if (this.isRecording) return;
+        if (this.shouldRecord) return;
         
+        this.shouldRecord = true;
         this.transcript = '';
         try {
             this.recognition.start();
@@ -64,6 +81,7 @@ class SpeechRecognitionService {
     }
 
     stopRecording() {
+        this.shouldRecord = false;
         if (!this.recognition || !this.isRecording) return;
         
         this.recognition.stop();
