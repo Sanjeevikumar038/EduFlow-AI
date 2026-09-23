@@ -1,23 +1,24 @@
-# 1. Use JDK 17 as base
-FROM openjdk:17-jdk-slim
+# Build stage
+FROM maven:3.9-eclipse-temurin-17 AS build
 
-# 2. Install GCC, G++, Python 3, and Maven
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    python3 \
-    maven \
-    && rm -rf /var/lib/apt/lists/*
-
-# 3. Create app directory
 WORKDIR /app
 
-# 4. Copy source code and build
-COPY . .
+COPY pom.xml .
+
+RUN mvn dependency:go-offline -B
+
+COPY src ./src
+
 RUN mvn clean package -DskipTests
 
-# 5. Expose port 8080
+
+# Runtime stage
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+
+COPY --from=build /app/target/eduflow-backend-0.0.1-SNAPSHOT.jar app.jar
+
 EXPOSE 8080
 
-# 6. Run the Spring Boot application
-ENTRYPOINT ["java", "-jar", "target/eduflow-backend-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
