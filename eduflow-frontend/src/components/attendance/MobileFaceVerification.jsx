@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import axios from 'axios';
+import API_BASE from '../../services/api';
 
-// The max distance threshold for a face match (configurable via application.properties on backend, but also here for client-side decision)
-const MAX_DISTANCE_THRESHOLD = 0.55;
+const MAX_DISTANCE_THRESHOLD = 0.65;
 
 export default function MobileFaceVerification({ onVerificationSuccess, studentRegNumber, token }) {
   const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -12,14 +12,11 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
   const [errorMsg, setErrorMsg] = useState(null);
 
   const videoRef = useRef(null);
-
   const [referenceDescriptor, setReferenceDescriptor] = useState(null);
-  const [verificationState, setVerificationState] = useState('init'); // init, position, blink, match, success, failed
+  const [verificationState, setVerificationState] = useState('init'); // init, position, match, success, failed
 
-  // EAR tracking
-  const earHistory = useRef([]);
-  const hasBlinked = useRef(false);
   const verifyingRef = useRef(false);
+  const consecutiveFramesRef = useRef(0);
 
   useEffect(() => {
     const loadModelsAndReference = async () => {
@@ -34,7 +31,6 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
         setModelsLoaded(true);
         setStatus('Initializing camera...');
 
-        // Load reference photo
         if (!studentRegNumber) {
           throw new Error('Student Register Number is required');
         }
@@ -102,75 +98,36 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
       if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
       try {
-        const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+        // Use optimized TinyFaceDetector configuration for mobile reliability
+        const detectorOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
+        
+        const detection = await faceapi.detectSingleFace(videoRef.current, detectorOptions)
           .withFaceLandmarks()
-          .withFaceDescriptors();
+          .withFaceDescriptor();
 
-        if (detections.length === 0) {
+        if (!detection) {
+          consecutiveFramesRef.current = 0;
           setStatus('Please position your face inside the camera frame.');
           setVerificationState('position');
           return;
         }
 
-        if (detections.length > 1) {
-          setStatus('Only one person should be visible.');
-          setVerificationState('position');
-          return;
-        }
+        consecutiveFramesRef.current += 1;
+        setStatus('Verifying face...');
+        setVerificationState('match');
 
-        const face = detections[0];
-
-        // Blink detection using Eye Aspect Ratio (EAR)
-        const landmarks = face.landmarks;
-        const leftEye = landmarks.getLeftEye();
-        const rightEye = landmarks.getRightEye();
-
-        const calculateEAR = (eye) => {
-          const v1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
-          const v2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
-          const h = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
-          return (v1 + v2) / (2.0 * h);
-        };
-
-        const leftEAR = calculateEAR(leftEye);
-        const rightEAR = calculateEAR(rightEye);
-        const ear = (leftEAR + rightEAR) / 2;
-
-        earHistory.current.push(ear);
-        if (earHistory.current.length > 15) earHistory.current.shift();
-
-        // Detect blink: rapid drop then rise in EAR
-        if (!hasBlinked.current) {
-          setStatus('Please blink');
-          setVerificationState('blink');
-
-          if (earHistory.current.length === 15) {
-            const minEAR = Math.min(...earHistory.current);
-            const maxEAR = Math.max(...earHistory.current);
-
-            // Typical open EAR is ~0.3, closed is ~0.15
-            if (minEAR < 0.22 && maxEAR > 0.28) {
-              hasBlinked.current = true;
-              setStatus('Verifying face...');
-              setVerificationState('match');
-            }
-          }
-        }
-
-        if (hasBlinked.current && !verifyingRef.current) {
+        // Require 3 consecutive successful face detections to prevent blurry/ghost frames
+        if (consecutiveFramesRef.current >= 3 && !verifyingRef.current) {
           verifyingRef.current = true;
 
-          // Face matching
-          const distance = faceapi.euclideanDistance(face.descriptor, referenceDescriptor);
+          const distance = faceapi.euclideanDistance(detection.descriptor, referenceDescriptor);
           console.log("Face Distance:", distance);
 
           if (distance <= MAX_DISTANCE_THRESHOLD) {
-            setStatus('Face verification successful');
+            setStatus('Face verified successfully');
             setVerificationState('success');
 
             try {
-              // Notify backend
-              const API_BASE = `http://${window.location.hostname}:8080`;
               await axios.post(`${API_BASE}/api/attendance/mobile-face-verify`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
               });
@@ -186,17 +143,16 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
               stopCamera();
             }
           } else {
-            setStatus('Face verification failed. Face mismatch.');
+            setStatus('Face does not match the registered photo');
             setVerificationState('failed');
-            setErrorMsg(`The live face does not match the registered student photograph.`);
+            setErrorMsg(`The live face does not match the registered student photograph. (Score: ${distance.toFixed(3)})`);
             stopCamera();
           }
         }
-
       } catch (e) {
         console.error("Detection error:", e);
       }
-    }, 150); // running at ~6 FPS for efficiency
+    }, 200); // Check ~5 times a second
 
     return () => clearInterval(interval);
   };
@@ -204,9 +160,8 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
   const retry = () => {
     setVerificationState('position');
     setErrorMsg(null);
-    hasBlinked.current = false;
     verifyingRef.current = false;
-    earHistory.current = [];
+    consecutiveFramesRef.current = 0;
     startCamera();
   };
 
@@ -244,13 +199,13 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
             />
           )}
 
-          {verificationState === 'blink' && (
+          {verificationState === 'match' && !errorMsg && (
             <div style={{
               position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)',
               background: 'rgba(59,130,246,0.9)', padding: '6px 16px', borderRadius: '20px',
               fontWeight: '700', fontSize: '0.9rem', animation: 'pulse 1.5s infinite'
             }}>
-              <i className="fa-regular fa-eye"></i> Blink to confirm liveness
+              <i className="fa-solid fa-spinner fa-spin"></i> Verifying...
             </div>
           )}
         </div>
@@ -274,3 +229,4 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
     </div>
   );
 }
+
