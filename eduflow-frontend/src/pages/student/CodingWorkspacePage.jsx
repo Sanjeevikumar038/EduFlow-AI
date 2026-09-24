@@ -684,7 +684,7 @@ const CodingWorkspacePage = () => {
                 {/* Right Panel: Editor and Results stacked vertically */}
                 <div style={{
                     flex: "0 0 55%",
-                    background: "#09090b",
+                    background: "#ffffff",
                     display: "flex",
                     flexDirection: "column",
                     height: "100%",
@@ -809,7 +809,7 @@ const CodingWorkspacePage = () => {
                             overflowY: "auto",
                             display: "flex",
                             flexDirection: "column",
-                            background: "#09090b"
+                            background: "#ffffff"
                         }}
                     >
                         {/* Actual Text Editor Area - Fixed Height for Scrolling */}
@@ -931,35 +931,35 @@ const CodingWorkspacePage = () => {
                             <div 
                                 ref={resultsRef}
                                 style={{
-                                    background: "#09090b",
-                                    borderTop: "1px solid #27272a",
+                                    background: "#ffffff",
+                                    borderTop: "1px solid #e2e8f0",
                                     display: "flex",
                                     flexDirection: "column",
-                                    color: "#f4f4f5",
+                                    color: "#0f172a",
                                     flexShrink: 0
                                 }}
                             >
                                 <div style={{
-                                    background: "#18181b",
+                                    background: "#f8fafc",
                                     padding: "12px 24px",
                                     display: "flex",
                                     justifyContent: "space-between",
                                     alignItems: "center",
-                                    borderBottom: "1px solid #27272a"
+                                    borderBottom: "1px solid #e2e8f0"
                                 }}>
-                                    <span style={{ fontSize: "0.85rem", color: "#e4e4e7", fontWeight: "700", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <span style={{ fontSize: "0.85rem", color: "#334155", fontWeight: "700", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "8px" }}>
                                         <i className="fa-solid fa-terminal" style={{ color: "#38bdf8" }}></i> Assessment Terminal
                                     </span>
                                     <button 
                                         onClick={() => setShowTerminal(false)}
-                                        style={{ background: "none", border: "none", color: "#a1a1aa", cursor: "pointer", fontSize: "0.85rem", fontWeight: "700", transition: "color 0.2s" }}
-                                        onMouseEnter={e => e.currentTarget.style.color = "#fff"}
-                                        onMouseLeave={e => e.currentTarget.style.color = "#a1a1aa"}
+                                        style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontSize: "0.85rem", fontWeight: "700", transition: "color 0.2s" }}
+                                        onMouseEnter={e => e.currentTarget.style.color = "#0f172a"}
+                                        onMouseLeave={e => e.currentTarget.style.color = "#64748b"}
                                     >
                                         ✕ Clear
                                     </button>
                                 </div>
-                                <div style={{ padding: "24px", color: "#f4f4f5" }}>
+                                <div style={{ padding: "24px", color: "#0f172a" }}>
                                     {execStatus === "RUNNING" ? (
                                         <div style={{ color: "#38bdf8", fontWeight: "700", display: "flex", alignItems: "center", gap: "12px", fontSize: "0.95rem" }}>
                                             <i className="fa-solid fa-circle-notch fa-spin"></i> Executing code on isolated server...
@@ -969,7 +969,7 @@ const CodingWorkspacePage = () => {
                                             
                                             {/* Result Summary Banner */}
                                             <div>
-                                                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.85rem", color: "#a1a1aa", fontWeight: "700", textTransform: "uppercase" }}>Test Result</h4>
+                                                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.85rem", color: "#64748b", fontWeight: "700", textTransform: "uppercase" }}>Test Result</h4>
                                                 <div style={{
                                                     background: passedCount === totalCount && totalCount > 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(245, 158, 11, 0.1)",
                                                     border: `1px solid ${passedCount === totalCount && totalCount > 0 ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
@@ -992,10 +992,10 @@ const CodingWorkspacePage = () => {
 
                                             {/* Compiler Message */}
                                             <div>
-                                                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.85rem", color: "#a1a1aa", fontWeight: "700", textTransform: "uppercase" }}>Compiler Log</h4>
+                                                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.85rem", color: "#64748b", fontWeight: "700", textTransform: "uppercase" }}>Compiler Log</h4>
                                                 <div style={{
-                                                    background: "#18181b",
-                                                    border: "1px solid #27272a",
+                                                    background: "#f8fafc",
+                                                    border: "1px solid #e2e8f0",
                                                     borderRadius: "8px",
                                                     padding: "16px",
                                                     fontSize: "0.85rem",
@@ -1012,16 +1012,16 @@ const CodingWorkspacePage = () => {
                                             {/* Action Specific Outputs */}
                                             {actionType === 'RUN' && (
                                                 <div>
-                                                    <h4 style={{ margin: "0 0 12px 0", fontSize: "0.85rem", color: "#a1a1aa", fontWeight: "700", textTransform: "uppercase" }}>Testcase Details</h4>
+                                                    <h4 style={{ margin: "0 0 12px 0", fontSize: "0.85rem", color: "#64748b", fontWeight: "700", textTransform: "uppercase" }}>Testcase Details</h4>
                                                     {testCaseResults.map((tc, idx) => (
-                                                        <div key={idx} style={{ marginBottom: "16px", borderRadius: "8px", overflow: "hidden", border: "1px solid #27272a" }}>
+                                                        <div key={idx} style={{ marginBottom: "16px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
                                                             <div style={{
-                                                                background: "#18181b",
+                                                                background: "#f1f5f9",
                                                                 padding: "10px 16px",
                                                                 fontSize: "0.85rem",
                                                                 fontWeight: "700",
                                                                 color: tc.passed ? "#10b981" : "#ef4444",
-                                                                borderBottom: "1px solid #27272a",
+                                                                borderBottom: "1px solid #e2e8f0",
                                                                 display: "flex",
                                                                 alignItems: "center",
                                                                 gap: "8px"
@@ -1033,13 +1033,13 @@ const CodingWorkspacePage = () => {
                                                                 display: "grid",
                                                                 gridTemplateColumns: "1fr 1fr",
                                                                 gap: "1px",
-                                                                background: "#27272a"
+                                                                background: "#e2e8f0"
                                                             }}>
-                                                                <div style={{ background: "#09090b", padding: "16px" }}>
-                                                                    <div style={{ fontSize: "0.75rem", fontWeight: "700", color: "#a1a1aa", marginBottom: "8px" }}>Expected Output</div>
+                                                                <div style={{ background: "#ffffff", padding: "16px" }}>
+                                                                    <div style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", marginBottom: "8px" }}>Expected Output</div>
                                                                     <div style={{
-                                                                        background: "#18181b",
-                                                                        border: "1px solid #27272a",
+                                                                        background: "#f8fafc",
+                                                                        border: "1px solid #e2e8f0",
                                                                         padding: "12px",
                                                                         borderRadius: "6px",
                                                                         fontFamily: "'Fira Code', monospace",
@@ -1047,14 +1047,14 @@ const CodingWorkspacePage = () => {
                                                                         height: "100px",
                                                                         overflowY: "auto",
                                                                         whiteSpace: "pre-wrap",
-                                                                        color: "#e4e4e7"
+                                                                        color: "#334155"
                                                                     }}>{tc.expected}</div>
                                                                 </div>
-                                                                <div style={{ background: "#09090b", padding: "16px" }}>
-                                                                    <div style={{ fontSize: "0.75rem", fontWeight: "700", color: "#a1a1aa", marginBottom: "8px" }}>Your Output</div>
+                                                                <div style={{ background: "#ffffff", padding: "16px" }}>
+                                                                    <div style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", marginBottom: "8px" }}>Your Output</div>
                                                                     <div style={{
-                                                                        background: "#18181b",
-                                                                        border: "1px solid #27272a",
+                                                                        background: "#f8fafc",
+                                                                        border: "1px solid #e2e8f0",
                                                                         padding: "12px",
                                                                         borderRadius: "6px",
                                                                         fontFamily: "'Fira Code', monospace",
@@ -1073,23 +1073,23 @@ const CodingWorkspacePage = () => {
 
                                             {actionType === 'SUBMIT' && (
                                                 <div>
-                                                    <h4 style={{ margin: "0 0 12px 0", fontSize: "0.85rem", color: "#a1a1aa", fontWeight: "700", textTransform: "uppercase" }}>Test Cases Execution Details</h4>
-                                                    <div style={{ overflowX: "auto", border: "1px solid #27272a", borderRadius: "8px", background: "#09090b" }}>
-                                                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left", color: "#e4e4e7" }}>
+                                                    <h4 style={{ margin: "0 0 12px 0", fontSize: "0.85rem", color: "#64748b", fontWeight: "700", textTransform: "uppercase" }}>Test Cases Execution Details</h4>
+                                                    <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "8px", background: "#ffffff" }}>
+                                                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left", color: "#334155" }}>
                                                             <thead>
-                                                                <tr style={{ background: "#18181b", borderBottom: "1px solid #27272a" }}>
-                                                                    <th style={{ padding: "12px 16px", color: "#a1a1aa" }}>Test Case</th>
-                                                                    <th style={{ padding: "12px 16px", color: "#a1a1aa" }}>Result</th>
-                                                                    <th style={{ padding: "12px 16px", color: "#a1a1aa" }}>Status</th>
-                                                                    <th style={{ padding: "12px 16px", color: "#a1a1aa" }}>Time (ms)</th>
-                                                                    <th style={{ padding: "12px 16px", color: "#a1a1aa" }}>Message</th>
-                                                                    <th style={{ padding: "12px 16px", color: "#a1a1aa" }}>Time Compl.</th>
-                                                                    <th style={{ padding: "12px 16px", color: "#a1a1aa" }}>Space Compl.</th>
+                                                                <tr style={{ background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>
+                                                                    <th style={{ padding: "12px 16px", color: "#64748b" }}>Test Case</th>
+                                                                    <th style={{ padding: "12px 16px", color: "#64748b" }}>Result</th>
+                                                                    <th style={{ padding: "12px 16px", color: "#64748b" }}>Status</th>
+                                                                    <th style={{ padding: "12px 16px", color: "#64748b" }}>Time (ms)</th>
+                                                                    <th style={{ padding: "12px 16px", color: "#64748b" }}>Message</th>
+                                                                    <th style={{ padding: "12px 16px", color: "#64748b" }}>Time Compl.</th>
+                                                                    <th style={{ padding: "12px 16px", color: "#64748b" }}>Space Compl.</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
                                                                 {testCaseResults.map((tc, idx) => (
-                                                                    <tr key={idx} style={{ borderBottom: "1px solid #18181b" }}>
+                                                                    <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
                                                                         <td style={{ padding: "12px 16px", fontWeight: "700" }}>{idx + 1}</td>
                                                                         <td style={{ padding: "12px 16px" }}>
                                                                             {tc.passed 
@@ -1103,11 +1103,11 @@ const CodingWorkspacePage = () => {
                                                                         <td style={{ padding: "12px 16px" }}>
                                                                             {200 + (idx * 94) % 450} ms
                                                                         </td>
-                                                                        <td style={{ padding: "12px 16px", color: "#94a3b8" }}>
+                                                                        <td style={{ padding: "12px 16px", color: "#475569" }}>
                                                                             {tc.passed ? "Compilation successful" : tc.error || "Wrong Answer"}
                                                                         </td>
-                                                                        <td style={{ padding: "12px 16px", color: "#52525b" }}>-</td>
-                                                                        <td style={{ padding: "12px 16px", color: "#52525b" }}>-</td>
+                                                                        <td style={{ padding: "12px 16px", color: "#94a3b8" }}>-</td>
+                                                                        <td style={{ padding: "12px 16px", color: "#94a3b8" }}>-</td>
                                                                     </tr>
                                                                 ))}
                                                             </tbody>
@@ -1119,7 +1119,7 @@ const CodingWorkspacePage = () => {
                                                             <div style={{ fontSize: "0.9rem", color: "#c084fc", fontWeight: "800", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
                                                                 <i className="fa-solid fa-wand-magic-sparkles"></i> AI Code Review
                                                             </div>
-                                                            <div style={{ fontSize: "0.9rem", color: "#e4e4e7", whiteSpace: "pre-line", lineHeight: "1.6" }}>
+                                                            <div style={{ fontSize: "0.9rem", color: "#334155", whiteSpace: "pre-line", lineHeight: "1.6" }}>
                                                                 {aiReviewFeedback}
                                                             </div>
                                                         </div>

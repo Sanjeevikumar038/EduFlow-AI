@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE = `http://${window.location.hostname}:8080`;
+import API_BASE from "./api";
 const TIMETABLE_API = `${API_BASE}/api/timetable`;
 const ADMIN_API = `${API_BASE}/api/admin`;
 

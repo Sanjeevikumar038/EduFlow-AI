@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE = `http://${window.location.hostname}:8080`;
+import API_BASE from "./api";
 const ATTENDANCE_API = `${API_BASE}/api/attendance`;
 
 const getToken = (t) => (t && t !== "undefined" && t !== "null" ? t : localStorage.getItem("token"));

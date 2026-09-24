@@ -250,15 +250,20 @@ function StudentPortalLayout() {
     : "ST";
   const firstName = name ? name.split(" ")[0] : "Student";
 
-  const [isMobileScreen, setIsMobileScreen] = useState(window.innerWidth < 768);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => setIsMobileScreen(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const checkMobile = () => {
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isSmallScreen = window.innerWidth < 768;
+      setIsMobileDevice(isMobileUA && isSmallScreen);
+    };
+    checkMobile(); // Check immediately
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  if (isMobileScreen) {
+  if (isMobileDevice) {
     return <MobileAttendancePortal />;
   }
 

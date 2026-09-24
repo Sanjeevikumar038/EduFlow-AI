@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE = `http://${window.location.hostname}:8080`;
+import API_BASE from "./api";
 const AUTH_API = `${API_BASE}/auth`;
 const ADMIN_API = `${API_BASE}/api/admin`;
 
