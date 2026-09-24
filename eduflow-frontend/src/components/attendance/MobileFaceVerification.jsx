@@ -12,13 +12,24 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
   const [errorMsg, setErrorMsg] = useState(null);
 
   const videoRef = useRef(null);
-  const [referenceDescriptor, setReferenceDescriptor] = useState(null);
+  
+  // Use a ref for the reference descriptor to avoid closure issues in setInterval
+  const referenceDescriptorRef = useRef(null);
   const [verificationState, setVerificationState] = useState('init'); // init, position, match, success, failed
 
   const verifyingRef = useRef(false);
   const consecutiveFramesRef = useRef(0);
+  
+  // Normalize register number
+  const exactRegNumber = studentRegNumber ? studentRegNumber.toUpperCase() : "UNKNOWN";
+  const expectedPhotoFilename = `${exactRegNumber.toLowerCase()}.jpg`;
 
   useEffect(() => {
+    // 13. Make sure the reference descriptor is reset whenever a different student logs in.
+    referenceDescriptorRef.current = null;
+    verifyingRef.current = false;
+    consecutiveFramesRef.current = 0;
+
     const loadModelsAndReference = async () => {
       try {
         const MODEL_URL = '/models';
@@ -31,27 +42,36 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
         setModelsLoaded(true);
         setStatus('Initializing camera...');
 
-        if (!studentRegNumber) {
-          throw new Error('Student Register Number is required');
+        if (!studentRegNumber || exactRegNumber === "UNKNOWN") {
+          throw new Error('Student Register Number is missing from session.');
         }
 
-        const photoUrl = `/students_photos/${studentRegNumber.toLowerCase()}.jpg`;
+        // 3. Construct ONLY that student's reference photo
+        const photoUrl = `/students_photos/${expectedPhotoFilename}`;
+        
+        // 4. Log the resolved reference filename during development
+        console.log(`Login ${exactRegNumber} -> ${expectedPhotoFilename}`);
+
+        let img;
         try {
-          const img = await faceapi.fetchImage(photoUrl);
-          const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-
-          if (!detection) {
-            throw new Error('No face detected in registered photograph. Contact admin.');
-          }
-          setReferenceDescriptor(detection.descriptor);
-          startCamera();
+          img = await faceapi.fetchImage(photoUrl);
         } catch (photoErr) {
-          console.error("Photo Error:", photoErr);
-          throw new Error('Face verification cannot be completed because no valid registered student photograph is available. Please contact the administrator.');
+          // 5. Load the reference image successfully. If cannot be loaded: STOP verification.
+          console.error("Failed to load reference image:", photoErr);
+          throw new Error('Registered reference photo could not be loaded.');
         }
 
+        const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (!detection || !detection.descriptor) {
+          // 6. Generate the reference face descriptor. If no face is detected: STOP.
+          throw new Error('No face detected in the registered photograph. Contact admin.');
+        }
+        
+        referenceDescriptorRef.current = detection.descriptor;
+        startCamera();
       } catch (err) {
         setErrorMsg(err.message);
         setStatus('Failed');
@@ -62,8 +82,9 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
 
     return () => {
       stopCamera();
+      referenceDescriptorRef.current = null;
     };
-  }, [studentRegNumber]);
+  }, [studentRegNumber, exactRegNumber, expectedPhotoFilename]);
 
   const startCamera = async () => {
     try {
@@ -87,10 +108,13 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
     }
+    if (videoRef.current) {
+        videoRef.current.srcObject = null;
+    }
   };
 
   const handleVideoPlay = () => {
-    if (!modelsLoaded || !referenceDescriptor) return;
+    if (!modelsLoaded || !referenceDescriptorRef.current) return;
 
     const interval = setInterval(async () => {
       if (verifyingRef.current || verificationState === 'success' || verificationState === 'failed') return;
@@ -98,14 +122,13 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
       if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
       try {
-        // Use optimized TinyFaceDetector configuration for mobile reliability
         const detectorOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
         
         const detection = await faceapi.detectSingleFace(videoRef.current, detectorOptions)
           .withFaceLandmarks()
           .withFaceDescriptor();
 
-        if (!detection) {
+        if (!detection || !detection.descriptor) {
           consecutiveFramesRef.current = 0;
           setStatus('Please position your face inside the camera frame.');
           setVerificationState('position');
@@ -116,12 +139,30 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
         setStatus('Verifying face...');
         setVerificationState('match');
 
-        // Require 3 consecutive successful face detections to prevent blurry/ghost frames
         if (consecutiveFramesRef.current >= 3 && !verifyingRef.current) {
           verifyingRef.current = true;
+          
+          // 12. No fallback if referenceDescriptor is missing
+          if (!referenceDescriptorRef.current) {
+              throw new Error("Reference descriptor missing during live matching.");
+          }
 
-          const distance = faceapi.euclideanDistance(detection.descriptor, referenceDescriptor);
-          console.log("Face Distance:", distance);
+          // 7 & 8. Generate live face descriptor and Calculate distance
+          const liveDescriptor = detection.descriptor;
+          const distance = faceapi.euclideanDistance(liveDescriptor, referenceDescriptorRef.current);
+          
+          // 9. Log the distance for development testing
+          console.log("--- FACE VERIFICATION LOG ---");
+          console.log(`Register Number: ${exactRegNumber}`);
+          console.log(`Reference Filename: ${expectedPhotoFilename}`);
+          console.log(`Calculated Distance: ${distance}`);
+          console.log(`Threshold: ${MAX_DISTANCE_THRESHOLD}`);
+          console.log("-----------------------------");
+
+          // 16. Verify all conditions before hitting backend
+          if (distance === null || distance === undefined || isNaN(distance)) {
+              throw new Error("Distance calculation failed.");
+          }
 
           if (distance <= MAX_DISTANCE_THRESHOLD) {
             setStatus('Face verified successfully');
@@ -143,6 +184,7 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
               stopCamera();
             }
           } else {
+            // 17. If distance > 0.65 reject and allow retry
             setStatus('Face does not match the registered photo');
             setVerificationState('failed');
             setErrorMsg(`The live face does not match the registered student photograph. (Score: ${distance.toFixed(3)})`);
@@ -151,8 +193,14 @@ export default function MobileFaceVerification({ onVerificationSuccess, studentR
         }
       } catch (e) {
         console.error("Detection error:", e);
+        if (verifyingRef.current) {
+            setStatus('Verification Error');
+            setVerificationState('failed');
+            setErrorMsg(`An error occurred during verification: ${e.message}`);
+            stopCamera();
+        }
       }
-    }, 200); // Check ~5 times a second
+    }, 200);
 
     return () => clearInterval(interval);
   };
