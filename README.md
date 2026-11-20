@@ -336,7 +336,7 @@ EduFlow-AI features a dynamic CSS Token Design System supporting both Dark and L
 
 This project is developed for educational and institutional research purposes under the **MIT License**.
 
-- **Designed & Developed by**: [Sanjeevikumar D](https://github.com/Sanjeevikumar038)
+- **Designed & Developed by**: [Sanjeevikumar D](https://github.com/Sanjeevikumar038) [Sriram S](https://github.com/Sri-5) 
 - **Institution**: Sri Krishna College of Engineering and Technology (SKCET)
 - **Department**: Department of MTech Computer Science and Engineering
 
